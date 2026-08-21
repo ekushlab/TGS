@@ -9,6 +9,7 @@ import {
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "../utils/supabaseClient";
 import { mobileToEmail, normalizeMobile } from "../utils/mobileAuth";
+import { registerDeviceTokenForUser } from "../utils/pushNotifications";
 
 export interface Profile {
   id: string;
@@ -68,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!isMounted) return;
       setSession(data.session);
+      registerDeviceTokenForUser(data.session?.user?.id ?? null);
       if (data.session?.user) {
         await loadProfile(data.session.user.id);
       }
@@ -78,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       async (_event, newSession) => {
         if (!isMounted) return;
         setSession(newSession);
+        registerDeviceTokenForUser(newSession?.user?.id ?? null);
         if (newSession?.user) {
           await loadProfile(newSession.user.id);
         } else {
