@@ -1,0 +1,8 @@
+{
+  "name": "Remix Trust Growth Society Ledger",
+  "description": "Financial ledger and member management system for Trust Growth Society with deposit records, bank balances, and expense tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
