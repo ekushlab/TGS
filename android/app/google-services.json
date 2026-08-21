@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "907670161324",
+    "project_id": "tgs-ledger",
+    "storage_bucket": "tgs-ledger.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:907670161324:android:ac3fcc3504b61aa79bdc09",
+        "android_client_info": {
+          "package_name": "com.trustgrowth.society.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJI325_lqcrTUym1dI78v3GQCgD6xyyFI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
