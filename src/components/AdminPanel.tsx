@@ -31,8 +31,9 @@ import { AppSettings, Member, Deposit, Poll, AppNotification } from "../types";
 import { useLanguage } from "../utils/LanguageContext";
 import { AdminCredentialGeneratorModal } from "./AdminCredentialGeneratorModal";
 import { MemberLoginManager } from "./MemberLoginManager";
+import { SendNotificationManager } from "./SendNotificationManager";
 import { isSupabaseConfigured } from "../utils/supabaseClient";
-import { UserCog } from "lucide-react";
+import { UserCog, BellRing } from "lucide-react";
 
 interface AdminPanelProps {
   members: Member[];
@@ -82,6 +83,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const { language, formatNumber, formatMoney } = useLanguage();
   const [showCredentialModal, setShowCredentialModal] = useState(false);
   const [showLoginManager, setShowLoginManager] = useState(false);
+  const [showNotificationManager, setShowNotificationManager] = useState(false);
   const activePolls = polls.filter((p) => p.status === "active");
   const activePollsCount = activePolls.length;
   const isLiveVotingEnabled = settings.isLiveVotingEnabled !== false;
@@ -116,8 +118,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
         const resolutionSummary =
           passed23
-            ? `সর্বমোট ${totalVotes} জন সদস্যের প্রদত্ত ভোটের ${pct}% (প্রয়োজনীয় ২/৩ সংখ্যাগরিষ্ঠতা অর্জন) সমর্থনে '${leadOptText}' চূড়ান্তভাবে অনুমোদিত ও রেজোলিউশন আকারে গৃহীত হলো।`
-            : `সর্বমোট ${totalVotes} জন সদস্যের প্রদত্ত ভোটের মধ্যে সর্বোচ্চ '${leadOptText}' (${pct}%) ভোট পেলেও প্রয়োজনীয় ২/৩ (দুই-তৃতীয়াংশ = ৬৬.৭%) সংখ্যাগরিষ্ঠতা না পাওয়ায় প্রস্তাবটি পাস হয়নি / স্থগিত রাখা হলো।`;
+            ? `সর্বমোট ${totalVotes} জন সদস্যের প্রদত্ত ভোটের ${pct}% (প্রয়োজনীয় ২/৩ সংখ্যাগরিষ্ঠতা অর্জন) সমর্থনে '${leadOptText}' চূড়ান্তভাবে অনুমোদিত ও রেজোলিউশন আকারে গৃহীত হলো।`
+            : `সর্বমোট ${totalVotes} জন সদস্যের প্রদত্ত ভোটের মধ্যে সর্বোচ্চ '${leadOptText}' (${pct}%) ভোট পেলেও প্রয়োজনীয় ২/৩ (দুই-তৃতীয়াংশ = ৬৬.৭%) সংখ্যাগরিষ্ঠতা না পাওয়ায় প্রস্তাবটি পাস হয়নি / স্থগিত রাখা হলো।`;
 
         onSavePoll({
           ...p,
@@ -135,7 +137,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     alert(
       language === "bn"
-        ? `সকল চলমান লাইভ ভোটিং (${activePolls.length} টি) সফলভাবে ক্লোজ / সমাপ্ত করা হয়েছে এবং হোমপেজের লাইভ প্রদর্শন বন্ধ করা হয়েছে।`
+        ? `সকল চলমান লাইভ ভোটিং (${activePolls.length} টি) সফলভাবে ক্লোজ / সমাপ্ত করা হয়েছে এবং হোমপেজের লাইভ প্রদর্শন বন্ধ করা হয়েছে।`
         : `All ${activePolls.length} active live polls have been closed and homepage banner turned off.`
     );
   };
@@ -157,6 +159,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           settings={settings}
           onClose={() => setShowLoginManager(false)}
         />
+      )}
+
+      {showNotificationManager && (
+        <SendNotificationManager onClose={() => setShowNotificationManager(false)} />
       )}
 
       {/* Admin Header Banner */}
@@ -230,10 +236,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <p className="text-xs text-stone-600 mt-1 leading-relaxed">
               {isLiveVotingEnabled
                 ? (language === "bn"
-                    ? "লাইভ ভোটিং অন থাকায় হোমপেজে লাইভ নোটিফিকেশন ব্যানার এবং সরাসরি ভোট ফলাফল প্রদর্শিত হচ্ছে।"
+                    ? "লাইভ ভোটিং অন থাকায় হোমপেজে লাইভ নোটিফিকেশন ব্যানার এবং সরাসরি ভোট ফলাফল প্রদর্শিত হচ্ছে।"
                     : "Live voting is active. The poll notification and live results are displayed on the home page.")
                 : (language === "bn"
-                    ? "লাইভ ভোটিং বন্ধ রয়েছে। হোমপেজে কোনো লাইভ নোটিফিকেশন ব্যানার বা ভোটিং ফলাফল দেখানো হবে না।"
+                    ? "লাইভ ভোটিং বন্ধ রয়েছে। হোমপেজে কোনো লাইভ নোটিফিকেশন ব্যানার বা ভোটিং ফলাফল দেখানো হবে না।"
                     : "Live voting is disabled. No voting banners or results will be displayed on the homepage.")}
             </p>
           </div>
@@ -309,7 +315,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </div>
             <div className="mt-3">
               <h4 className="font-bold text-stone-900 text-base group-hover:text-amber-950 flex items-center gap-1">
-                {language === "bn" ? "আইডি ও পাসওয়ার্ড জেনারেটর" : "ID & Password Generator"}
+                {language === "bn" ? "আইডি ও পাসওয়ার্ড জেনারেটর" : "ID & Password Generator"}
                 <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-800" />
               </h4>
               <p className="text-xs text-stone-600 mt-1 leading-relaxed">
@@ -349,6 +355,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </button>
           )}
 
+          {/* 🔔 Push Notification Broadcast (Android bubble notification) */}
+          {isSupabaseConfigured && (
+            <button
+              type="button"
+              onClick={() => setShowNotificationManager(true)}
+              className="text-left bg-gradient-to-br from-amber-500/10 via-amber-50/60 to-white hover:border-amber-500 p-4 sm:p-5 rounded-2xl border-2 border-amber-300 transition-all shadow-xs group cursor-pointer flex flex-col justify-between"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="w-11 h-11 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-xs">
+                  <BellRing size={22} />
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-emerald-950 font-bold uppercase tracking-wider">
+                  📱 Push
+                </span>
+              </div>
+              <div className="mt-3">
+                <h4 className="font-bold text-stone-900 text-base group-hover:text-amber-950 flex items-center gap-1">
+                  {language === "bn" ? "পুশ নোটিফিকেশন পাঠান" : "Send Push Notification"}
+                  <ArrowRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity text-amber-800" />
+                </h4>
+                <p className="text-xs text-stone-600 mt-1 leading-relaxed">
+                  {language === "bn"
+                    ? "যাদের মোবাইলে অ্যাপ ইন্সটল আছে তাদের সবার কাছে বাবল নোটিফিকেশন পাঠান"
+                    : "Broadcast a Messenger-style bubble notification to every installed device"}
+                </p>
+              </div>
+            </button>
+          )}
+
           {/* 1. Add New Member */}
           <button
             type="button"
@@ -370,7 +405,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h4>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                 {language === "bn"
-                  ? "নতুন সদস্যের নাম, মোবাইল, নমিনী, ছবি ও শেয়ার তথ্য এন্ট্রি"
+                  ? "নতুন সদস্যের নাম, মোবাইল, নমিনী, ছবি ও শেয়ার তথ্য এন্ট্রি"
                   : "Register new member profile, nominee, share & photo"}
               </p>
             </div>
@@ -397,7 +432,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h4>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                 {language === "bn"
-                  ? "মাসিক সঞ্চয় জমা, ব্যাংক/ক্যাশ রসিদ ও তাৎক্ষণিক ভাউচার প্রিন্ট"
+                  ? "মাসিক সঞ্চয় জমা, ব্যাংক/ক্যাশ রসিদ ও তাৎক্ষণিক ভাউচার প্রিন্ট"
                   : "Record monthly savings deposit & generate instant receipt"}
               </p>
             </div>
@@ -511,7 +546,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h4>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                 {language === "bn"
-                  ? "নাম, লোগো, ওয়াটারমার্ক, স্বাক্ষর ও লেট ফি কনফিগারেশন"
+                  ? "নাম, লোগো, ওয়াটারমার্ক, স্বাক্ষর ও লেট ফি কনফিগারেশন"
                   : "Name, round logo, watermark, signatures, fines & dates"}
               </p>
             </div>
@@ -565,7 +600,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h4>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                 {language === "bn"
-                  ? "ব্যাংক একাউন্টে টাকা জমা দেওয়া বা উত্তোলনের ভাউচার এন্ট্রি"
+                  ? "ব্যাংক একাউন্টে টাকা জমা দেওয়া বা উত্তোলনের ভাউচার এন্ট্রি"
                   : "Record bank deposit or withdrawal transaction"}
               </p>
             </div>
@@ -592,7 +627,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </h4>
               <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                 {language === "bn"
-                  ? "সভাপতি, সাধারণ সম্পাদক ও কোষাধ্যক্ষের ডিজিটাল স্বাক্ষর ও ওয়াটারমার্ক"
+                  ? "সভাপতি, সাধারণ সম্পাদক ও কোষাধ্যক্ষের ডিজিটাল স্বাক্ষর ও ওয়াটারমার্ক"
                   : "Set authorized digital signatures for receipts & circulars"}
               </p>
             </div>
@@ -602,4 +637,3 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     </div>
   );
 };
-
