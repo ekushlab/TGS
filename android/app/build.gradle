@@ -1,4 +1,6 @@
 apply plugin: 'com.android.application'
+// Applies google-services.json (Firebase project config) to this module.
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace 'com.trustgrowth.society'
@@ -6,7 +8,8 @@ android {
 
     defaultConfig {
         applicationId "com.trustgrowth.society.app"
-        minSdk 21
+        // Firebase Messaging (BoM 33.x) requires minSdk 23+.
+        minSdk 23
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
@@ -24,4 +27,11 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.webkit:webkit:1.10.0'
+    // NotificationCompat.BubbleMetadata, Person, ShortcutManagerCompat, etc.
+    implementation 'androidx.core:core:1.13.1'
+
+    // Firebase Cloud Messaging — used to receive push notifications that
+    // are rendered as native Android "bubble" notifications.
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-messaging'
 }
