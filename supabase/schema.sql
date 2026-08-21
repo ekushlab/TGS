@@ -98,6 +98,23 @@ create table if not exists public.profiles (
 );
 
 -- ---------------------------------------------------------------------------
+-- 2b. device_tokens — one row per (user, installed device) for push
+--     notifications. A member's device registers its FCM token here after
+--     login; the admin-only send-notification Edge Function reads every row
+--     to broadcast to all installs.
+-- ---------------------------------------------------------------------------
+create table if not exists public.device_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  fcm_token text not null unique,
+  platform text not null default 'android',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists device_tokens_user_id_idx on public.device_tokens (user_id);
+
+-- ---------------------------------------------------------------------------
 -- 3. poll_votes — normalized so RLS can protect individual votes
 -- ---------------------------------------------------------------------------
 create table if not exists public.poll_votes (
@@ -157,6 +174,7 @@ alter table public.polls enable row level security;
 alter table public.profit_distributions enable row level security;
 alter table public.app_settings enable row level security;
 alter table public.poll_votes enable row level security;
+alter table public.device_tokens enable row level security;
 
 -- profiles: everyone can see their own profile; admins can see everyone's
 drop policy if exists "profiles_select" on public.profiles;
@@ -213,6 +231,25 @@ create policy "poll_votes_update" on public.poll_votes
 drop policy if exists "poll_votes_delete" on public.poll_votes;
 create policy "poll_votes_delete" on public.poll_votes
   for delete using (public.is_admin());
+
+-- device_tokens: a signed-in user may register/update/remove ONLY their own
+-- device token; only admins may list every token (the send-notification
+-- Edge Function itself uses the service role key, which bypasses RLS).
+drop policy if exists "device_tokens_select" on public.device_tokens;
+create policy "device_tokens_select" on public.device_tokens
+  for select using (user_id = auth.uid() or public.is_admin());
+
+drop policy if exists "device_tokens_insert" on public.device_tokens;
+create policy "device_tokens_insert" on public.device_tokens
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists "device_tokens_update" on public.device_tokens;
+create policy "device_tokens_update" on public.device_tokens
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "device_tokens_delete" on public.device_tokens;
+create policy "device_tokens_delete" on public.device_tokens
+  for delete using (user_id = auth.uid() or public.is_admin());
 
 -- ---------------------------------------------------------------------------
 -- 6. Realtime — so all open devices auto-refresh when data changes
