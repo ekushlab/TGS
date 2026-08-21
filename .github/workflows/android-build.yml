@@ -31,6 +31,13 @@ jobs:
       - name: Install web app dependencies
         run: npm ci
 
+      - name: Install WebView compatibility build plugin
+        # @vitejs/plugin-legacy (see vite.config.ts) is intentionally NOT a
+        # committed package.json dependency, so npm ci above doesn't need a
+        # matching lockfile entry. Installed here with --no-save just so
+        # node_modules has it available for the build step below.
+        run: npm install @vitejs/plugin-legacy@6.1.1 terser@latest --no-save
+
       - name: Write Supabase env file
         # Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY as repository
         # secrets (Settings -> Secrets and variables -> Actions) so the
