@@ -6,6 +6,9 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.2.0'
+        // Reads android/app/google-services.json and wires the Firebase
+        // Android app config into the build (needed for FCM push notifications).
+        classpath 'com.google.gms:google-services:4.4.2'
     }
 }
 allprojects {
