@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Required on Android 13+ to actually show a push notification / bubble. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -25,5 +27,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Receives every FCM push (data-only) so our own code always
+             builds the notification/bubble, in foreground and background. -->
+        <service
+            android:name=".MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- The content shown when a notification bubble is expanded.
+             Must be resizable + embeddable for the Bubbles API (Android 11+). -->
+        <activity
+            android:name=".BubbleActivity"
+            android:label="Trust Growth Society"
+            android:theme="@style/Theme.AppCompat.NoActionBar"
+            android:allowEmbedded="true"
+            android:documentLaunchMode="always"
+            android:resizeableActivity="true"
+            android:exported="false" />
     </application>
 </manifest>
