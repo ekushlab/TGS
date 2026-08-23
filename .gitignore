@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+
+# Env files (never commit secrets/keys)
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Local dev-only helper (excludes vite.config.ts from tsc checks; not part of the real app)
+tsconfig.checkonly.json
+
+# Editor/OS cruft
+.DS_Store
+*.log
+.vscode/
+.idea/
