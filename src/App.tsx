@@ -81,13 +81,14 @@ function readCachedSettingsForLogin(): AppSettings {
 
 function AuthGate() {
   const { authEnabled, loading, session } = useAuth();
+  const { language } = useLanguage();
 
   if (authEnabled && loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-stone-100">
         <div className="flex items-center gap-3 text-emerald-900 bg-white px-6 py-4 rounded-xl border border-stone-200 shadow-sm">
           <Loader2 className="animate-spin text-emerald-800" size={26} />
-          <span className="font-semibold text-sm">সেশন যাচাই করা হচ্ছে…</span>
+          <span className="font-semibold text-sm">{language === 'bn' ? "সেশন যাচাই করা হচ্ছে…" : "Verifying session…"}</span>
         </div>
       </div>
     );
@@ -475,11 +476,28 @@ function AppContent() {
     },
     opts?: { allowMemberWrite?: boolean }
   ) => {
-    if (!auth.isAdmin && !opts?.allowMemberWrite) {
+    // Treasurer / General Secretary logins may only ADD new entries in
+    // these specific areas (deposits, bank, investment, fund/expenses,
+    // and polls) — never touch members, notifications, profit
+    // distributions, or settings (which covers the Constitution & Bylaws
+    // text too, so this also enforces "no Constitution edit access").
+    const TREASURER_ALLOWED_KEYS = [
+      "deposits",
+      "bankEntries",
+      "investEntries",
+      "fundIncome",
+      "expenses",
+      "polls",
+    ] as const;
+    const isWithinTreasurerScope =
+      auth.isTreasurer &&
+      Object.keys(patch).every((k) => (TREASURER_ALLOWED_KEYS as readonly string[]).includes(k));
+
+    if (!auth.isAdmin && !isWithinTreasurerScope && !opts?.allowMemberWrite) {
       flashToast(
         language === "bn"
-          ? "শুধুমাত্র অ্যাডমিন এই তথ্য পরিবর্তন করতে পারবেন।"
-          : "Only an admin can modify this data."
+          ? "এই তথ্য পরিবর্তনের অনুমতি আপনার নেই।"
+          : "You don't have permission to modify this data."
       );
       return;
     }
@@ -613,7 +631,7 @@ function AppContent() {
     const next = [newDeposit, ...deposits];
     setDeposits(next);
     persist({ deposits: next });
-    flashToast("জমা সফল হয়েছে! রসিদ তৈরি হয়েছে ও স্টোরেজে সংরক্ষিত হয়েছে।");
+    flashToast(language === "bn" ? "জমা সফল হয়েছে! রসিদ তৈরি হয়েছে ও স্টোরেজে সংরক্ষিত হয়েছে।" : "Deposit successful! Receipt has been generated and saved to storage.");
     // Automatically display the newly created Money Receipt with 1-click WhatsApp sending option
     setViewingReceiptDeposit(newDeposit);
   };
@@ -623,7 +641,7 @@ function AppContent() {
     const next = [...members, entry];
     setMembers(next);
     persist({ members: next });
-    flashToast(`সদস্য ${entry.name} (${entry.uid}) সফলভাবে নিবন্ধিত হয়েছে`);
+    flashToast(language === "bn" ? `সদস্য ${entry.name} (${entry.uid}) সফলভাবে নিবন্ধিত হয়েছে` : `Member ${entry.name} (${entry.uid}) registered successfully`);
   };
 
   // Update Member (Details & Photo)
@@ -632,14 +650,14 @@ function AppContent() {
     setMembers(next);
     persist({ members: next });
     setEditingMember(null);
-    flashToast(`সদস্য ${updated.name} এর তথ্য ও ছবি আপডেট হয়েছে`);
+    flashToast(language === "bn" ? `সদস্য ${updated.name} এর তথ্য ও ছবি আপডেট হয়েছে` : `${updated.name}'s information and photo have been updated`);
   };
 
   const addBankEntry = (entry: Omit<AccountEntry, "id">) => {
     const next = [...bankEntries, { id: "bk-" + Date.now(), seq: Date.now(), ...entry }];
     setBankEntries(next);
     persist({ bankEntries: next });
-    flashToast("ব্যাংক হিসাব এন্ট্রি সংরক্ষিত হয়েছে");
+    flashToast(language === "bn" ? "ব্যাংক হিসাব এন্ট্রি সংরক্ষিত হয়েছে" : "Bank account entry saved");
   };
 
   const addInvestEntry = (entry: Omit<AccountEntry, "id">) => {
@@ -674,21 +692,21 @@ function AppContent() {
     }
 
     persist({ investEntries: next, notifications: updatedNotifs });
-    flashToast("বিনিয়োগ এন্ট্রি ও অফিসিয়াল নোটিফিকেশন সংরক্ষিত হয়েছে");
+    flashToast(language === "bn" ? "বিনিয়োগ এন্ট্রি ও অফিসিয়াল নোটিফিকেশন সংরক্ষিত হয়েছে" : "Investment entry and official notification saved");
   };
 
   const addFundIncome = (entry: Omit<FundIncome, "id">) => {
     const next = [{ id: "fi-" + Date.now(), ...entry }, ...fundIncome];
     setFundIncome(next);
     persist({ fundIncome: next });
-    flashToast("ফান্ড আয় সংরক্ষিত হয়েছে");
+    flashToast(language === "bn" ? "ফান্ড আয় সংরক্ষিত হয়েছে" : "Fund income saved");
   };
 
   const addExpense = (entry: Omit<Expense, "id">) => {
     const next = [{ id: "ex-" + Date.now(), ...entry }, ...expenses];
     setExpenses(next);
     persist({ expenses: next });
-    flashToast("খরচ সংরক্ষিত হয়েছে");
+    flashToast(language === "bn" ? "খরচ সংরক্ষিত হয়েছে" : "Expense saved");
   };
 
   // Safe Record Deletion Handlers with Data Recalculation
@@ -696,7 +714,7 @@ function AppContent() {
     const next = deposits.filter((d) => d.id !== depositId);
     setDeposits(next);
     persist({ deposits: next });
-    flashToast("জমার রসিদ ও রেকর্ড সফলভাবে মুছে ফেলা হয়েছে");
+    flashToast(language === "bn" ? "জমার রসিদ ও রেকর্ড সফলভাবে মুছে ফেলা হয়েছে" : "Deposit receipt and record deleted successfully");
   };
 
   const deleteMember = (memberUid: string) => {
@@ -708,35 +726,35 @@ function AppContent() {
     if (selectedUid === memberUid) {
       setSelectedUid(null);
     }
-    flashToast("সদস্য প্রোফাইল ও সংশ্লিষ্ট সকল রেকর্ড মুছে ফেলা হয়েছে");
+    flashToast(language === "bn" ? "সদস্য প্রোফাইল ও সংশ্লিষ্ট সকল রেকর্ড মুছে ফেলা হয়েছে" : "Member profile and all associated records deleted");
   };
 
   const deleteBankEntry = (id: string) => {
     const next = bankEntries.filter((e) => e.id !== id);
     setBankEntries(next);
     persist({ bankEntries: next });
-    flashToast("ব্যাংক হিসাবের এন্ট্রি মুছে ফেলা হয়েছে");
+    flashToast(language === "bn" ? "ব্যাংক হিসাবের এন্ট্রি মুছে ফেলা হয়েছে" : "Bank account entry deleted");
   };
 
   const deleteInvestEntry = (id: string) => {
     const next = investEntries.filter((e) => e.id !== id);
     setInvestEntries(next);
     persist({ investEntries: next });
-    flashToast("বিনিয়োগ এন্ট্রি মুছে ফেলা হয়েছে");
+    flashToast(language === "bn" ? "বিনিয়োগ এন্ট্রি মুছে ফেলা হয়েছে" : "Investment entry deleted");
   };
 
   const deleteFundIncome = (id: string) => {
     const next = fundIncome.filter((f) => f.id !== id);
     setFundIncome(next);
     persist({ fundIncome: next });
-    flashToast("ফান্ড জমার রেকর্ড মুছে ফেলা হয়েছে");
+    flashToast(language === "bn" ? "ফান্ড জমার রেকর্ড মুছে ফেলা হয়েছে" : "Fund income record deleted");
   };
 
   const deleteExpense = (id: string) => {
     const next = expenses.filter((e) => e.id !== id);
     setExpenses(next);
     persist({ expenses: next });
-    flashToast("খরচের ভাউচার রেকর্ড মুছে ফেলা হয়েছে");
+    flashToast(language === "bn" ? "খরচের ভাউচার রেকর্ড মুছে ফেলা হয়েছে" : "Expense voucher record deleted");
   };
 
   const updateSettings = (newSettings: Partial<AppSettings>) => {
@@ -744,7 +762,7 @@ function AppContent() {
     setSettings(merged);
     persist({ settings: merged });
     setShowFineSettings(false);
-    flashToast("সেটিংস ও তথ্য আপডেট হয়েছে");
+    flashToast(language === "bn" ? "সেটিংস ও তথ্য আপডেট হয়েছে" : "Settings and information updated");
   };
 
   const restoreFullData = (restored: AppData) => {
@@ -844,7 +862,7 @@ function AppContent() {
       <div className="min-h-screen flex items-center justify-center bg-stone-100">
         <div className="flex items-center gap-3 text-emerald-900 bg-white px-6 py-4 rounded-xl border border-stone-200 shadow-sm">
           <BookOpen className="animate-pulse text-emerald-800" size={26} />
-          <span className="font-semibold text-sm">Trust Growth Society লেজার লোড হচ্ছে…</span>
+          <span className="font-semibold text-sm">{language === 'bn' ? "Trust Growth Society লেজার লোড হচ্ছে…" : "Loading Trust Growth Society ledger…"}</span>
         </div>
       </div>
     );
@@ -874,8 +892,8 @@ function AppContent() {
                 id="main-sidebar-menu-btn"
                 type="button"
                 onClick={() => setShowSidebar((prev) => !prev)}
-                title={showSidebar ? "মেনু বন্ধ করুন" : "সাইডবার মেনু খুলুন"}
-                aria-label={showSidebar ? "মেনু বন্ধ করুন" : "সাইডবার মেনু খুলুন"}
+                title={language === 'bn' ? (showSidebar ? "মেনু বন্ধ করুন" : "সাইডবার মেনু খুলুন") : (showSidebar ? "Close menu" : "Open sidebar menu")}
+                aria-label={language === 'bn' ? (showSidebar ? "মেনু বন্ধ করুন" : "সাইডবার মেনু খুলুন") : (showSidebar ? "Close menu" : "Open sidebar menu")}
                 className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl transition-all shadow-xs shrink-0 cursor-pointer active:scale-95 flex items-center justify-center ${
                   showSidebar
                     ? "bg-amber-400 text-emerald-950 border-2 border-amber-300 shadow-md"
@@ -1103,7 +1121,7 @@ function AppContent() {
             setQuery={setQuery}
             onSelect={setSelectedUid}
             memberTotal={memberTotal}
-            onAddMember={() => setShowAddMember(true)}
+            onAddMember={auth.isAdmin ? () => setShowAddMember(true) : undefined}
           />
         )}
 
@@ -1113,11 +1131,11 @@ function AppContent() {
             deposits={deposits.filter((d) => d.memberUid === selectedMember.uid)}
             total={memberTotal(selectedMember.uid)}
             onBack={() => setSelectedUid(null)}
-            onAddDeposit={() => setShowAddDeposit(true)}
+            onAddDeposit={auth.canManageEntries ? () => setShowAddDeposit(true) : undefined}
             onViewReceipt={(d) => setViewingReceiptDeposit(d)}
-            onEditMember={(m) => setEditingMember(m)}
-            onDeleteMember={deleteMember}
-            onDeleteDeposit={deleteDeposit}
+            onEditMember={auth.isAdmin ? (m) => setEditingMember(m) : undefined}
+            onDeleteMember={auth.isAdmin ? deleteMember : undefined}
+            onDeleteDeposit={auth.isAdmin ? deleteDeposit : undefined}
           />
         )}
 
@@ -1125,31 +1143,31 @@ function AppContent() {
           <DepositsLedger
             deposits={deposits}
             members={members}
-            onAddDeposit={() => setShowAddDeposit(true)}
+            onAddDeposit={auth.canManageEntries ? () => setShowAddDeposit(true) : undefined}
             onViewReceipt={(d) => setViewingReceiptDeposit(d)}
-            onDeleteDeposit={deleteDeposit}
+            onDeleteDeposit={auth.isAdmin ? deleteDeposit : undefined}
           />
         )}
 
         {tab === "bank" && (
           <AccountLedgerPage
-            title="ব্যাংক হিসাব"
+            title={language === 'bn' ? "ব্যাংক হিসাব" : "Bank Account"}
             balance={bankBalance}
             entries={bankWithBalance}
-            onAdd={() => setShowAddBank(true)}
+            onAdd={auth.canManageEntries ? () => setShowAddBank(true) : undefined}
             showPlace={false}
-            onDeleteEntry={deleteBankEntry}
+            onDeleteEntry={auth.isAdmin ? deleteBankEntry : undefined}
           />
         )}
 
         {tab === "invest" && (
           <AccountLedgerPage
-            title="বিনিয়োগ"
+            title={language === 'bn' ? "বিনিয়োগ" : "Investment"}
             balance={investBalance}
             entries={investWithBalance}
-            onAdd={() => setShowAddInvest(true)}
+            onAdd={auth.canManageEntries ? () => setShowAddInvest(true) : undefined}
             showPlace={true}
-            onDeleteEntry={deleteInvestEntry}
+            onDeleteEntry={auth.isAdmin ? deleteInvestEntry : undefined}
           />
         )}
 
@@ -1161,10 +1179,10 @@ function AppContent() {
             fundTotal={fundTotal}
             expensesTotal={expensesTotal}
             fundNow={fundNow}
-            onAddIncome={() => setShowAddFundIncome(true)}
-            onAddExpense={() => setShowAddExpense(true)}
-            onDeleteIncome={deleteFundIncome}
-            onDeleteExpense={deleteExpense}
+            onAddIncome={auth.canManageEntries ? () => setShowAddFundIncome(true) : undefined}
+            onAddExpense={auth.canManageEntries ? () => setShowAddExpense(true) : undefined}
+            onDeleteIncome={auth.isAdmin ? deleteFundIncome : undefined}
+            onDeleteExpense={auth.isAdmin ? deleteExpense : undefined}
           />
         )}
 
@@ -1173,6 +1191,7 @@ function AppContent() {
             settings={settings}
             onUpdateSettings={(patch) => updateSettings(patch)}
             onOpenWatermarkSettings={() => setShowWatermarkModal(true)}
+            isAdmin={auth.isAdmin}
           />
         )}
 
@@ -1193,6 +1212,7 @@ function AppContent() {
             onBackToDashboard={() => navigateToTab("dashboard")}
             currentMemberUid={auth.currentMemberUid}
             isAdmin={auth.isAdmin}
+            canManagePolls={auth.canManageEntries}
           />
         )}
 
@@ -1203,8 +1223,8 @@ function AppContent() {
             investEntries={investEntries}
             settings={settings}
             profitDistributions={profitDistributions}
-            onSaveDistribution={saveProfitDistribution}
-            onDeleteDistribution={deleteProfitDistribution}
+            onSaveDistribution={auth.isAdmin ? saveProfitDistribution : undefined}
+            onDeleteDistribution={auth.isAdmin ? deleteProfitDistribution : undefined}
           />
         )}
 
