@@ -62,6 +62,32 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+/**
+ * Races a promise against a timeout so a hung network call never leaves the
+ * UI spinning forever. Seen in practice on some older/uncommon Android
+ * WebView builds (e.g. Poco/MIUI devices with a stale "Android System
+ * WebView" component) where a fetch() can simply never settle instead of
+ * failing fast — without this, the Login button's spinner never resolves.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
+const LOGIN_TIMEOUT_MS = 20000;
+const SESSION_TIMEOUT_MS = 15000;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(isSupabaseConfigured);
   const [session, setSession] = useState<Session | null>(null);
@@ -89,15 +115,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let isMounted = true;
 
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!isMounted) return;
-      setSession(data.session);
-      registerDeviceTokenForUser(data.session?.user?.id ?? null);
-      if (data.session?.user) {
-        await loadProfile(data.session.user.id);
-      }
-      if (isMounted) setLoading(false);
-    });
+    withTimeout(
+      supabase.auth.getSession(),
+      SESSION_TIMEOUT_MS,
+      "Session check timed out."
+    )
+      .then(async ({ data }) => {
+        if (!isMounted) return;
+        setSession(data.session);
+        registerDeviceTokenForUser(data.session?.user?.id ?? null);
+        if (data.session?.user) {
+          await loadProfile(data.session.user.id);
+        }
+      })
+      .catch(() => {
+        // A hung/failed initial session check should never trap the app on
+        // a permanent loading screen — fall through to the login screen
+        // (or local-only mode) and let the user retry from there.
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
@@ -122,12 +160,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (mobile: string, password: string) => {
       if (!supabase) return { error: "Supabase is not configured." };
       const email = mobileToEmail(normalizeMobile(mobile));
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      if (error) return { error: error.message };
-      return { error: null };
+      try {
+        const { error } = await withTimeout(
+          supabase.auth.signInWithPassword({ email, password }),
+          LOGIN_TIMEOUT_MS,
+          "TIMEOUT"
+        );
+        if (error) return { error: error.message };
+        return { error: null };
+      } catch (err) {
+        // Covers both a genuine timeout (hung fetch — seen on some older/
+        // uncommon Android WebView builds) and any other network-level
+        // throw, so the Login button always stops spinning and the user
+        // always sees an actionable message instead of an infinite loader.
+        const message = err instanceof Error ? err.message : String(err);
+        if (message === "TIMEOUT") {
+          return { error: "TIMEOUT" };
+        }
+        return { error: message || "NETWORK_ERROR" };
+      }
     },
     []
   );
