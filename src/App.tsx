@@ -62,8 +62,10 @@ import { LogoUploadModal } from "./components/LogoUploadModal";
 import { WatermarkModal } from "./components/WatermarkModal";
 import { ConstitutionPage } from "./components/ConstitutionPage";
 import { UnifiedSettingsModal } from "./components/UnifiedSettingsModal";
+import { ChangePasswordModal } from "./components/ChangePasswordModal";
 import { ExitModal, ExitedScreen, performAppExit } from "./components/ExitModal";
 import { useLanguage } from "./utils/LanguageContext";
+import { toEnDigits } from "./utils/translations";
 import { Vote, Bell, Percent } from "lucide-react";
 
 function readCachedSettingsForLogin(): AppSettings {
@@ -147,6 +149,7 @@ function AppContent() {
 
   const [tab, setTab] = useState<AppTab>("dashboard");
   const [query, setQuery] = useState("");
+  const [bloodFilter, setBloodFilter] = useState("");
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
 
   // Modals & Drawers
@@ -165,6 +168,7 @@ function AppContent() {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<"profile" | "logo" | "watermark" | "language" | "signatures" | "fines">("profile");
   const [showCloudBackup, setShowCloudBackup] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [viewingReceiptDeposit, setViewingReceiptDeposit] = useState<Deposit | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
   const [isExited, setIsExited] = useState(false);
@@ -219,6 +223,7 @@ function AppContent() {
     showFineSettings ||
     showSettingsModal ||
     showCloudBackup ||
+    showChangePassword ||
     viewingReceiptDeposit ||
     showExitModal
   );
@@ -258,6 +263,7 @@ function AppContent() {
     showAddExpense,
     showFineSettings,
     showCloudBackup,
+    showChangePassword,
     showSidebar,
     selectedUid,
     tab,
@@ -280,6 +286,7 @@ function AppContent() {
       showAddExpense,
       showFineSettings,
       showCloudBackup,
+      showChangePassword,
       showSidebar,
       selectedUid,
       tab,
@@ -331,6 +338,10 @@ function AppContent() {
     }
     if (s.showCloudBackup) {
       setShowCloudBackup(false);
+      return;
+    }
+    if (s.showChangePassword) {
+      setShowChangePassword(false);
       return;
     }
     if (s.showFineSettings) {
@@ -814,14 +825,26 @@ function AppContent() {
   const maxMonthly = Math.max(1, ...monthlyTotals.map((m) => m.total));
 
   const filteredMembers = members.filter((m) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
+    if (bloodFilter && (m.blood || "").trim().toUpperCase() !== bloodFilter) return false;
+
+    const raw = query.trim().toLowerCase();
+    if (!raw) return true;
+    // Normalize Bengali digits (০-৯) to English (0-9) so a member typing a
+    // phone number or 3-digit member ID using a Bengali (Avro/Bijoy-style)
+    // numeric keyboard still matches — the stored data is always in
+    // English digits (see formatUid / Member.mobile).
+    const qEn = toEnDigits(raw).toLowerCase();
     return (
-      m.name.toLowerCase().includes(q) ||
-      (m.nameEn || "").toLowerCase().includes(q) ||
-      m.uid.toLowerCase().includes(q) ||
-      (m.mobile || "").includes(q) ||
-      (m.address || "").toLowerCase().includes(q)
+      m.name.toLowerCase().includes(raw) ||
+      (m.nameEn || "").toLowerCase().includes(raw) ||
+      m.uid.toLowerCase().includes(raw) ||
+      m.uid.toLowerCase().includes(qEn) ||
+      // Matches the last 3 digits of the member ID too, e.g. "013" for
+      // "TGS-2025-013", without requiring the full "TGS-2025-" prefix.
+      m.uid.toLowerCase().endsWith(qEn) ||
+      (m.mobile || "").includes(raw) ||
+      (m.mobile || "").includes(qEn) ||
+      (m.address || "").toLowerCase().includes(raw)
     );
   });
 
@@ -851,6 +874,7 @@ function AppContent() {
     showLogoUpload ||
     showWatermarkModal ||
     showCloudBackup ||
+    showChangePassword ||
     showFineSettings ||
     showAddBank ||
     showAddInvest ||
@@ -903,8 +927,9 @@ function AppContent() {
                 <Menu size={22} className="stroke-[2.5]" />
               </button>
 
-              {/* Circular Logo / Image with instant upload option */}
+              {/* Circular Logo / Image — only a Super Admin can click through to edit it */}
               <div className="relative group shrink-0">
+                {auth.isAdmin ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -928,9 +953,24 @@ function AppContent() {
                     <Camera size={16} />
                   </div>
                 </button>
+                ) : (
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full overflow-hidden bg-amber-400 text-emerald-950 flex items-center justify-center shrink-0 shadow-md font-black border-2 border-amber-300">
+                  {settings.logoUrl ? (
+                    <img
+                      src={settings.logoUrl}
+                      alt={settings.societyName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Landmark size={24} />
+                  )}
+                </div>
+                )}
+                {auth.isAdmin && (
                 <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-400 text-emerald-950 flex items-center justify-center shadow-xs pointer-events-none border border-emerald-950">
                   <Camera size={9} />
                 </span>
+                )}
               </div>
 
               <div>
@@ -1096,7 +1136,7 @@ function AppContent() {
             maxMonthly={maxMonthly}
             recentDeposits={deposits.slice(0, 8)}
             members={members}
-            onAddDeposit={() => setShowAddDeposit(true)}
+            onAddDeposit={auth.canManageEntries ? () => setShowAddDeposit(true) : undefined}
             bankBalance={bankBalance}
             investBalance={investBalance}
             totalProfit={totalProfit}
@@ -1122,6 +1162,8 @@ function AppContent() {
             onSelect={setSelectedUid}
             memberTotal={memberTotal}
             onAddMember={auth.isAdmin ? () => setShowAddMember(true) : undefined}
+            bloodFilter={bloodFilter}
+            setBloodFilter={setBloodFilter}
           />
         )}
 
@@ -1271,8 +1313,9 @@ function AppContent() {
       </main>
 
       {/* Floating Quick Action Button - Only on Dashboard tab */}
-      {tab === "dashboard" && (
+      {tab === "dashboard" && (auth.isAdmin || auth.canManageEntries) && (
         <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 flex flex-col items-end gap-2 z-40">
+          {auth.isAdmin && (
           <button
             id="floating-add-member-btn"
             onClick={() => setShowAddMember(true)}
@@ -1281,7 +1324,9 @@ function AppContent() {
             <UserPlus size={15} />
             <span>{t.btn_add_member}</span>
           </button>
+          )}
 
+          {auth.canManageEntries && (
           <button
             id="floating-add-deposit-btn"
             onClick={() => setShowAddDeposit(true)}
@@ -1291,6 +1336,7 @@ function AppContent() {
             <PlusCircle size={18} />
             <span>{t.btn_add_deposit}</span>
           </button>
+          )}
         </div>
       )}
 
@@ -1355,6 +1401,10 @@ function AppContent() {
           onRestoreData={restoreFullData}
           onNotify={flashToast}
         />
+      )}
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
 
       {showAddBank && (
@@ -1443,6 +1493,9 @@ function AppContent() {
             ? `${auth.profile.mobile}${auth.profile.name ? " · " + auth.profile.name : ""} (${auth.isAdmin ? "Admin" : "Member"})`
             : undefined
         }
+        isAdmin={auth.isAdmin}
+        canManageEntries={auth.canManageEntries}
+        onOpenChangePassword={auth.authEnabled && auth.user ? () => setShowChangePassword(true) : undefined}
       />
 
       {/* Exit Application Confirmation Modal */}
