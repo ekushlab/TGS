@@ -8,7 +8,8 @@ interface MembersListProps {
   setQuery: (q: string) => void;
   onSelect: (uid: string) => void;
   memberTotal: (uid: string) => number;
-  onAddMember: () => void;
+  /** Omit to hide the "New Member" button — only a Super Admin manages members. */
+  onAddMember?: () => void;
 }
 
 export function MembersList({
@@ -39,13 +40,15 @@ export function MembersList({
           <span className="text-xs text-stone-500 font-medium px-2 py-1 bg-stone-100 rounded-md">
             {language === 'bn' ? `মোট: ${formatNumber(members.length)} জন` : `Total: ${formatNumber(members.length)}`}
           </span>
-          <button
-            id="add-member-btn"
-            onClick={onAddMember}
-            className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-          >
-            <PlusCircle size={16} /> {t.btn_new_member}
-          </button>
+          {onAddMember && (
+            <button
+              id="add-member-btn"
+              onClick={onAddMember}
+              className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+            >
+              <PlusCircle size={16} /> {t.btn_new_member}
+            </button>
+          )}
         </div>
       </div>
 

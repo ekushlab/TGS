@@ -142,10 +142,10 @@ export function Dashboard({
                 </span>
                 <div>
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                    অফিসিয়াল বিজ্ঞপ্তি
+                    {language === 'bn' ? "অফিসিয়াল বিজ্ঞপ্তি" : "Official Notice"}
                   </span>
                   <p className="text-xs text-stone-500 font-mono mt-0.5">
-                    স্মারক নং: {selectedNoticeForModal.circularNo || "TGS/NOTICE/2026"}
+                    {language === 'bn' ? `স্মারক নং: ${selectedNoticeForModal.circularNo || "TGS/NOTICE/2026"}` : `Memo No: ${selectedNoticeForModal.circularNo || "TGS/NOTICE/2026"}`}
                   </p>
                 </div>
               </div>
@@ -161,9 +161,9 @@ export function Dashboard({
             <div className="space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-500 font-mono border-b border-stone-100 pb-2">
                 <span className="flex items-center gap-1">
-                  <Calendar size={13} /> প্রকাশ: {selectedNoticeForModal.date}
+                  <Calendar size={13} /> {language === 'bn' ? `প্রকাশ: ${selectedNoticeForModal.date}` : `Published: ${selectedNoticeForModal.date}`}
                 </span>
-                <span>প্রেরক: {selectedNoticeForModal.author || "কার্যনির্বাহী কমিটি"}</span>
+                <span>{language === 'bn' ? `প্রেরক: ${selectedNoticeForModal.author || "কার্যনির্বাহী কমিটি"}` : `From: ${selectedNoticeForModal.author || "Executive Committee"}`}</span>
               </div>
 
               <h3 className="text-base sm:text-lg font-bold text-stone-900 leading-snug">
@@ -180,14 +180,14 @@ export function Dashboard({
                   <div className="flex items-center justify-between text-xs font-bold text-stone-700">
                     <span className="flex items-center gap-1.5">
                       <Paperclip size={14} className="text-emerald-700" />
-                      সংযুক্ত ফাইল: {selectedNoticeForModal.attachmentName || "Notice Document"}
+                      {language === 'bn' ? `সংযুক্ত ফাইল: ${selectedNoticeForModal.attachmentName || "Notice Document"}` : `Attached File: ${selectedNoticeForModal.attachmentName || "Notice Document"}`}
                     </span>
                     <a
                       href={selectedNoticeForModal.attachment}
                       download={selectedNoticeForModal.attachmentName || "notice-document"}
                       className="px-2.5 py-1 rounded bg-emerald-800 text-white text-[11px] font-bold flex items-center gap-1"
                     >
-                      <Download size={12} /> ডাউনলোড
+                      <Download size={12} /> {t.btn_download}
                     </a>
                   </div>
                   {selectedNoticeForModal.attachmentType === "image" ? (
@@ -200,7 +200,7 @@ export function Dashboard({
                     <div className="p-3 bg-white rounded-lg border border-stone-200 text-xs text-stone-600 flex items-center justify-between">
                       <span className="flex items-center gap-2">
                         <FileText size={16} className="text-red-600" />
-                        PDF ডকুমেন্টস সংযুক্ত
+                        {language === 'bn' ? "PDF ডকুমেন্টস সংযুক্ত" : "PDF Document Attached"}
                       </span>
                       <a
                         href={selectedNoticeForModal.attachment}
@@ -208,7 +208,7 @@ export function Dashboard({
                         rel="noreferrer"
                         className="text-emerald-700 hover:underline font-bold"
                       >
-                        ওপেন করুন
+                        {language === 'bn' ? "ওপেন করুন" : "Open"}
                       </a>
                     </div>
                   )}
@@ -228,9 +228,9 @@ export function Dashboard({
                     <div className="h-6 border-b border-dashed border-stone-400 mb-1 w-24"></div>
                   )}
                   <p className="font-bold text-stone-800 text-[11px]">
-                    {selectedNoticeForModal.signatory2Name || "সাধারণ সম্পাদক"}
+                    {selectedNoticeForModal.signatory2Name || (language === 'bn' ? "সাধারণ সম্পাদক" : "General Secretary")}
                   </p>
-                  <p className="text-[10px] text-stone-500">সাধারণ সম্পাদক</p>
+                  <p className="text-[10px] text-stone-500">{language === 'bn' ? "সাধারণ সম্পাদক" : "General Secretary"}</p>
                 </div>
 
                 <div className="text-center">
@@ -244,9 +244,9 @@ export function Dashboard({
                     <div className="h-6 border-b border-dashed border-stone-400 mb-1 w-24"></div>
                   )}
                   <p className="font-bold text-stone-800 text-[11px]">
-                    {selectedNoticeForModal.signatory1Name || "সভাপতি"}
+                    {selectedNoticeForModal.signatory1Name || (language === 'bn' ? "সভাপতি" : "President")}
                   </p>
-                  <p className="text-[10px] text-stone-500">সভাপতি</p>
+                  <p className="text-[10px] text-stone-500">{language === 'bn' ? "সভাপতি" : "President"}</p>
                 </div>
               </div>
             </div>
@@ -257,7 +257,7 @@ export function Dashboard({
                 onClick={() => setSelectedNoticeForModal(null)}
                 className="px-4 py-2 rounded-xl bg-stone-800 hover:bg-stone-700 text-white text-xs font-bold transition-all cursor-pointer"
               >
-                বন্ধ করুন
+                {t.modal_close}
               </button>
             </div>
           </div>
@@ -347,13 +347,13 @@ export function Dashboard({
                           {opt.text}
                           {hasReached23 && (
                             <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-600 text-white font-bold">
-                              ✅ ২/৩ পাস
+                              {language === 'bn' ? "✅ ২/৩ পাস" : "✅ 2/3 Passed"}
                             </span>
                           )}
                         </span>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-[10px] text-emerald-200/80 font-mono">
-                            (মোটের {formatNumber(pctOfTotal)}%)
+                            {language === 'bn' ? `(মোটের ${formatNumber(pctOfTotal)}%)` : `(of total ${formatNumber(pctOfTotal)}%)`}
                           </span>
                           <span className="font-mono font-bold text-amber-300">
                             {formatNumber(pct)}% ({formatNumber(optionVotes)} {language === "bn" ? "ভোট" : "votes"})

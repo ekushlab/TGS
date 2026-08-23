@@ -33,7 +33,8 @@ interface MemberDetailProps {
   deposits: Deposit[];
   total: number;
   onBack: () => void;
-  onAddDeposit: () => void;
+  /** Omit to hide the "Add Deposit" button — Super Admin and Treasurer/Secretary only. */
+  onAddDeposit?: () => void;
   onViewReceipt: (deposit: Deposit) => void;
   onEditMember?: (member: Member) => void;
   onDeleteMember?: (memberUid: string) => void;
@@ -246,20 +247,32 @@ export function MemberDetail({
             </div>
             <div>
               <p className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-                <span>সদস্যের জাতীয় পরিচয়পত্র (NID) কার্ড</span>
+                <span>{language === 'bn' ? 'সদস্যের জাতীয় পরিচয়পত্র (NID) কার্ড' : "Member's National ID (NID) Card"}</span>
                 {member.nidDoc ? (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.2 rounded-full border border-emerald-300">
-                    সংযুক্ত আছে ✓ ({member.nidDocType === 'pdf' ? 'PDF' : 'JPG'})
+                    {language === 'bn'
+                      ? `সংযুক্ত আছে ✓ (${member.nidDocType === 'pdf' ? 'PDF' : 'JPG'})`
+                      : `Attached ✓ (${member.nidDocType === 'pdf' ? 'PDF' : 'JPG'})`}
                   </span>
                 ) : (
                   <span className="text-[10px] bg-stone-100 text-stone-600 font-medium px-2 py-0.2 rounded-full">
-                    সংযুক্ত নেই
+                    {language === 'bn' ? 'সংযুক্ত নেই' : 'Not attached'}
                   </span>
                 )}
               </p>
               <p className="text-[11px] text-stone-600 mt-0.5">
-                {member.nid ? `NID নং: ${formatNumber(member.nid)}` : 'জাতীয় পরিচয়পত্র নম্বর দেওয়া হয়নি'}
-                {member.nidDocName ? ` · ফাইল: ${member.nidDocName}` : ''}
+                {member.nid
+                  ? language === 'bn'
+                    ? `NID নং: ${formatNumber(member.nid)}`
+                    : `NID No: ${formatNumber(member.nid)}`
+                  : language === 'bn'
+                    ? 'জাতীয় পরিচয়পত্র নম্বর দেওয়া হয়নি'
+                    : 'National ID number not provided'}
+                {member.nidDocName
+                  ? language === 'bn'
+                    ? ` · ফাইল: ${member.nidDocName}`
+                    : ` · File: ${member.nidDocName}`
+                  : ''}
               </p>
             </div>
           </div>
@@ -271,7 +284,7 @@ export function MemberDetail({
                 onClick={() =>
                   setPreviewDoc({
                     url: member.nidDoc!,
-                    title: `সদস্যের NID (${member.name})`,
+                    title: language === 'bn' ? `সদস্যের NID (${member.name})` : `Member's NID (${member.name})`,
                     type: member.nidDocType || (member.nidDoc?.startsWith('data:application/pdf') ? 'pdf' : 'image'),
                     fileName: member.nidDocName || 'member-nid-card',
                   })
@@ -284,7 +297,7 @@ export function MemberDetail({
                 href={member.nidDoc}
                 download={member.nidDocName || `${member.uid}-nid-card`}
                 className="px-3 py-1.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
-                title="ডাউনলোড"
+                title={language === 'bn' ? 'ডাউনলোড' : 'Download'}
               >
                 <Download size={13} /> {language === 'bn' ? 'ডাউনলোড' : 'Download'}
               </a>
@@ -312,11 +325,11 @@ export function MemberDetail({
 
           {hasNominee ? (
             <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-              ✓ নমিনী নিবন্ধিত
+              {language === 'bn' ? '✓ নমিনী নিবন্ধিত' : '\u2713 Nominee Registered'}
             </span>
           ) : (
             <span className="text-xs text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full">
-              নমিনী যুক্ত নেই
+              {language === 'bn' ? 'নমিনী যুক্ত নেই' : 'No Nominee Added'}
             </span>
           )}
         </div>
@@ -341,13 +354,13 @@ export function MemberDetail({
                 ) : (
                   <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-amber-100 text-amber-900 flex flex-col items-center justify-center font-bold text-xs shrink-0 border border-amber-300">
                     <User size={28} className="text-amber-800 mb-1" />
-                    <span>ছবি নেই</span>
+                    <span>{language === 'bn' ? 'ছবি নেই' : 'No Photo'}</span>
                   </div>
                 )}
 
                 {member.nomineePhoto && (
                   <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-[9px] font-bold text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded-full whitespace-nowrap">
-                    {member.nomineePhotoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০×৩০০'}
+                    {member.nomineePhotoFormat === 'passport' ? (language === 'bn' ? 'পাসপোর্ট সাইজ' : 'Passport Size') : (language === 'bn' ? '৩০০×৩০০' : '300\u00d7300')}
                   </span>
                 )}
               </div>
@@ -356,21 +369,21 @@ export function MemberDetail({
               <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
                   <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
-                    <User size={12} className="text-amber-700" /> নমিনীর নাম
+                    <User size={12} className="text-amber-700" /> {language === 'bn' ? 'নমিনীর নাম' : "Nominee's Name"}
                   </span>
                   <p className="font-bold text-stone-900 mt-0.5">{member.nomineeName || '—'}</p>
                 </div>
 
                 <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
                   <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
-                    <Heart size={12} className="text-rose-600" /> সদস্যের সাথে সম্পর্ক
+                    <Heart size={12} className="text-rose-600" /> {language === 'bn' ? 'সদস্যের সাথে সম্পর্ক' : 'Relationship with Member'}
                   </span>
                   <p className="font-bold text-stone-900 mt-0.5">{member.nomineeRelation || '—'}</p>
                 </div>
 
                 <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/70">
                   <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
-                    <Phone size={12} className="text-emerald-700" /> নমিনীর মোবাইল নম্বর
+                    <Phone size={12} className="text-emerald-700" /> {language === 'bn' ? 'নমিনীর মোবাইল নম্বর' : "Nominee's Mobile Number"}
                   </span>
                   <p className="font-semibold font-mono text-stone-900 mt-0.5">
                     {formatNumber(member.nomineeMobile) || '—'}
@@ -379,17 +392,17 @@ export function MemberDetail({
 
                 <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/70 sm:col-span-2">
                   <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
-                    <CreditCard size={12} className="text-blue-700" /> নমিনীর এনআইডি নম্বর
+                    <CreditCard size={12} className="text-blue-700" /> {language === 'bn' ? 'নমিনীর এনআইডি নম্বর' : "Nominee's NID Number"}
                   </span>
                   <p className="font-semibold font-mono text-stone-900 mt-0.5">
-                    {formatNumber(member.nomineeNid) || 'দেওয়া হয়নি'}
+                    {formatNumber(member.nomineeNid) || (language === 'bn' ? 'দেওয়া হয়নি' : 'Not provided')}
                   </p>
                 </div>
 
                 {member.nomineeAddress && (
                   <div className="p-3 bg-stone-50 rounded-xl border border-stone-200/70 sm:col-span-2 lg:col-span-3">
                     <span className="text-xs text-stone-500 font-medium flex items-center gap-1">
-                      <MapPin size={12} className="text-stone-700" /> নমিনীর স্থায়ী/বর্তমান ঠিকানা
+                      <MapPin size={12} className="text-stone-700" /> {language === 'bn' ? 'নমিনীর স্থায়ী/বর্তমান ঠিকানা' : "Nominee's Permanent/Current Address"}
                     </span>
                     <p className="font-medium text-stone-800 mt-0.5">{member.nomineeAddress}</p>
                   </div>
@@ -406,7 +419,7 @@ export function MemberDetail({
                   </div>
                   <div>
                     <p className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
-                      <span>নমিনীর জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট</span>
+                      <span>{language === 'bn' ? 'নমিনীর জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট' : "Nominee's National ID (NID) Document"}</span>
                       <span className="text-[10px] bg-amber-200/80 text-amber-900 font-mono font-bold px-1.5 py-0.2 rounded">
                         {member.nomineeNidDocType === 'pdf' ? 'PDF' : 'JPG'}
                       </span>
@@ -423,7 +436,7 @@ export function MemberDetail({
                     onClick={() =>
                       setPreviewDoc({
                         url: member.nomineeNidDoc!,
-                        title: `নমিনীর NID (${member.nomineeName || member.name})`,
+                        title: language === 'bn' ? `নমিনীর NID (${member.nomineeName || member.name})` : `Nominee's NID (${member.nomineeName || member.name})`,
                         type:
                           member.nomineeNidDocType ||
                           (member.nomineeNidDoc?.startsWith('data:application/pdf') ? 'pdf' : 'image'),
@@ -445,14 +458,14 @@ export function MemberDetail({
               </div>
             ) : (
               <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-xs text-stone-500 flex items-center justify-between">
-                <span>নমিনীর কোনো NID ডকুমেন্ট আপলোড করা হয়নি।</span>
+                <span>{language === 'bn' ? 'নমিনীর কোনো NID ডকুমেন্ট আপলোড করা হয়নি।' : 'No NID document has been uploaded for the nominee.'}</span>
                 {onEditMember && (
                   <button
                     type="button"
                     onClick={() => onEditMember(member)}
                     className="text-xs font-semibold text-emerald-800 hover:underline cursor-pointer"
                   >
-                    + NID ডকুমেন্ট যোগ করুন
+                    {language === 'bn' ? '+ NID ডকুমেন্ট যোগ করুন' : '+ Add NID Document'}
                   </button>
                 )}
               </div>
@@ -493,13 +506,15 @@ export function MemberDetail({
                 : 'All installments and late fee statements for this member'}
             </p>
           </div>
-          <button
-            id="member-add-deposit-btn"
-            onClick={onAddDeposit}
-            className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-          >
-            <PlusCircle size={15} /> {t.btn_add_deposit}
-          </button>
+          {onAddDeposit && (
+            <button
+              id="member-add-deposit-btn"
+              onClick={onAddDeposit}
+              className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+            >
+              <PlusCircle size={15} /> {t.btn_add_deposit}
+            </button>
+          )}
         </div>
 
         <div className="divide-y divide-stone-100">
@@ -578,7 +593,11 @@ export function MemberDetail({
         <ConfirmDeleteModal
           isOpen={showDeleteMemberConfirm}
           title={language === 'bn' ? "সদস্য প্রোফাইল মুছে ফেলুন" : "Delete Member Profile"}
-          itemDescription={`${displayName} (${formatUid(member.uid)}) · মোবাইল: ${member.mobile || '—'} · মোট সঞ্চয়: ${formatMoney(total)}`}
+          itemDescription={
+            language === 'bn'
+              ? `${displayName} (${formatUid(member.uid)}) · মোবাইল: ${member.mobile || '—'} · মোট সঞ্চয়: ${formatMoney(total)}`
+              : `${displayName} (${formatUid(member.uid)}) · Mobile: ${member.mobile || '—'} · Total Savings: ${formatMoney(total)}`
+          }
           warningMessage={language === 'bn'
             ? "সতর্কতা: এই সদস্যকে মুছে ফেললে তার সকল তথ্য, প্রোফাইল ছবি এবং সংযুক্ত এনআইডি ডকুমেন্ট স্থায়ীভাবে মুছে যাবে। আপনি কি নিশ্চিত?"
             : "Warning: Permanently removing this member will delete their profile, photo, NID documents and records. Proceed?"}
@@ -597,7 +616,11 @@ export function MemberDetail({
         <ConfirmDeleteModal
           isOpen={Boolean(deletingDeposit)}
           title={language === 'bn' ? "জমা কিস্তি মুছে ফেলুন" : "Delete Deposit Record"}
-          itemDescription={`${displayName} (${formatUid(member.uid)}) · ${tMonth(deletingDeposit.month)} · ${formatMoney(deletingDeposit.amount)} (রসিদ #${deletingDeposit.id})`}
+          itemDescription={
+            language === 'bn'
+              ? `${displayName} (${formatUid(member.uid)}) · ${tMonth(deletingDeposit.month)} · ${formatMoney(deletingDeposit.amount)} (রসিদ #${deletingDeposit.id})`
+              : `${displayName} (${formatUid(member.uid)}) · ${tMonth(deletingDeposit.month)} · ${formatMoney(deletingDeposit.amount)} (Receipt #${deletingDeposit.id})`
+          }
           warningMessage={language === 'bn'
             ? "এই জমা কিস্তির রসিদটি স্থায়ীভাবে মুছে ফেলা হবে এবং সদস্যের মোট জমার পরিমাণ স্বয়ংক্রিয়ভাবে কমে যাবে।"
             : "This deposit receipt will be deleted and the member's savings total will decrease."}
@@ -639,7 +662,7 @@ export function MemberDetail({
                   href={previewDoc.url}
                   download={previewDoc.fileName || 'nid-document'}
                   className="p-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-amber-200 transition-colors"
-                  title="ডাউনলোড করুন"
+                  title={language === 'bn' ? 'ডাউনলোড করুন' : 'Download'}
                 >
                   <Download size={16} />
                 </a>
@@ -666,13 +689,13 @@ export function MemberDetail({
                     <FileText size={32} />
                   </div>
                   <p className="font-bold text-stone-900 text-sm mb-1">{previewDoc.fileName || 'NID Document (PDF)'}</p>
-                  <p className="text-xs text-stone-500 mb-4">এই পিডিএফ ফাইলটি ডাউনলোড করে পূর্ণাঙ্গ দেখতে পারেন</p>
+                  <p className="text-xs text-stone-500 mb-4">{language === 'bn' ? 'এই পিডিএফ ফাইলটি ডাউনলোড করে পূর্ণাঙ্গ দেখতে পারেন' : 'Download this PDF file to view it in full'}</p>
                   <a
                     href={previewDoc.url}
                     download={previewDoc.fileName || 'nid-document.pdf'}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors"
                   >
-                    <Download size={14} /> পিডিএফ ফাইল ডাউনলোড করুন
+                    <Download size={14} /> {language === 'bn' ? 'পিডিএফ ফাইল ডাউনলোড করুন' : 'Download PDF File'}
                   </a>
                 </div>
               )}
@@ -684,7 +707,7 @@ export function MemberDetail({
                 onClick={() => setPreviewDoc(null)}
                 className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                বন্ধ করুন
+                {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
               </button>
             </div>
           </div>

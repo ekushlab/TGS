@@ -75,7 +75,14 @@ interface VotingNotifyCenterProps {
   onBackToDashboard?: () => void;
   /** The Member.uid linked to the logged-in account, if any (enables real voting). */
   currentMemberUid?: string | null;
+  /** Super Admin — full access, including publishing notices. */
   isAdmin?: boolean;
+  /**
+   * True for Super Admin OR Treasurer/Secretary — lets them open the Admin
+   * Panel and launch new polls, but NOT publish notices (that stays
+   * isAdmin-only).
+   */
+  canManagePolls?: boolean;
 }
 
 export function VotingNotifyCenter({
@@ -95,6 +102,7 @@ export function VotingNotifyCenter({
   onBackToDashboard,
   currentMemberUid,
   isAdmin,
+  canManagePolls,
 }: VotingNotifyCenterProps) {
   const { language, t, formatNumber, formatUid } = useLanguage();
   const [subTab, setSubTab] = useState<"voting" | "notices" | "reports" | "admin">(initialSubTab);
@@ -334,7 +342,11 @@ export function VotingNotifyCenter({
       }
     });
     const opt = p.options.find((o) => o.id === topOptId);
-    return opt ? `${opt.text} (${formatNumber(maxCount)} ভোট)` : "";
+    return opt
+      ? language === "bn"
+        ? `${opt.text} (${formatNumber(maxCount)} ভোট)`
+        : `${opt.text} (${formatNumber(maxCount)} votes)`
+      : "";
   };
 
   // Close Poll & Declare Results Resolution (Strict Rule: 2/3 of TOTAL REGISTERED VOTERS required to pass)
@@ -346,7 +358,7 @@ export function VotingNotifyCenter({
     const totalMembersCount = members.length || 1;
     const required23Votes = Math.ceil((totalMembersCount * 2) / 3);
 
-    let leadOptText = "প্রস্তাবনা";
+    let leadOptText = language === "bn" ? "প্রস্তাবনা" : "the proposal";
     let maxVotes = 0;
     p.options.forEach((opt) => {
       const optVotes = p.votes?.filter((v) => v.optionId === opt.id).length || 0;
@@ -788,7 +800,7 @@ export function VotingNotifyCenter({
               {language === "bn" ? "ফলাফল ও অডিট" : "Reports & Audit"}
             </button>
 
-            {isAdmin && (
+            {(isAdmin || canManagePolls) && (
             <button
               type="button"
               onClick={() => setSubTab("admin")}
@@ -819,10 +831,12 @@ export function VotingNotifyCenter({
           </div>
           <div className="mt-2">
             <p className="text-xl sm:text-2xl font-bold font-mono text-stone-900">
-              {formatNumber(activePolls.length)} টি
+              {language === "bn" ? `${formatNumber(activePolls.length)} টি` : formatNumber(activePolls.length)}
             </p>
             <p className="text-[11px] text-stone-400 mt-0.5">
-              {activePolls.length > 0 ? "🔴 ভোট গ্রহণ চলমান" : "কোনো সক্রিয় ভোট নেই"}
+              {language === "bn"
+                ? activePolls.length > 0 ? "🔴 ভোট গ্রহণ চলমান" : "কোনো সক্রিয় ভোট নেই"
+                : activePolls.length > 0 ? "🔴 Voting in progress" : "No active polls"}
             </p>
           </div>
         </div>
@@ -838,7 +852,7 @@ export function VotingNotifyCenter({
           </div>
           <div className="mt-2">
             <p className="text-xl sm:text-2xl font-bold font-mono text-stone-900">
-              {formatNumber(notifications.length)} টি
+              {language === "bn" ? `${formatNumber(notifications.length)} টি` : formatNumber(notifications.length)}
             </p>
             <p className="text-[11px] text-stone-400 mt-0.5">
               {language === "bn" ? "সকল সদস্য আইডিতে প্রেরিত" : "Broadcasted to all member IDs"}
@@ -857,7 +871,7 @@ export function VotingNotifyCenter({
           </div>
           <div className="mt-2">
             <p className="text-xl sm:text-2xl font-bold font-mono text-stone-900">
-              {formatNumber(members.length)} জন
+              {language === "bn" ? `${formatNumber(members.length)} জন` : formatNumber(members.length)}
             </p>
             <p className="text-[11px] text-stone-400 mt-0.5">
               {language === "bn" ? "সদস্য ইউজার আইডি" : "Active Member IDs"}
@@ -878,10 +892,14 @@ export function VotingNotifyCenter({
             <p className="text-xl sm:text-2xl font-bold font-mono text-stone-900">
               {currentPoll && members.length > 0
                 ? `${Math.round((currentPoll.votes.length / members.length) * 100)}%`
-                : "০%"}
+                : language === "bn" ? "০%" : "0%"}
             </p>
             <p className="text-[11px] text-stone-400 mt-0.5">
-              {currentPoll ? `${formatNumber(currentPoll.votes.length)} জন সদস্যের ভোট` : "ভোটিং নির্বাচন করুন"}
+              {currentPoll
+                ? language === "bn"
+                  ? `${formatNumber(currentPoll.votes.length)} জন সদস্যের ভোট`
+                  : `${formatNumber(currentPoll.votes.length)} member votes`
+                : language === "bn" ? "ভোটিং নির্বাচন করুন" : "Select a poll"}
             </p>
           </div>
         </div>
@@ -903,7 +921,7 @@ export function VotingNotifyCenter({
                   ? (language === "bn" ? "চলতি মাস (স্বয়ংক্রিয় মাসিক ড্যাশবোর্ড)" : "Current Month (Active)")
                   : selectedPeriodFilter === "all_archive"
                   ? (language === "bn" ? "সকল পূর্ববর্তী আর্কাইভ ও হিস্টোরি" : "All Previous History Archive")
-                  : `হিস্টোরি: ${selectedPeriodFilter}`}
+                  : (language === "bn" ? `হিস্টোরি: ${selectedPeriodFilter}` : `History: ${selectedPeriodFilter}`)}
               </span>
             </div>
             <p className="text-[11px] text-stone-500 mt-0.5">
@@ -990,7 +1008,7 @@ export function VotingNotifyCenter({
                   )}
                   <span className="max-w-[220px] truncate">{p.title}</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-800 font-mono">
-                    {formatNumber(p.votes.length)} ভোট
+                    {language === "bn" ? `${formatNumber(p.votes.length)} ভোট` : `${formatNumber(p.votes.length)} votes`}
                   </span>
                 </button>
               ))}
@@ -1012,14 +1030,16 @@ export function VotingNotifyCenter({
                             : "bg-stone-100 text-stone-700 border border-stone-200"
                         }`}
                       >
-                        {currentPoll.status === "active" ? "🔴 LIVE ভোটিং চলছে" : "ভোটিং সম্পন্ন (Closed)"}
+                        {language === "bn"
+                          ? currentPoll.status === "active" ? "🔴 LIVE ভোটিং চলছে" : "ভোটিং সম্পন্ন (Closed)"
+                          : currentPoll.status === "active" ? "🔴 LIVE Voting Ongoing" : "Voting Completed (Closed)"}
                       </span>
                       <span className="px-2.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-                        {currentPoll.category === "investment" && "বিনিয়োগ প্রস্তাব"}
-                        {currentPoll.category === "election" && "কমিটি নির্বাচন"}
-                        {currentPoll.category === "constitution" && "গঠনতন্ত্র সংশোধন"}
-                        {currentPoll.category === "general" && "সাধারণ সিদ্ধান্ত"}
-                        {currentPoll.category === "opinion" && "মতামত জরিপ"}
+                        {currentPoll.category === "investment" && (language === "bn" ? "বিনিয়োগ প্রস্তাব" : "Investment Proposal")}
+                        {currentPoll.category === "election" && (language === "bn" ? "কমিটি নির্বাচন" : "Committee Election")}
+                        {currentPoll.category === "constitution" && (language === "bn" ? "গঠনতন্ত্র সংশোধন" : "Constitution Amendment")}
+                        {currentPoll.category === "general" && (language === "bn" ? "সাধারণ সিদ্ধান্ত" : "General Decision")}
+                        {currentPoll.category === "opinion" && (language === "bn" ? "মতামত জরিপ" : "Opinion Poll")}
                       </span>
                     </div>
 
@@ -1053,7 +1073,7 @@ export function VotingNotifyCenter({
                         </span>
                       </span>
                       <span className="text-emerald-800 font-mono font-bold">
-                        {formatNumber(currentPoll.votes.length)} / {formatNumber(members.length)} ভোট প্রদত্ত (
+                        {formatNumber(currentPoll.votes.length)} / {formatNumber(members.length)} {language === "bn" ? "ভোট প্রদত্ত" : "votes cast"} (
                         {members.length ? Math.round((currentPoll.votes.length / members.length) * 100) : 0}%)
                       </span>
                     </div>
@@ -1096,20 +1116,20 @@ export function VotingNotifyCenter({
                                 {opt.text}
                                 {hasReached23 ? (
                                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-700 text-white font-bold">
-                                    ✅ ২/৩ পাস
+                                    {language === "bn" ? "✅ ২/৩ পাস" : "✅ 2/3 Passed"}
                                   </span>
                                 ) : isLeading && totalVotes > 0 ? (
                                   <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 font-bold">
-                                    শীর্ষে
+                                    {language === "bn" ? "শীর্ষে" : "Leading"}
                                   </span>
                                 ) : null}
                               </span>
                               <div className="flex items-center gap-2">
                                 <span className="text-[11px] text-stone-500 font-mono">
-                                  মোট ভোটারের {formatNumber(pctOfTotal)}%
+                                  {language === "bn" ? `মোট ভোটারের ${formatNumber(pctOfTotal)}%` : `${formatNumber(pctOfTotal)}% of total voters`}
                                 </span>
                                 <span className="font-mono font-bold text-stone-900">
-                                  {formatNumber(optVotes)} ভোট ({formatNumber(pctOfVotes)}%)
+                                  {language === "bn" ? `${formatNumber(optVotes)} ভোট (${formatNumber(pctOfVotes)}%)` : `${formatNumber(optVotes)} votes (${formatNumber(pctOfVotes)}%)`}
                                 </span>
                               </div>
                             </div>
@@ -1271,7 +1291,7 @@ export function VotingNotifyCenter({
                         <h4 className="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
                           {language === "bn" ? "অ্যাডমিন লাইভ মনিটরিং কনসোল" : "Admin Live Monitoring Console"}
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
-                            এডমিন অ্যাপ
+                            {language === "bn" ? "এডমিন অ্যাপ" : "Admin App"}
                           </span>
                         </h4>
                         <p className="text-[11px] text-stone-500">
@@ -1329,7 +1349,9 @@ export function VotingNotifyCenter({
                         {getTimeRemaining(currentPoll)}
                       </p>
                       <p className="text-[10px] text-stone-400 mt-0.5 font-mono">
-                        {currentPoll.startDate} থেকে {currentPoll.endDate}
+                        {language === "bn"
+                          ? `${currentPoll.startDate} থেকে ${currentPoll.endDate}`
+                          : `${currentPoll.startDate} to ${currentPoll.endDate}`}
                       </p>
                     </div>
 
@@ -1339,11 +1361,13 @@ export function VotingNotifyCenter({
                         {language === "bn" ? "ভোটার উপস্থিতি" : "Voter Participation"}
                       </p>
                       <p className="text-sm font-bold text-stone-900 mt-1 font-mono">
-                        {formatNumber(currentPoll.votes.length)} / {formatNumber(members.length)} জন (
+                        {formatNumber(currentPoll.votes.length)} / {formatNumber(members.length)} {language === "bn" ? "জন" : "members"} (
                         {members.length > 0 ? Math.round((currentPoll.votes.length / members.length) * 100) : 0}%)
                       </p>
                       <p className="text-[10px] text-stone-400 mt-0.5">
-                        {formatNumber(Math.max(0, members.length - currentPoll.votes.length))} জন সদস্যের ভোট বাকি
+                        {language === "bn"
+                          ? `${formatNumber(Math.max(0, members.length - currentPoll.votes.length))} জন সদস্যের ভোট বাকি`
+                          : `${formatNumber(Math.max(0, members.length - currentPoll.votes.length))} members left to vote`}
                       </p>
                     </div>
 
@@ -1356,7 +1380,7 @@ export function VotingNotifyCenter({
                         {getLeadingOptionText(currentPoll)}
                       </p>
                       <p className="text-[10px] text-stone-400 mt-0.5">
-                        সর্বোচ্চ ভোট প্রাপ্ত ফলাফল
+                        {language === "bn" ? "সর্বোচ্চ ভোট প্রাপ্ত ফলাফল" : "Result with the highest votes"}
                       </p>
                     </div>
                   </div>
@@ -1405,14 +1429,14 @@ export function VotingNotifyCenter({
           ) : (
             <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-stone-500">
               <Vote size={36} className="mx-auto text-stone-300 mb-2" />
-              <p className="font-bold text-stone-700">বর্তমানে কোনো সক্রিয় ভোটিং নেই</p>
+              <p className="font-bold text-stone-700">{language === "bn" ? "বর্তমানে কোনো সক্রিয় ভোটিং নেই" : "There is no active poll right now"}</p>
               {isAdmin && (
               <button
                 type="button"
                 onClick={() => setSubTab("admin")}
                 className="mt-3 px-4 py-2 rounded-xl bg-emerald-800 text-amber-300 text-xs font-bold cursor-pointer"
               >
-                নতুন ভোটিং শুরু করুন (Admin)
+                {language === "bn" ? "নতুন ভোটিং শুরু করুন (Admin)" : "Start New Poll (Admin)"}
               </button>
               )}
             </div>
@@ -1441,11 +1465,11 @@ export function VotingNotifyCenter({
             <div className="flex items-center gap-2 overflow-x-auto max-w-full w-full sm:w-auto scrollbar-none touch-pan-x snap-x scroll-smooth">
               <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl shrink-0">
                 {[
-                  { id: "all", label: "সকল নোটিশ" },
-                  { id: "voting", label: "🔴 ভোটিং" },
-                  { id: "meeting", label: "📅 সভা/মিটিং" },
-                  { id: "financial", label: "💰 আর্থিক" },
-                  { id: "emergency", label: "⚡ জরুরি" },
+                  { id: "all", label: language === "bn" ? "সকল নোটিশ" : "All Notices" },
+                  { id: "voting", label: language === "bn" ? "🔴 ভোটিং" : "🔴 Voting" },
+                  { id: "meeting", label: language === "bn" ? "📅 সভা/মিটিং" : "📅 Meeting" },
+                  { id: "financial", label: language === "bn" ? "💰 আর্থিক" : "💰 Financial" },
+                  { id: "emergency", label: language === "bn" ? "⚡ জরুরি" : "⚡ Emergency" },
                 ].map((c) => (
                   <button
                     key={c.id}
@@ -1469,7 +1493,7 @@ export function VotingNotifyCenter({
                 className="px-3 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 text-xs font-bold transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <PlusCircle size={14} />
-                <span>নতুন নোটিশ</span>
+                <span>{language === "bn" ? "নতুন নোটিশ" : "New Notice"}</span>
               </button>
               )}
             </div>
@@ -1506,21 +1530,21 @@ export function VotingNotifyCenter({
                           )}
                           {n.isPinned && (
                             <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-400 text-emerald-950 text-[10px] font-bold shadow-2xs">
-                              <Pin size={10} /> পিন্ড
+                              <Pin size={10} /> {language === "bn" ? "পিন্ড" : "Pinned"}
                             </span>
                           )}
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${pStyle.badge}`}>
-                            {n.priority === "urgent" && "⚡ অতীব জরুরি"}
-                            {n.priority === "high" && "🔥 উচ্চ অগ্রাধিকার"}
-                            {n.priority === "normal" && "সাধারণ নোটিশ"}
-                            {n.priority === "low" && "তথ্যমূলক"}
+                            {n.priority === "urgent" && (language === "bn" ? "⚡ অতীব জরুরি" : "⚡ Urgent")}
+                            {n.priority === "high" && (language === "bn" ? "🔥 উচ্চ অগ্রাধিকার" : "🔥 High Priority")}
+                            {n.priority === "normal" && (language === "bn" ? "সাধারণ নোটিশ" : "Normal Notice")}
+                            {n.priority === "low" && (language === "bn" ? "তথ্যমূলক" : "Informational")}
                           </span>
                           <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[10px] font-semibold">
-                            {n.category === "voting" && "🔴 ভোটিং"}
-                            {n.category === "meeting" && "📅 সভা"}
-                            {n.category === "financial" && "💰 আর্থিক"}
-                            {n.category === "emergency" && "⚡ জরুরি"}
-                            {n.category === "general" && "বিজ্ঞপ্তি"}
+                            {n.category === "voting" && (language === "bn" ? "🔴 ভোটিং" : "🔴 Voting")}
+                            {n.category === "meeting" && (language === "bn" ? "📅 সভা" : "📅 Meeting")}
+                            {n.category === "financial" && (language === "bn" ? "💰 আর্থিক" : "💰 Financial")}
+                            {n.category === "emergency" && (language === "bn" ? "⚡ জরুরি" : "⚡ Emergency")}
+                            {n.category === "general" && (language === "bn" ? "বিজ্ঞপ্তি" : "Notice")}
                           </span>
                         </div>
 
@@ -1530,7 +1554,7 @@ export function VotingNotifyCenter({
                       {/* Memo / Circular Number */}
                       {n.circularNo && (
                         <p className="text-[10px] text-stone-400 font-mono">
-                          স্মারক নং: <span className="text-stone-700 font-semibold">{n.circularNo}</span>
+                          {language === "bn" ? "স্মারক নং:" : "Circular No:"} <span className="text-stone-700 font-semibold">{n.circularNo}</span>
                         </p>
                       )}
 
@@ -1560,9 +1584,9 @@ export function VotingNotifyCenter({
                           className="flex items-center gap-2 p-2 rounded-xl bg-stone-50 hover:bg-stone-100 border border-stone-200 text-xs text-stone-700 cursor-pointer transition-colors"
                         >
                           <Paperclip size={14} className="text-emerald-700 shrink-0" />
-                          <span className="truncate flex-1 font-medium">{n.attachmentName || "অফিসিয়াল স্ক্যান কপি সংযুক্ত"}</span>
+                          <span className="truncate flex-1 font-medium">{n.attachmentName || (language === "bn" ? "অফিসিয়াল স্ক্যান কপি সংযুক্ত" : "Official scanned copy attached")}</span>
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold shrink-0">
-                            {n.attachmentType === "pdf" ? "PDF ভিউ" : "ছবি ভিউ"}
+                            {language === "bn" ? (n.attachmentType === "pdf" ? "PDF ভিউ" : "ছবি ভিউ") : (n.attachmentType === "pdf" ? "View PDF" : "View Image")}
                           </span>
                         </div>
                       )}
@@ -1581,7 +1605,7 @@ export function VotingNotifyCenter({
                     {/* Card Bottom Actions */}
                     <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-stone-100">
                       <span className="text-[10px] text-stone-400 font-medium">
-                        স্বাক্ষর: <strong className="text-stone-700">{n.author || "সাধারণ সম্পাদক"}</strong>
+                        {language === "bn" ? "স্বাক্ষর:" : "Signed by:"} <strong className="text-stone-700">{n.author || "সাধারণ সম্পাদক"}</strong>
                       </span>
 
                       <div className="flex items-center gap-1.5">
@@ -1616,7 +1640,7 @@ export function VotingNotifyCenter({
             ) : (
               <div className="col-span-2 text-center py-12 text-stone-400 text-xs bg-white rounded-2xl border border-stone-200">
                 <Bell size={32} className="mx-auto mb-2 opacity-40 text-stone-400" />
-                <p>কোনো নোটিশ পাওয়া যায়নি</p>
+                <p>{language === "bn" ? "কোনো নোটিশ পাওয়া যায়নি" : "No notices found"}</p>
               </div>
             )}
           </div>
@@ -1658,7 +1682,7 @@ export function VotingNotifyCenter({
                           p.status === "active" ? "bg-red-100 text-red-700" : "bg-stone-200 text-stone-700"
                         }`}
                       >
-                        {p.status === "active" ? "🔴 সক্রিয় (Active)" : "সম্পন্ন (Closed)"}
+                        {language === "bn" ? (p.status === "active" ? "🔴 সক্রিয় (Active)" : "সম্পন্ন (Closed)") : (p.status === "active" ? "🔴 Active" : "Closed")}
                       </span>
                       <span className="text-xs text-stone-400 font-mono">
                         {p.startDate} - {p.endDate}
@@ -1666,7 +1690,7 @@ export function VotingNotifyCenter({
                     </div>
                     <h4 className="font-bold text-stone-800 text-sm">{p.title}</h4>
                     <p className="text-[11px] text-stone-500 mt-0.5">
-                      মোট ভোট: <strong className="text-stone-800 font-mono">{formatNumber(p.votes.length)}</strong> জন সদস্য
+                      {language === "bn" ? "মোট ভোট:" : "Total Votes:"} <strong className="text-stone-800 font-mono">{formatNumber(p.votes.length)}</strong> {language === "bn" ? "জন সদস্য" : "members"}
                     </p>
                   </div>
 
@@ -1705,7 +1729,7 @@ export function VotingNotifyCenter({
       {/* ======================================================== */}
       {/* 🔐 SUB-TAB 4: ADMIN CREATE & MANAGE (PROTECTED PANEL) */}
       {/* ======================================================== */}
-      {subTab === "admin" && isAdmin && (
+      {subTab === "admin" && (isAdmin || canManagePolls) && (
         <div className="space-y-6">
           <div>
             {/* Admin Active Banner */}
@@ -1713,7 +1737,9 @@ export function VotingNotifyCenter({
               <div className="flex items-center gap-2">
                 <ShieldCheck size={18} className="text-amber-300" />
                 <span className="text-xs font-bold">
-                  {language === "bn" ? "অ্যাডমিন প্যানেল সক্রিয়: নতুন ভোটিং ও নোটিশ তৈরি করুন" : "Admin Panel: Create Polls & Notices"}
+                  {isAdmin
+                    ? (language === "bn" ? "অ্যাডমিন প্যানেল সক্রিয়: নতুন ভোটিং ও নোটিশ তৈরি করুন" : "Admin Panel: Create Polls & Notices")
+                    : (language === "bn" ? "অ্যাডমিন প্যানেল সক্রিয়: নতুন ভোটিং তৈরি করুন" : "Admin Panel: Create Polls")}
                 </span>
               </div>
             </div>
@@ -1737,38 +1763,38 @@ export function VotingNotifyCenter({
 
                   <form onSubmit={handleCreatePoll} className="space-y-4 mt-4 text-xs">
                     <div>
-                      <label className="block font-bold text-stone-700 mb-1">ভোটিংয়ের শিরোনাম *</label>
+                      <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "ভোটিংয়ের শিরোনাম *" : "Poll Title *"}</label>
                       <input
                         type="text"
                         required
                         value={newPollTitle}
                         onChange={(e) => setNewPollTitle(e.target.value)}
-                        placeholder="যেমন: নতুন বাণিজ্যিক প্রকল্পে বিনিয়োগ অনুমোদন..."
+                        placeholder={language === "bn" ? "যেমন: নতুন বাণিজ্যিক প্রকল্পে বিনিয়োগ অনুমোদন..." : "e.g. Approval for a new commercial investment project..."}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-bold text-stone-700 mb-1">ক্যাটাগরি</label>
+                        <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "ক্যাটাগরি" : "Category"}</label>
                         <select
                           value={newPollCategory}
                           onChange={(e) => setNewPollCategory(e.target.value as any)}
                           className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800"
                         >
-                          <option value="investment">বিনিয়োগ প্রস্তাব</option>
-                          <option value="election">কমিটি নির্বাচন</option>
-                          <option value="constitution">গঠনতন্ত্র সংশোধন</option>
-                          <option value="general">সাধারণ সিদ্ধান্ত</option>
-                          <option value="opinion">মতামত জরিপ</option>
+                          <option value="investment">{language === "bn" ? "বিনিয়োগ প্রস্তাব" : "Investment Proposal"}</option>
+                          <option value="election">{language === "bn" ? "কমিটি নির্বাচন" : "Committee Election"}</option>
+                          <option value="constitution">{language === "bn" ? "গঠনতন্ত্র সংশোধন" : "Constitution Amendment"}</option>
+                          <option value="general">{language === "bn" ? "সাধারণ সিদ্ধান্ত" : "General Decision"}</option>
+                          <option value="opinion">{language === "bn" ? "মতামত জরিপ" : "Opinion Poll"}</option>
                         </select>
                       </div>
 
                       <div>
                         <label className="block font-bold text-stone-700 mb-1 flex items-center justify-between">
-                          <span>ভোটিং সময়সীমা (Time Limit) *</span>
+                          <span>{language === "bn" ? "ভোটিং সময়সীমা (Time Limit) *" : "Voting Time Limit *"}</span>
                           <span className="text-emerald-700 text-[10px] font-mono font-normal flex items-center gap-1">
-                            <Timer size={11} /> অটো-ক্লোজ
+                            <Timer size={11} /> {language === "bn" ? "অটো-ক্লোজ" : "Auto-close"}
                           </span>
                         </label>
                         <select
@@ -1776,12 +1802,12 @@ export function VotingNotifyCenter({
                           onChange={(e) => setPollDurationLimit(e.target.value)}
                           className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800 font-semibold"
                         >
-                          <option value="12">১২ ঘণ্টা (জরুরি ভোটিং)</option>
-                          <option value="24">২৪ ঘণ্টা (১ দিন)</option>
-                          <option value="48">৪৮ ঘণ্টা (২ দিন - ডিফল্ট)</option>
-                          <option value="72">৭২ ঘণ্টা (৩ দিন)</option>
-                          <option value="168">৭ দিন (১ সপ্তাহ)</option>
-                          <option value="custom">কাস্টম ঘণ্টা নির্ধারণ</option>
+                          <option value="12">{language === "bn" ? "১২ ঘণ্টা (জরুরি ভোটিং)" : "12 Hours (Urgent Voting)"}</option>
+                          <option value="24">{language === "bn" ? "২৪ ঘণ্টা (১ দিন)" : "24 Hours (1 Day)"}</option>
+                          <option value="48">{language === "bn" ? "৪৮ ঘণ্টা (২ দিন - ডিফল্ট)" : "48 Hours (2 Days - Default)"}</option>
+                          <option value="72">{language === "bn" ? "৭২ ঘণ্টা (৩ দিন)" : "72 Hours (3 Days)"}</option>
+                          <option value="168">{language === "bn" ? "৭ দিন (১ সপ্তাহ)" : "7 Days (1 Week)"}</option>
+                          <option value="custom">{language === "bn" ? "কাস্টম ঘণ্টা নির্ধারণ" : "Set Custom Hours"}</option>
                         </select>
                       </div>
                     </div>
@@ -1791,7 +1817,7 @@ export function VotingNotifyCenter({
                         <Timer size={16} className="text-amber-800 shrink-0" />
                         <div className="flex-1">
                           <label className="block text-[11px] font-bold text-amber-900 mb-0.5">
-                            কাস্টম সময়সীমা (ঘণ্টার সংখ্যা লিখুন):
+                            {language === "bn" ? "কাস্টম সময়সীমা (ঘণ্টার সংখ্যা লিখুন):" : "Custom time limit (enter number of hours):"}
                           </label>
                           <input
                             type="number"
@@ -1800,26 +1826,26 @@ export function VotingNotifyCenter({
                             value={customDurationHours}
                             onChange={(e) => setCustomDurationHours(Number(e.target.value) || 1)}
                             className="w-full bg-white border border-amber-300 rounded-lg px-2.5 py-1.5 text-xs text-stone-900 font-mono font-bold focus:outline-none focus:ring-1 focus:ring-amber-500"
-                            placeholder="যেমন: 36"
+                            placeholder={language === "bn" ? "যেমন: 36" : "e.g. 36"}
                           />
                         </div>
                       </div>
                     )}
 
                     <div>
-                      <label className="block font-bold text-stone-700 mb-1">বিস্তারিত বিবরণ ও প্রেক্ষাপট</label>
+                      <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "বিস্তারিত বিবরণ ও প্রেক্ষাপট" : "Details & Context"}</label>
                       <textarea
                         rows={2}
                         value={newPollDesc}
                         onChange={(e) => setNewPollDesc(e.target.value)}
-                        placeholder="বিনিয়োগ বা সিদ্ধান্তের সার্বিক প্রেক্ষাপট ও শর্তাবলী সংক্ষেপে লিখুন..."
+                        placeholder={language === "bn" ? "বিনিয়োগ বা সিদ্ধান্তের সার্বিক প্রেক্ষাপট ও শর্তাবলী সংক্ষেপে লিখুন..." : "Briefly describe the context and terms of the investment or decision..."}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
                       />
                     </div>
 
                     {/* Poll Options Builder */}
                     <div>
-                      <label className="block font-bold text-stone-700 mb-1">ভোটিং অপশনসমূহ (কমপক্ষে ২টি)</label>
+                      <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "ভোটিং অপশনসমূহ (কমপক্ষে ২টি)" : "Voting Options (at least 2)"}</label>
                       <div className="space-y-2 mb-2">
                         {newPollOptions.map((opt, i) => (
                           <div key={i} className="flex items-center gap-2">
@@ -1854,7 +1880,7 @@ export function VotingNotifyCenter({
                           type="text"
                           value={newOptionInput}
                           onChange={(e) => setNewOptionInput(e.target.value)}
-                          placeholder="নতুন অপশন লিখুন..."
+                          placeholder={language === "bn" ? "নতুন অপশন লিখুন..." : "Enter new option..."}
                           className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-3 py-1.5 text-stone-800 text-xs"
                         />
                         <button
@@ -1867,7 +1893,7 @@ export function VotingNotifyCenter({
                           }}
                           className="px-3 py-1.5 rounded-xl bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold"
                         >
-                          + যোগ
+                          {language === "bn" ? "+ যোগ" : "+ Add"}
                         </button>
                       </div>
                     </div>
@@ -1877,11 +1903,13 @@ export function VotingNotifyCenter({
                       className="w-full bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-bold py-2.5 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer mt-2"
                     >
                       <Vote size={15} />
-                      লাইভ ভোটিং প্রকাশ করুন (সকল সদস্য আইডিতে নোটিফাই হবে)
+                      {language === "bn" ? "লাইভ ভোটিং প্রকাশ করুন (সকল সদস্য আইডিতে নোটিফাই হবে)" : "Publish Live Poll (all members will be notified)"}
                     </button>
                   </form>
                 </div>
 
+                {isAdmin && (
+                  <>
                 {/* 2. Publish New Notice (Dual Modes: Text & Upload) */}
                 <div className="bg-white rounded-2xl border border-stone-200 p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center gap-2 pb-3 border-b border-stone-100">
@@ -1907,7 +1935,7 @@ export function VotingNotifyCenter({
                         noticePublishMode === "both" ? "bg-white text-emerald-950 shadow-xs" : "text-stone-600 hover:text-stone-900"
                       }`}
                     >
-                      ✨ টেক্সট ও ফাইল উভয়ই
+                      {language === "bn" ? "✨ টেক্সট ও ফাইল উভয়ই" : "✨ Text & File Both"}
                     </button>
                     <button
                       type="button"
@@ -1916,7 +1944,7 @@ export function VotingNotifyCenter({
                         noticePublishMode === "text" ? "bg-white text-emerald-950 shadow-xs" : "text-stone-600 hover:text-stone-900"
                       }`}
                     >
-                      📝 শুধুমাত্র টেক্সট
+                      {language === "bn" ? "📝 শুধুমাত্র টেক্সট" : "📝 Text Only"}
                     </button>
                     <button
                       type="button"
@@ -1925,14 +1953,14 @@ export function VotingNotifyCenter({
                         noticePublishMode === "upload" ? "bg-white text-emerald-950 shadow-xs" : "text-stone-600 hover:text-stone-900"
                       }`}
                     >
-                      📎 শুধুমাত্র ফাইল আপলোড
+                      {language === "bn" ? "📎 শুধুমাত্র ফাইল আপলোড" : "📎 Upload File Only"}
                     </button>
                   </div>
 
                   <form onSubmit={handleCreateNotif} className="space-y-3.5 mt-3.5 text-xs">
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block font-bold text-stone-700 mb-1">স্মারক নং / Circular No</label>
+                        <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "স্মারক নং / Circular No" : "Circular No"}</label>
                         <input
                           type="text"
                           value={newNotifCircularNo}
@@ -1942,28 +1970,28 @@ export function VotingNotifyCenter({
                       </div>
 
                       <div>
-                        <label className="block font-bold text-stone-700 mb-1">ক্যাটাগরি</label>
+                        <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "ক্যাটাগরি" : "Category"}</label>
                         <select
                           value={newNotifCategory}
                           onChange={(e) => setNewNotifCategory(e.target.value as any)}
                           className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800"
                         >
-                          <option value="general">সাধারণ নোটিশ</option>
-                          <option value="meeting">সভা ও বৈঠক</option>
-                          <option value="financial">আর্থিক / সঞ্চয়</option>
-                          <option value="emergency">জরুরি বিজ্ঞপ্তি</option>
-                        </select>
+                          <option value="general">{language === "bn" ? "সাধারণ নোটিশ" : "General Notice"}</option>
+                          <option value="meeting">{language === "bn" ? "সভা ও বৈঠক" : "Meeting"}</option>
+                          <option value="financial">{language === "bn" ? "আর্থিক / সঞ্চয়" : "Financial / Savings"}</option>
+                          <option value="emergency">{language === "bn" ? "জরুরি বিজ্ঞপ্তি" : "Emergency Notice"}</option>
+                          </select>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block font-bold text-stone-700 mb-1">নোটিশের বিষয় / শিরোনাম *</label>
+                      <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "নোটিশের বিষয় / শিরোনাম *" : "Notice Subject / Title *"}</label>
                       <input
                         type="text"
                         required
                         value={newNotifTitle}
                         onChange={(e) => setNewNotifTitle(e.target.value)}
-                        placeholder="যেমন: আসন্ন সাধারণ সভা ও কিস্তি পরিশোধ সংক্রান্ত..."
+                        placeholder={language === "bn" ? "যেমন: আসন্ন সাধারণ সভা ও কিস্তি পরিশোধ সংক্রান্ত..." : "e.g. Upcoming general meeting and installment payment..."}
                         className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
                       />
                     </div>
@@ -1971,12 +1999,12 @@ export function VotingNotifyCenter({
                     {/* Text content field if Text or Both */}
                     {(noticePublishMode === "text" || noticePublishMode === "both") && (
                       <div>
-                        <label className="block font-bold text-stone-700 mb-1">নোটিশের মূল বক্তব্য *</label>
+                        <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "নোটিশের মূল বক্তব্য *" : "Notice Body *"}</label>
                         <textarea
                           rows={3}
                           value={newNotifContent}
                           onChange={(e) => setNewNotifContent(e.target.value)}
-                          placeholder="বিজ্ঞপ্তির পূর্ণ বিবরণ লিখুন..."
+                          placeholder={language === "bn" ? "বিজ্ঞপ্তির পূর্ণ বিবরণ লিখুন..." : "Write the full details of the notice..."}
                           className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
                         />
                       </div>
@@ -1986,7 +2014,7 @@ export function VotingNotifyCenter({
                     {(noticePublishMode === "upload" || noticePublishMode === "both") && (
                       <div>
                         <label className="block font-bold text-stone-700 mb-1">
-                          অফিসিয়াল ডকুমেন্ট / স্ক্যান কপি আপলোড (JPG / PNG / PDF)
+                          {language === "bn" ? "অফিসিয়াল ডকুমেন্ট / স্ক্যান কপি আপলোড (JPG / PNG / PDF)" : "Upload official document / scanned copy (JPG / PNG / PDF)"}
                         </label>
                         <input
                           ref={fileInputRef}
@@ -2003,7 +2031,7 @@ export function VotingNotifyCenter({
                               <div className="min-w-0">
                                 <p className="font-bold text-emerald-950 truncate">{newNotifAttachmentName}</p>
                                 <p className="text-[10px] text-emerald-700 font-mono">
-                                  {newNotifAttachmentType?.toUpperCase()} ফাইল সংযুক্ত
+                                  {newNotifAttachmentType?.toUpperCase()} {language === "bn" ? "ফাইল সংযুক্ত" : "file attached"}
                                 </p>
                               </div>
                             </div>
@@ -2026,8 +2054,8 @@ export function VotingNotifyCenter({
                             className="w-full border-2 border-dashed border-stone-300 hover:border-emerald-500 rounded-xl p-3.5 bg-stone-50/50 hover:bg-stone-50 text-center transition-colors cursor-pointer"
                           >
                             <Upload size={18} className="mx-auto text-stone-400 mb-1" />
-                            <p className="font-bold text-stone-700">ফাইল নির্বাচন করতে এখানে ক্লিক করুন</p>
-                            <p className="text-[10px] text-stone-400">JPG, PNG বা PDF ফরম্যাট সমর্থিত</p>
+                            <p className="font-bold text-stone-700">{language === "bn" ? "ফাইল নির্বাচন করতে এখানে ক্লিক করুন" : "Click here to select a file"}</p>
+                            <p className="text-[10px] text-stone-400">{language === "bn" ? "JPG, PNG বা PDF ফরম্যাট সমর্থিত" : "JPG, PNG or PDF format supported"}</p>
                           </button>
                         )}
                       </div>
@@ -2035,12 +2063,12 @@ export function VotingNotifyCenter({
 
                     <div className="grid grid-cols-2 gap-3 items-center">
                       <div>
-                        <label className="block font-bold text-stone-700 mb-1">স্বাক্ষরকারী / পদবী</label>
+                        <label className="block font-bold text-stone-700 mb-1">{language === "bn" ? "স্বাক্ষরকারী / পদবী" : "Signatory / Title"}</label>
                         <input
                           type="text"
                           value={newNotifAuthor}
                           onChange={(e) => setNewNotifAuthor(e.target.value)}
-                          placeholder="যেমন: সাধারণ সম্পাদক"
+                          placeholder={language === "bn" ? "যেমন: সাধারণ সম্পাদক" : "e.g. General Secretary"}
                           className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2 text-stone-800"
                         />
                       </div>
@@ -2052,8 +2080,8 @@ export function VotingNotifyCenter({
                             checked={newNotifPinned}
                             onChange={(e) => setNewNotifPinned(e.target.checked)}
                             className="accent-emerald-700 w-4 h-4"
-                          />
-                          <span>শীর্ষে পিন করুন</span>
+                            />
+                          <span>{language === "bn" ? "শীর্ষে পিন করুন" : "Pin to top"}</span>
                         </label>
 
                         <label className="flex items-center gap-2 cursor-pointer font-semibold text-emerald-900 text-[11px]">
@@ -2062,8 +2090,8 @@ export function VotingNotifyCenter({
                             checked={autoAttachSignatures}
                             onChange={(e) => setAutoAttachSignatures(e.target.checked)}
                             className="accent-emerald-700 w-4 h-4"
-                          />
-                          <span>অথোরাইজড সিগনেচার যুক্ত করুন</span>
+                            />
+                          <span>{language === "bn" ? "অথোরাইজড সিগনেচার যুক্ত করুন" : "Add authorized signature"}</span>
                         </label>
                       </div>
                     </div>
@@ -2073,10 +2101,12 @@ export function VotingNotifyCenter({
                       className="w-full bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold py-2.5 rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer mt-2"
                     >
                       <Bell size={15} />
-                      নোটিশ প্রকাশ করুন (সকল ইউজার আইডিতে ব্রডকাস্ট)
+                      {language === "bn" ? "নোটিশ প্রকাশ করুন (সকল ইউজার আইডিতে ব্রডকাস্ট)" : "Publish Notice (broadcast to all user IDs)"}
                     </button>
                   </form>
                 </div>
+                  </>
+                )}
               </div>
             </div>
         </div>
@@ -2094,9 +2124,11 @@ export function VotingNotifyCenter({
                 <FileText size={20} className="text-amber-400" />
                 <div>
                   <h3 className="font-bold text-sm sm:text-base">
-                    {reportType === "results" ? "ভোটিং ফলাফল ও রেজুলেশন রিপোর্ট" : "কে কোথায় ভোট দিয়েছে (ভোটার অডিট রোল)"}
+                    {language === "bn"
+                      ? reportType === "results" ? "ভোটিং ফলাফল ও রেজুলেশন রিপোর্ট" : "কে কোথায় ভোট দিয়েছে (ভোটার অডিট রোল)"
+                      : reportType === "results" ? "Voting Results & Resolution Report" : "Who Voted Where (Voter Audit Roll)"}
                   </h3>
-                  <p className="text-[11px] text-emerald-300">পিডিএফ এবং জেপিজি উভয় ফরম্যাটে ডাউনলোড করুন</p>
+                  <p className="text-[11px] text-emerald-300">{language === "bn" ? "পিডিএফ এবং জেপিজি উভয় ফরম্যাটে ডাউনলোড করুন" : "Download in both PDF and JPG formats"}</p>
                 </div>
               </div>
 
@@ -2106,7 +2138,7 @@ export function VotingNotifyCenter({
                   onClick={() => setReportType(reportType === "results" ? "voters" : "results")}
                   className="px-2.5 py-1 rounded bg-emerald-800 hover:bg-emerald-700 text-amber-200 text-xs font-semibold cursor-pointer"
                 >
-                  {reportType === "results" ? "ভোটার তালিকা দেখুন" : "ফলাফল সারসংক্ষেপ দেখুন"}
+                  {language === "bn" ? (reportType === "results" ? "ভোটার তালিকা দেখুন" : "ফলাফল সারসংক্ষেপ দেখুন") : (reportType === "results" ? "View Voter Roll" : "View Results Summary")}
                 </button>
                 <button
                   type="button"
@@ -2140,30 +2172,32 @@ export function VotingNotifyCenter({
                     {settings.societyAddress || "উলানিয়া বাজার, গলাচিপা, পটুয়াখালী"}
                   </p>
                   <div className="mt-2 inline-block px-3 py-1 rounded-full bg-emerald-900 text-amber-300 font-bold text-xs">
-                    {reportType === "results" ? "অফিসিয়াল ভোটিং ফলাফল বিবরণী" : "বিস্তারিত ভোটার অডিট তালিকা (কে কোথায় ভোট দিয়েছেন)"}
+                    {language === "bn"
+                      ? reportType === "results" ? "অফিসিয়াল ভোটিং ফলাফল বিবরণী" : "বিস্তারিত ভোটার অডিট তালিকা (কে কোথায় ভোট দিয়েছেন)"
+                      : reportType === "results" ? "Official Voting Results Statement" : "Detailed Voter Audit Roll (Who Voted Where)"}
                   </div>
                 </div>
 
                 {/* Poll Details Meta */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 my-4 bg-stone-50 p-3 rounded-lg border border-stone-200 text-[11px]">
                   <div>
-                    <span className="text-stone-500">ভোটিং বিষয়: </span>
+                    <span className="text-stone-500">{language === "bn" ? "ভোটিং বিষয়: " : "Poll Subject: "}</span>
                     <strong className="text-stone-900 block truncate">{viewingReportPoll.title}</strong>
                   </div>
                   <div>
-                    <span className="text-stone-500">মোট নিবন্ধিত ভোটার: </span>
-                    <strong className="text-stone-900 block font-mono">{formatNumber(members.length)} জন</strong>
+                    <span className="text-stone-500">{language === "bn" ? "মোট নিবন্ধিত ভোটার: " : "Total Registered Voters: "}</span>
+                    <strong className="text-stone-900 block font-mono">{formatNumber(members.length)} {language === "bn" ? "জন" : ""}</strong>
                   </div>
                   <div>
-                    <span className="text-stone-500">প্রদত্ত ভোট ও উপস্থিতি: </span>
+                    <span className="text-stone-500">{language === "bn" ? "প্রদত্ত ভোট ও উপস্থিতি: " : "Votes Cast & Turnout: "}</span>
                     <strong className="text-emerald-800 block font-mono">
-                      {formatNumber(viewingReportPoll.votes.length)} ভোট ({members.length ? Math.round((viewingReportPoll.votes.length / members.length) * 100) : 0}%)
+                      {formatNumber(viewingReportPoll.votes.length)} {language === "bn" ? "ভোট " : "votes "}({members.length ? Math.round((viewingReportPoll.votes.length / members.length) * 100) : 0}%)
                     </strong>
                   </div>
                   <div>
-                    <span className="text-stone-500">পাস কোরাম (মোটের ২/৩): </span>
+                    <span className="text-stone-500">{language === "bn" ? "পাস কোরাম (মোটের ২/৩): " : "Pass Quorum (2/3 of total): "}</span>
                     <strong className="text-amber-900 block font-mono">
-                      অন্তত {formatNumber(Math.ceil((members.length * 2) / 3))} ভোট
+                      {language === "bn" ? "অন্তত " : "At least "}{formatNumber(Math.ceil((members.length * 2) / 3))} {language === "bn" ? "ভোট" : "votes"}
                     </strong>
                   </div>
                 </div>
@@ -2174,12 +2208,12 @@ export function VotingNotifyCenter({
                     <table className="w-full text-left border-collapse border border-stone-300 text-xs">
                       <thead>
                         <tr className="bg-emerald-900 text-white font-bold">
-                          <th className="border border-stone-300 p-2 text-center w-10">ক্রমিক</th>
-                          <th className="border border-stone-300 p-2">ভোটিং অপশন / বিকল্প</th>
-                          <th className="border border-stone-300 p-2 text-center w-20">প্রাপ্ত ভোট</th>
-                          <th className="border border-stone-300 p-2 text-center w-20">প্রদত্ত %</th>
-                          <th className="border border-stone-300 p-2 text-center w-24">মোট ভোটারের %</th>
-                          <th className="border border-stone-300 p-2 text-center w-28">২/৩ ফলাফল</th>
+                          <th className="border border-stone-300 p-2 text-center w-10">{language === "bn" ? "ক্রমিক" : "No."}</th>
+                          <th className="border border-stone-300 p-2">{language === "bn" ? "ভোটিং অপশন / বিকল্প" : "Voting Option"}</th>
+                          <th className="border border-stone-300 p-2 text-center w-20">{language === "bn" ? "প্রাপ্ত ভোট" : "Votes"}</th>
+                          <th className="border border-stone-300 p-2 text-center w-20">{language === "bn" ? "প্রদত্ত %" : "% of Votes"}</th>
+                          <th className="border border-stone-300 p-2 text-center w-24">{language === "bn" ? "মোট ভোটারের %" : "% of Voters"}</th>
+                          <th className="border border-stone-300 p-2 text-center w-28">{language === "bn" ? "২/৩ ফলাফল" : "2/3 Result"}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2214,11 +2248,11 @@ export function VotingNotifyCenter({
                               <td className="border border-stone-300 p-2 text-center">
                                 {isPassed23 ? (
                                   <span className="px-2 py-0.5 rounded bg-emerald-700 text-white text-[10px] font-bold">
-                                    ✅ ২/৩ পাস
+                                    {language === "bn" ? "✅ ২/৩ পাস" : "✅ 2/3 Passed"}
                                   </span>
                                 ) : isLeading ? (
                                   <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold">
-                                    শীর্ষে (২/৩ অপূর্ণ)
+                                    {language === "bn" ? "শীর্ষে (২/৩ অপূর্ণ)" : "Leading (2/3 not reached)"}
                                   </span>
                                 ) : (
                                   <span className="text-stone-400 text-[10px]">-</span>
@@ -2232,7 +2266,7 @@ export function VotingNotifyCenter({
 
                     {/* Official Resolution Text */}
                     <div className="bg-stone-50 p-3.5 rounded-lg border border-stone-200">
-                      <p className="font-bold text-emerald-950 mb-1">রেজুলেশন ও চূড়ান্ত সিদ্ধান্ত:</p>
+                      <p className="font-bold text-emerald-950 mb-1">{language === "bn" ? "রেজুলেশন ও চূড়ান্ত সিদ্ধান্ত:" : "Resolution & Final Decision:"}</p>
                       <p className="text-stone-700 leading-relaxed">
                         {viewingReportPoll.resolutionSummary ||
                           "ভোটিংয়ের ফলাফলের ভিত্তিতে অধিকাংশ সদস্যের মতামতের প্রেক্ষিতে প্রস্তাবিত সিদ্ধান্ত চূড়ান্ত অনুমোদন ও কার্যকর করা হলো।"}
@@ -2245,11 +2279,11 @@ export function VotingNotifyCenter({
                     <table className="w-full text-left border-collapse border border-stone-300 text-[11px]">
                       <thead>
                         <tr className="bg-emerald-900 text-white font-bold">
-                          <th className="border border-stone-300 p-1.5 text-center w-8">ক্র:</th>
-                          <th className="border border-stone-300 p-1.5">সদস্যের নাম</th>
-                          <th className="border border-stone-300 p-1.5 text-center">আইডি</th>
-                          <th className="border border-stone-300 p-1.5">প্রদত্ত ভোট (Option)</th>
-                          <th className="border border-stone-300 p-1.5 text-center">তারিখ ও সময়</th>
+                          <th className="border border-stone-300 p-1.5 text-center w-8">{language === "bn" ? "ক্র:" : "No:"}</th>
+                          <th className="border border-stone-300 p-1.5">{language === "bn" ? "সদস্যের নাম" : "Member Name"}</th>
+                          <th className="border border-stone-300 p-1.5 text-center">{language === "bn" ? "আইডি" : "ID"}</th>
+                          <th className="border border-stone-300 p-1.5">{language === "bn" ? "প্রদত্ত ভোট (Option)" : "Vote Cast (Option)"}</th>
+                          <th className="border border-stone-300 p-1.5 text-center">{language === "bn" ? "তারিখ ও সময়" : "Date & Time"}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2278,13 +2312,13 @@ export function VotingNotifyCenter({
                       {settings.treasurerSignature ? (
                         <img src={settings.treasurerSignature} alt="Treasurer Sig" className="max-h-9 object-contain" />
                       ) : (
-                        <span className="text-stone-300 text-[10px] italic">স্বাক্ষরিত</span>
+                        <span className="text-stone-300 text-[10px] italic">{language === "bn" ? "স্বাক্ষরিত" : "Signed"}</span>
                       )}
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
                       {settings.treasurerName || "কোষাধ্যক্ষ"}
                     </div>
-                    <div className="text-[9px] text-stone-500">কোষাধ্যক্ষ</div>
+                    <div className="text-[9px] text-stone-500">{language === "bn" ? "কোষাধ্যক্ষ" : "Treasurer"}</div>
                   </div>
 
                   <div>
@@ -2292,13 +2326,13 @@ export function VotingNotifyCenter({
                       {settings.secretarySignature ? (
                         <img src={settings.secretarySignature} alt="Secretary Sig" className="max-h-9 object-contain" />
                       ) : (
-                        <span className="text-stone-300 text-[10px] italic">স্বাক্ষরিত</span>
+                        <span className="text-stone-300 text-[10px] italic">{language === "bn" ? "স্বাক্ষরিত" : "Signed"}</span>
                       )}
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
                       {settings.secretaryName || "সাধারণ সম্পাদক"}
                     </div>
-                    <div className="text-[9px] text-stone-500">সাধারণ সম্পাদক</div>
+                    <div className="text-[9px] text-stone-500">{language === "bn" ? "সাধারণ সম্পাদক" : "General Secretary"}</div>
                   </div>
 
                   <div>
@@ -2306,13 +2340,13 @@ export function VotingNotifyCenter({
                       {settings.presidentSignature ? (
                         <img src={settings.presidentSignature} alt="President Sig" className="max-h-9 object-contain" />
                       ) : (
-                        <span className="text-stone-300 text-[10px] italic">স্বাক্ষরিত</span>
+                        <span className="text-stone-300 text-[10px] italic">{language === "bn" ? "স্বাক্ষরিত" : "Signed"}</span>
                       )}
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
                       {settings.presidentName || "সভাপতি"}
                     </div>
-                    <div className="text-[9px] text-stone-500">সভাপতি</div>
+                    <div className="text-[9px] text-stone-500">{language === "bn" ? "সভাপতি" : "President"}</div>
                   </div>
                 </div>
               </div>
@@ -2332,7 +2366,7 @@ export function VotingNotifyCenter({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-bold text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <Download size={14} />
-                  {isExporting && exportFormat === "pdf" ? "তৈরি হচ্ছে..." : "PDF ডাউনলোড"}
+                  {language === "bn" ? (isExporting && exportFormat === "pdf" ? "তৈরি হচ্ছে..." : "PDF ডাউনলোড") : (isExporting && exportFormat === "pdf" ? "Generating..." : "Download PDF")}
                 </button>
 
                 <button
@@ -2342,7 +2376,7 @@ export function VotingNotifyCenter({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <ImageIcon size={14} />
-                  {isExporting && exportFormat === "jpg" ? "তৈরি হচ্ছে..." : "JPG ছবি ডাউনলোড"}
+                  {language === "bn" ? (isExporting && exportFormat === "jpg" ? "তৈরি হচ্ছে..." : "JPG ছবি ডাউনলোড") : (isExporting && exportFormat === "jpg" ? "Generating..." : "Download JPG Image")}
                 </button>
               </div>
             </div>
@@ -2361,8 +2395,8 @@ export function VotingNotifyCenter({
               <div className="flex items-center gap-2.5">
                 <Bell size={20} className="text-amber-400" />
                 <div>
-                  <h3 className="font-bold text-sm sm:text-base">অফিসিয়াল নোটিশ পত্র ও বিজ্ঞপ্তি</h3>
-                  <p className="text-[11px] text-emerald-300">পিডিএফ এবং জেপিজি ডাউনলোড ফরম্যাট</p>
+                  <h3 className="font-bold text-sm sm:text-base">{language === "bn" ? "অফিসিয়াল নোটিশ পত্র ও বিজ্ঞপ্তি" : "Official Notice Letter"}</h3>
+                  <p className="text-[11px] text-emerald-300">{language === "bn" ? "পিডিএফ এবং জেপিজি ডাউনলোড ফরম্যাট" : "PDF and JPG download formats"}</p>
                 </div>
               </div>
 
@@ -2397,20 +2431,20 @@ export function VotingNotifyCenter({
                     {settings.societyAddress || "উলানিয়া বাজার, গলাচিপা, পটুয়াখালী"}
                   </p>
                   <div className="mt-2 inline-block px-3 py-0.5 rounded-full bg-emerald-900 text-amber-300 font-bold text-xs">
-                    অফিসিয়াল বিজ্ঞপ্তি / নোটিশ
+                    {language === "bn" ? "অফিসিয়াল বিজ্ঞপ্তি / নোটিশ" : "Official Notice"}
                   </div>
                 </div>
 
                 {/* Notice Meta Details */}
                 <div className="flex justify-between items-center text-[11px] border-b border-stone-200 py-2.5 text-stone-600 font-mono">
-                  <span>স্মারক নং: <strong className="text-stone-900">{viewingNotice.circularNo || viewingNotice.id}</strong></span>
-                  <span>তারিখ: <strong className="text-stone-900">{viewingNotice.date}</strong></span>
+                  <span>{language === "bn" ? "স্মারক নং:" : "Circular No:"} <strong className="text-stone-900">{viewingNotice.circularNo || viewingNotice.id}</strong></span>
+                  <span>{language === "bn" ? "তারিখ:" : "Date:"} <strong className="text-stone-900">{viewingNotice.date}</strong></span>
                 </div>
 
                 {/* Notice Body */}
                 <div className="py-4 space-y-3">
                   <h2 className="text-base font-bold text-emerald-950 leading-snug">
-                    বিষয়: {viewingNotice.title}
+                    {language === "bn" ? "বিষয়:" : "Subject:"} {viewingNotice.title}
                   </h2>
 
                   <p className="text-xs text-stone-800 leading-relaxed whitespace-pre-line text-justify">
@@ -2420,7 +2454,7 @@ export function VotingNotifyCenter({
                   {/* If image attachment */}
                   {viewingNotice.attachment && viewingNotice.attachmentType !== "pdf" && (
                     <div className="pt-2">
-                      <p className="text-[11px] font-bold text-stone-700 mb-1">সংযুক্ত বিজ্ঞপ্তি চিত্র:</p>
+                      <p className="text-[11px] font-bold text-stone-700 mb-1">{language === "bn" ? "সংযুক্ত বিজ্ঞপ্তি চিত্র:" : "Attached notice image:"}</p>
                       <div className="border border-stone-200 rounded-xl overflow-hidden bg-stone-50">
                         <img
                           src={viewingNotice.attachment}
@@ -2433,7 +2467,7 @@ export function VotingNotifyCenter({
 
                   {/* Delivery Note */}
                   <div className="text-[10px] text-stone-500 pt-2 italic">
-                    * এই বিজ্ঞপ্তিটি সোসাইটির সকল সদস্যের অবগতি ও প্রয়োজনীয় ব্যবস্থা গ্রহণের জন্য জারী করা হলো।
+                    {language === "bn" ? "* এই বিজ্ঞপ্তিটি সোসাইটির সকল সদস্যের অবগতি ও প্রয়োজনীয় ব্যবস্থা গ্রহণের জন্য জারী করা হলো।" : "* This notice is issued for the information and necessary action of all society members."}
                   </div>
                 </div>
 
@@ -2444,13 +2478,13 @@ export function VotingNotifyCenter({
                       {settings.secretarySignature ? (
                         <img src={settings.secretarySignature} alt="Secretary Sig" className="max-h-9 object-contain" />
                       ) : (
-                        <span className="text-stone-300 text-[10px] italic">স্বাক্ষরিত</span>
+                        <span className="text-stone-300 text-[10px] italic">{language === "bn" ? "স্বাক্ষরিত" : "Signed"}</span>
                       )}
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
                       {settings.secretaryName || viewingNotice.author || "সাধারণ সম্পাদক"}
                     </div>
-                    <div className="text-[9px] text-stone-500">সাধারণ সম্পাদক</div>
+                    <div className="text-[9px] text-stone-500">{language === "bn" ? "সাধারণ সম্পাদক" : "General Secretary"}</div>
                   </div>
 
                   <div>
@@ -2458,13 +2492,13 @@ export function VotingNotifyCenter({
                       {settings.presidentSignature ? (
                         <img src={settings.presidentSignature} alt="President Sig" className="max-h-9 object-contain" />
                       ) : (
-                        <span className="text-stone-300 text-[10px] italic">স্বাক্ষরিত</span>
+                        <span className="text-stone-300 text-[10px] italic">{language === "bn" ? "স্বাক্ষরিত" : "Signed"}</span>
                       )}
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
                       {settings.presidentName || "সভাপতি"}
                     </div>
-                    <div className="text-[9px] text-stone-500">সভাপতি</div>
+                    <div className="text-[9px] text-stone-500">{language === "bn" ? "সভাপতি" : "President"}</div>
                   </div>
                 </div>
               </div>
@@ -2472,7 +2506,7 @@ export function VotingNotifyCenter({
 
             {/* Modal Bottom Action Bar */}
             <div className="bg-stone-50 p-4 border-t border-stone-200 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <span className="text-xs text-stone-500 font-medium">ডাউনলোড অপশন:</span>
+              <span className="text-xs text-stone-500 font-medium">{language === "bn" ? "ডাউনলোড অপশন:" : "Download options:"}</span>
 
               <div className="flex items-center gap-2">
                 <button
@@ -2482,7 +2516,7 @@ export function VotingNotifyCenter({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-bold text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <Download size={14} />
-                  {isExportingNotice ? "তৈরি হচ্ছে..." : "অফিসিয়াল PDF ডাউনলোড"}
+                  {language === "bn" ? (isExportingNotice ? "তৈরি হচ্ছে..." : "অফিসিয়াল PDF ডাউনলোড") : (isExportingNotice ? "Generating..." : "Download Official PDF")}
                 </button>
 
                 <button
@@ -2492,7 +2526,7 @@ export function VotingNotifyCenter({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <ImageIcon size={14} />
-                  {isExportingNotice ? "তৈরি হচ্ছে..." : "JPG ডাউনলোড"}
+                  {language === "bn" ? (isExportingNotice ? "তৈরি হচ্ছে..." : "JPG ডাউনলোড") : (isExportingNotice ? "Generating..." : "Download JPG")}
                 </button>
               </div>
             </div>

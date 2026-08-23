@@ -140,14 +140,14 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
             <div className="flex items-center justify-between">
               <label className="text-sm font-bold text-stone-800 flex items-center gap-2">
                 <Award size={16} className="text-amber-600" />
-                <span>অ্যাডমিন প্যানেলের বার্তা ও সমিতি পরিচিতি</span>
+                <span>{language === 'bn' ? "অ্যাডমিন প্যানেলের বার্তা ও সমিতি পরিচিতি" : "Admin Panel Message & Society Introduction"}</span>
               </label>
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
                   className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors"
                 >
-                  <Edit3 size={14} /> এডিট করুন
+                  <Edit3 size={14} /> {language === 'bn' ? "এডিট করুন" : "Edit"}
                 </button>
               ) : (
                 <div className="flex items-center gap-2">
@@ -158,13 +158,13 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
                     }}
                     className="text-xs font-medium text-stone-600 hover:text-stone-900 px-2.5 py-1"
                   >
-                    বাতিল
+                    {language === 'bn' ? "বাতিল" : "Cancel"}
                   </button>
                   <button
                     onClick={handleSave}
                     className="flex items-center gap-1.5 text-xs font-bold text-white bg-emerald-800 hover:bg-emerald-900 px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
                   >
-                    <Check size={14} /> সংরক্ষণ
+                    <Check size={14} /> {language === 'bn' ? "সংরক্ষণ" : "Save"}
                   </button>
                 </div>
               )}
@@ -177,10 +177,10 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
                   onChange={(e) => setText(e.target.value)}
                   rows={8}
                   className="w-full p-3.5 text-sm bg-white border-2 border-emerald-600 rounded-xl focus:outline-hidden text-stone-800 font-sans leading-relaxed shadow-inner"
-                  placeholder="সমিতির পরিচিতি, লক্ষ্য, উদ্দেশ্য এবং পরিচালনা পরিষদ সম্পর্কিত বিবরণ এখানে লিখুন..."
+                  placeholder={language === 'bn' ? "সমিতির পরিচিতি, লক্ষ্য, উদ্দেশ্য এবং পরিচালনা পরিষদ সম্পর্কিত বিবরণ এখানে লিখুন..." : "Write the society's introduction, goals, objectives, and details about the governing committee here..."}
                 />
                 <p className="text-[11px] text-stone-500">
-                  * পরিচালনা পরিষদ ও অ্যাডমিন প্যানেল নিজেদের ইচ্ছেমতো যেকোনো সময় এই বার্তা পরিবর্তন বা পরিমার্জন করতে পারবেন।
+                  {language === 'bn' ? "* পরিচালনা পরিষদ ও অ্যাডমিন প্যানেল নিজেদের ইচ্ছেমতো যেকোনো সময় এই বার্তা পরিবর্তন বা পরিমার্জন করতে পারবেন।" : "* The governing committee and admin panel may edit or revise this message at any time, as they see fit."}
                 </p>
               </div>
             ) : (
@@ -195,9 +195,9 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
             <div className="p-3 bg-emerald-50/70 border border-emerald-100 rounded-xl flex items-start gap-2.5 text-xs text-emerald-950">
               <ShieldCheck size={18} className="text-emerald-700 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold">১০০% স্বচ্ছ ও ডিজিটাল হিসাব</p>
+                <p className="font-bold">{language === 'bn' ? "১০০% স্বচ্ছ ও ডিজিটাল হিসাব" : "100% Transparent & Digital Accounts"}</p>
                 <p className="text-[11px] text-emerald-800 mt-0.5">
-                  প্রতিটি সদস্যের মাসিক সঞ্চয়, জরিমানা, ব্যাংক ও বিনিয়োগের পুঙ্খানুপুঙ্খ বিবরণ।
+                  {language === 'bn' ? "প্রতিটি সদস্যের মাসিক সঞ্চয়, জরিমানা, ব্যাংক ও বিনিয়োগের পুঙ্খানুপুঙ্খ বিবরণ।" : "Detailed records of every member's monthly savings, fines, bank transactions, and investments."}
                 </p>
               </div>
             </div>
@@ -205,9 +205,9 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
             <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl flex items-start gap-2.5 text-xs text-amber-950">
               <HeartHandshake size={18} className="text-amber-700 shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold">সদস্য ঐক্য ও কল্যাণমুখী</p>
+                <p className="font-bold">{language === 'bn' ? "সদস্য ঐক্য ও কল্যাণমুখী" : "Member Unity & Welfare-Oriented"}</p>
                 <p className="text-[11px] text-amber-800 mt-0.5">
-                  ভ্রাতৃত্ব ও পারস্পরিক সহযোগিতার ভিত্তিতে সুশৃঙ্খল সমবায় কার্যক্রম।
+                  {language === 'bn' ? "ভ্রাতৃত্ব ও পারস্পরিক সহযোগিতার ভিত্তিতে সুশৃঙ্খল সমবায় কার্যক্রম।" : "Disciplined cooperative activities based on brotherhood and mutual cooperation."}
                 </p>
               </div>
             </div>
@@ -224,7 +224,7 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
               }}
               className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 hover:underline"
             >
-              📷 সমিতির গোল লোগো পরিবর্তন করুন
+              {language === 'bn' ? "📷 সমিতির গোল লোগো পরিবর্তন করুন" : "📷 Change Society's Round Logo"}
             </button>
           ) : (
             <div />
@@ -234,7 +234,7 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
             onClick={onClose}
             className="px-5 py-2 bg-emerald-900 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
           >
-            বন্ধ করুন
+            {language === 'bn' ? "বন্ধ করুন" : "Close"}
           </button>
         </div>
       </div>

@@ -26,7 +26,7 @@ interface ProfileRow {
   id: string;
   mobile: string;
   name: string;
-  role: "admin" | "member";
+  role: "admin" | "treasurer" | "member";
   member_uid: string | null;
 }
 
@@ -48,7 +48,7 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
   const [selectedMemberUid, setSelectedMemberUid] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState(randomPassword());
-  const [asRole, setAsRole] = useState<"member" | "admin">("member");
+  const [asRole, setAsRole] = useState<"member" | "treasurer" | "admin">("member");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ mobile: string; password: string } | null>(
@@ -137,7 +137,8 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
   };
 
   const slipText = result
-    ? `🏢 ${settings.societyName || "TRUST GROWTH SOCIETY"}
+    ? language === "bn"
+      ? `🏢 ${settings.societyName || "TRUST GROWTH SOCIETY"}
 🔐 অ্যাপ লগইন তথ্য
 ------------------------------------
 📱 মোবাইল নম্বর: ${result.mobile}
@@ -145,6 +146,14 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
 ------------------------------------
 🌐 লিঙ্ক: ${window.location.origin}
 ⚠️ এই তথ্য গোপন রাখুন, কারো সাথে শেয়ার করবেন না (অ্যাডমিন ছাড়া)।`
+      : `🏢 ${settings.societyName || "TRUST GROWTH SOCIETY"}
+🔐 App Login Information
+------------------------------------
+📱 Mobile Number: ${result.mobile}
+🔑 Password: ${result.password}
+------------------------------------
+🌐 Link: ${window.location.origin}
+⚠️ Keep this information private, do not share it with anyone (except admin).`
     : "";
 
   const handleCopy = () => {
@@ -246,7 +255,7 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
             <label className="text-xs font-bold text-stone-600 mb-1.5 block">
               {language === "bn" ? "একসেস লেভেল" : "Access Level"}
             </label>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={() => setAsRole("member")}
@@ -257,6 +266,19 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
                 }`}
               >
                 {language === "bn" ? "সাধারণ সদস্য (ভোট + তথ্য দেখা)" : "Member (vote + view)"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAsRole("treasurer")}
+                className={`flex-1 px-3.5 py-2.5 rounded-xl text-xs font-bold border cursor-pointer transition-colors ${
+                  asRole === "treasurer"
+                    ? "bg-sky-700 text-white border-sky-700"
+                    : "bg-white text-stone-600 border-stone-200"
+                }`}
+              >
+                {language === "bn"
+                  ? "কোষাধ্যক্ষ/সাধারণ সম্পাদক (এন্ট্রি অ্যাক্সেস)"
+                  : "Treasurer/General Secretary (entry access)"}
               </button>
               <button
                 type="button"
@@ -345,6 +367,8 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
                     className={`px-2 py-0.5 rounded-full font-bold ${
                       p.role === "admin"
                         ? "bg-amber-100 text-amber-900"
+                        : p.role === "treasurer"
+                        ? "bg-sky-100 text-sky-900"
                         : "bg-emerald-100 text-emerald-900"
                     }`}
                   >

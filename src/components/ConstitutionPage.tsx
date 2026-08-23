@@ -31,9 +31,11 @@ interface ConstitutionPageProps {
   settings: AppSettings;
   onUpdateSettings: (newSettings: Partial<AppSettings>) => void;
   onOpenWatermarkSettings?: () => void;
+  /** Only a Super Admin may edit the Constitution & Bylaws — Treasurer/Secretary and regular members can only view/download/print it. */
+  isAdmin?: boolean;
 }
 
-export function ConstitutionPage({ settings, onUpdateSettings, onOpenWatermarkSettings }: ConstitutionPageProps) {
+export function ConstitutionPage({ settings, onUpdateSettings, onOpenWatermarkSettings, isAdmin = false }: ConstitutionPageProps) {
   const { language, t, formatNumber } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
   const [text, setText] = useState(settings.constitution || "");
@@ -219,19 +221,21 @@ export function ConstitutionPage({ settings, onUpdateSettings, onOpenWatermarkSe
                 <span>{isDownloadingPdf ? (language === 'bn' ? "PDF তৈরি হচ্ছে..." : "Creating PDF...") : (language === 'bn' ? "পিডিএফ (PDF) ডাউনলোড" : "Download PDF")}</span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setText(settings.constitution || "");
-                  setAttachment(settings.constitutionAttachment);
-                  setAttachmentName(settings.constitutionAttachmentName);
-                  setIsEditing(true);
-                }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer border border-amber-500/50"
-              >
-                <Edit3 size={15} />
-                <span>{language === 'bn' ? "সম্পাদনা করুন" : "Edit"}</span>
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setText(settings.constitution || "");
+                    setAttachment(settings.constitutionAttachment);
+                    setAttachmentName(settings.constitutionAttachmentName);
+                    setIsEditing(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer border border-amber-500/50"
+                >
+                  <Edit3 size={15} />
+                  <span>{language === 'bn' ? "সম্পাদনা করুন" : "Edit"}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -410,9 +414,11 @@ export function ConstitutionPage({ settings, onUpdateSettings, onOpenWatermarkSe
                   <div className="text-center py-16 text-stone-400 relative z-10">
                     <BookOpen size={48} className="mx-auto mb-3 text-stone-300" />
                     <p className="text-stone-600 font-bold text-base">{language === 'bn' ? "এখনো কোনো গঠনতন্ত্র টেক্সট যুক্ত করা হয়নি" : "No constitution text added yet"}</p>
-                    <p className="text-xs text-stone-400 mt-1">
-                      {language === 'bn' ? 'উপরের "সম্পাদনা করুন" বাটনে ক্লিক করে টেক্সট ও ফাইল যুক্ত করুন।' : 'Click "Edit" above to add text and file.'}
-                    </p>
+                    {isAdmin && (
+                      <p className="text-xs text-stone-400 mt-1">
+                        {language === 'bn' ? 'উপরের "সম্পাদনা করুন" বাটনে ক্লিক করে টেক্সট ও ফাইল যুক্ত করুন।' : 'Click "Edit" above to add text and file.'}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -570,6 +576,7 @@ export function ConstitutionPage({ settings, onUpdateSettings, onOpenWatermarkSe
                   <p className="text-[11px] text-stone-500 mt-0.5">
                     {language === 'bn' ? "অ্যাডমিন চাইলে স্বাক্ষরিত স্ক্যান কপি বা আলাদা পিডিএফ ফাইলও সংযুক্ত করতে পারেন।" : "Signed scan copy or PDF file can also be attached."}
                   </p>
+                  {isAdmin && (
                   <button
                     type="button"
                     onClick={() => {
@@ -583,6 +590,7 @@ export function ConstitutionPage({ settings, onUpdateSettings, onOpenWatermarkSe
                     <Paperclip size={12} />
                     <span>{language === 'bn' ? "ফাইল সংযুক্ত করুন" : "Attach File"}</span>
                   </button>
+                  )}
                 </div>
               )}
             </div>

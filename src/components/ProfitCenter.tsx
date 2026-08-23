@@ -44,7 +44,8 @@ interface ProfitCenterProps {
   investEntries: AccountEntry[];
   profitDistributions: ProfitDistribution[];
   settings: AppSettings;
-  onSaveDistribution: (dist: ProfitDistribution) => void;
+  /** Omit to hide the "Save Distribution Run" button — Super Admin only. */
+  onSaveDistribution?: (dist: ProfitDistribution) => void;
   onDeleteDistribution?: (distId: string) => void;
 }
 
@@ -86,7 +87,9 @@ export function ProfitCenter({
 
   // Investment Selection / Input State
   const [selectedInvestId, setSelectedInvestId] = useState<string>("custom");
-  const [customTitle, setCustomTitle] = useState<string>("সাভার বাণিজ্যিক প্রকল্পে লাভজনক বিনিয়োগ");
+  const [customTitle, setCustomTitle] = useState<string>(
+    language === "bn" ? "সাভার বাণিজ্যিক প্রকল্পে লাভজনক বিনিয়োগ" : "Profitable Investment in Savar Commercial Project"
+  );
   const [investmentAmount, setInvestmentAmount] = useState<number>(100000);
   const [profitAmount, setProfitAmount] = useState<number>(20000);
   const [investmentDate, setInvestmentDate] = useState<string>(
@@ -111,7 +114,7 @@ export function ProfitCenter({
 
     const entry = investEntries.find((e) => e.id === id);
     if (entry) {
-      setCustomTitle(entry.desc || "বিনিয়োগ প্রকল্প");
+      setCustomTitle(entry.desc || (language === "bn" ? "বিনিয়োগ প্রকল্প" : "Investment Project"));
       setInvestmentAmount(entry.amount || 0);
       setProfitAmount(entry.dividend || 0);
       setInvestmentDate(entry.date || new Date().toLocaleDateString("en-GB"));
@@ -184,9 +187,10 @@ export function ProfitCenter({
 
   // Save distribution run to history
   const handleSaveRun = () => {
+    if (!onSaveDistribution) return;
     const run: ProfitDistribution = {
       id: `pdist-${Date.now()}`,
-      title: customTitle.trim() || "বিনিয়োগ প্রফিট শেয়ারিং হিসাব",
+      title: customTitle.trim() || (language === "bn" ? "বিনিয়োগ প্রফিট শেয়ারিং হিসাব" : "Investment Profit Sharing Statement"),
       investEntryId: selectedInvestId !== "custom" ? selectedInvestId : undefined,
       investmentTitle: customTitle.trim(),
       investmentAmount: investmentAmount,
@@ -214,7 +218,7 @@ export function ProfitCenter({
 
   // Export to Excel
   const handleExportExcel = () => {
-    const headers = [
+    const headers = language === "bn" ? [
       "ক্রমিক",
       "সদস্য আইডি",
       "সদস্যের নাম",
@@ -223,6 +227,15 @@ export function ProfitCenter({
       "অংশীদারিত্ব অনুপাত (%)",
       "বিনিয়োগে মূলধন অংশ (৳)",
       "৯৫% মুনাফা লভ্যাংশ (৳)",
+    ] : [
+      "SL",
+      "Member ID",
+      "Member Name",
+      "Mobile Number",
+      "Total Deposit at Investment Date (৳)",
+      "Share Ratio (%)",
+      "Capital Share in Investment (৳)",
+      "95% Profit Share (৳)",
     ];
 
     const rows = calculation.shares.map((s, idx) => [
@@ -238,9 +251,9 @@ export function ProfitCenter({
 
     // Add summary row at bottom
     rows.push([
-      "মোট",
+      language === "bn" ? "মোট" : "Total",
       "-",
-      `${calculation.shares.length} জন সদস্য`,
+      language === "bn" ? `${calculation.shares.length} জন সদস্য` : `${calculation.shares.length} Members`,
       "-",
       calculation.totalDepositsAtDate,
       "100.00%",
@@ -249,10 +262,16 @@ export function ProfitCenter({
     ]);
 
     const ws = XLSX.utils.aoa_to_sheet([
-      [`ট্রাস্ট গ্রোথ সোসাইটি - বিনিয়োগ প্রফিট বণ্টন বিবরণী`],
-      [`প্রকল্প: ${customTitle} | বিনিয়োগ মূলধন: ৳${investmentAmount} | মোট মুনাফা: ৳${profitAmount}`],
-      [`টিজিএস ৫% কল্যাণ ফান্ড: ৳${calculation.tgsFundAmount} | সদস্যদের ৯৫% মোট পুল: ৳${calculation.membersPoolAmount}`],
-      [`তারিখ: ${investmentDate}`],
+      [language === "bn"
+        ? `ট্রাস্ট গ্রোথ সোসাইটি - বিনিয়োগ প্রফিট বণ্টন বিবরণী`
+        : `Trust Growth Society - Investment Profit Distribution Statement`],
+      [language === "bn"
+        ? `প্রকল্প: ${customTitle} | বিনিয়োগ মূলধন: ৳${investmentAmount} | মোট মুনাফা: ৳${profitAmount}`
+        : `Project: ${customTitle} | Investment Capital: ৳${investmentAmount} | Total Profit: ৳${profitAmount}`],
+      [language === "bn"
+        ? `টিজিএস ৫% কল্যাণ ফান্ড: ৳${calculation.tgsFundAmount} | সদস্যদের ৯৫% মোট পুল: ৳${calculation.membersPoolAmount}`
+        : `TGS 5% Welfare Fund: ৳${calculation.tgsFundAmount} | Members' 95% Total Pool: ৳${calculation.membersPoolAmount}`],
+      [language === "bn" ? `তারিখ: ${investmentDate}` : `Date: ${investmentDate}`],
       [],
       headers,
       ...rows,
@@ -320,7 +339,7 @@ export function ProfitCenter({
                   {language === "bn" ? "বিনিয়োগ প্রফিট সেন্টার" : "Investment Profit Center"}
                 </h2>
                 <span className="px-2.5 py-0.5 rounded-full bg-amber-400 text-emerald-950 text-[11px] font-bold shadow-xs">
-                  টিজিএস ৫% + মেম্বার ৯৫%
+                  {language === "bn" ? "টিজিএস ৫% + মেম্বার ৯৫%" : "TGS 5% + Member 95%"}
                 </span>
               </div>
               <p className="text-xs sm:text-sm text-emerald-200/90 mt-1">
@@ -373,13 +392,17 @@ export function ProfitCenter({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
           {/* Select Existing Investment from Ledger or Custom */}
           <div>
-            <label className="block font-bold text-stone-700 mb-1">১. বিনিয়োগ নির্বাচন / সোর্স</label>
+            <label className="block font-bold text-stone-700 mb-1">
+              {language === "bn" ? "১. বিনিয়োগ নির্বাচন / সোর্স" : "1. Select Investment / Source"}
+            </label>
             <select
               value={selectedInvestId}
               onChange={(e) => handleSelectExistingInvest(e.target.value)}
               className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5 text-stone-800 font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700"
             >
-              <option value="custom">✏️ নতুন বা কাস্টম বিনিয়োগ হিসাব</option>
+              <option value="custom">
+                {language === "bn" ? "✏️ নতুন বা কাস্টম বিনিয়োগ হিসাব" : "✏️ New or Custom Investment"}
+              </option>
               {investEntries.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.desc} (৳{e.amount} - {e.date})
@@ -390,19 +413,23 @@ export function ProfitCenter({
 
           {/* Investment Project Title */}
           <div>
-            <label className="block font-bold text-stone-700 mb-1">২. প্রকল্পের নাম / বিবরণ</label>
+            <label className="block font-bold text-stone-700 mb-1">
+              {language === "bn" ? "২. প্রকল্পের নাম / বিবরণ" : "2. Project Name / Description"}
+            </label>
             <input
               type="text"
               value={customTitle}
               onChange={(e) => setCustomTitle(e.target.value)}
-              placeholder="প্রকল্পের বিবরণ..."
+              placeholder={language === "bn" ? "প্রকল্পের বিবরণ..." : "Project description..."}
               className="w-full bg-stone-50 border border-stone-300 rounded-xl px-3 py-2.5 text-stone-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700"
             />
           </div>
 
           {/* Capital Amount */}
           <div>
-            <label className="block font-bold text-stone-700 mb-1">৩. বিনিয়োগ মূলধন (৳) *</label>
+            <label className="block font-bold text-stone-700 mb-1">
+              {language === "bn" ? "৩. বিনিয়োগ মূলধন (৳) *" : "3. Investment Capital (৳) *"}
+            </label>
             <input
               type="number"
               min="0"
@@ -414,7 +441,9 @@ export function ProfitCenter({
 
           {/* Profit Dividend Amount */}
           <div>
-            <label className="block font-bold text-stone-700 mb-1">৪. অর্জিত মোট মুনাফা (৳) *</label>
+            <label className="block font-bold text-stone-700 mb-1">
+              {language === "bn" ? "৪. অর্জিত মোট মুনাফা (৳) *" : "4. Total Profit Earned (৳) *"}
+            </label>
             <input
               type="number"
               min="0"
@@ -427,7 +456,9 @@ export function ProfitCenter({
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
           <div className="flex items-center gap-2 text-xs">
-            <span className="font-bold text-stone-700">বিনিয়োগ তারিখ (Cut-off Date):</span>
+            <span className="font-bold text-stone-700">
+              {language === "bn" ? "বিনিয়োগ তারিখ (Cut-off Date):" : "Investment Date (Cut-off Date):"}
+            </span>
             <input
               type="text"
               value={investmentDate}
@@ -436,18 +467,22 @@ export function ProfitCenter({
               className="bg-stone-50 border border-stone-300 rounded-xl px-3 py-1.5 text-stone-800 font-mono text-xs w-32 focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
             />
             <span className="text-[11px] text-stone-400 italic">
-              (এই তারিখ পর্যন্ত সদস্যদের সঞ্চয় জমার ভিত্তিতে রেশিও নির্ণয় হবে)
+              {language === "bn"
+                ? "(এই তারিখ পর্যন্ত সদস্যদের সঞ্চয় জমার ভিত্তিতে রেশিও নির্ণয় হবে)"
+                : "(Ratio is calculated based on members' deposits up to this date)"}
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSaveRun}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-bold text-xs transition-colors shadow-xs cursor-pointer"
-          >
-            <Save size={14} />
-            {language === "bn" ? "হিসাবটি ডাটাবেজে সংরক্ষণ করুন" : "Save Distribution Run"}
-          </button>
+          {onSaveDistribution && (
+            <button
+              type="button"
+              onClick={handleSaveRun}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-bold text-xs transition-colors shadow-xs cursor-pointer"
+            >
+              <Save size={14} />
+              {language === "bn" ? "হিসাবটি ডাটাবেজে সংরক্ষণ করুন" : "Save Distribution Run"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -455,56 +490,76 @@ export function ProfitCenter({
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Total Invested */}
         <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-xs">
-          <p className="text-[11px] text-stone-500 font-semibold">মোট বিনিয়োগ মূলধন</p>
+          <p className="text-[11px] text-stone-500 font-semibold">
+            {language === "bn" ? "মোট বিনিয়োগ মূলধন" : "Total Investment Capital"}
+          </p>
           <p className="text-lg sm:text-xl font-bold font-mono text-stone-900 mt-1">
             {formatMoney(investmentAmount)}
           </p>
-          <p className="text-[10px] text-stone-400 mt-0.5">প্রকল্পে নিয়োজিত মোট টাকা</p>
+          <p className="text-[10px] text-stone-400 mt-0.5">
+            {language === "bn" ? "প্রকল্পে নিয়োজিত মোট টাকা" : "Total funds committed to the project"}
+          </p>
         </div>
 
         {/* Total Profit */}
         <div className="bg-white rounded-xl border border-stone-200 p-4 shadow-xs">
-          <p className="text-[11px] text-stone-500 font-semibold">মোট অর্জিত মুনাফা</p>
+          <p className="text-[11px] text-stone-500 font-semibold">
+            {language === "bn" ? "মোট অর্জিত মুনাফা" : "Total Profit Earned"}
+          </p>
           <p className="text-lg sm:text-xl font-bold font-mono text-emerald-800 mt-1">
             {formatMoney(profitAmount)}
           </p>
           <p className="text-[10px] text-emerald-600 font-medium mt-0.5">
-            মুনাফার হার: {investmentAmount > 0 ? ((profitAmount / investmentAmount) * 100).toFixed(1) : 0}%
+            {language === "bn"
+              ? `মুনাফার হার: ${investmentAmount > 0 ? ((profitAmount / investmentAmount) * 100).toFixed(1) : 0}%`
+              : `Profit Rate: ${investmentAmount > 0 ? ((profitAmount / investmentAmount) * 100).toFixed(1) : 0}%`}
           </p>
         </div>
 
         {/* 5% TGS Welfare Fund */}
         <div className="bg-amber-50/70 rounded-xl border border-amber-200 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] text-amber-900 font-bold">টিজিএস ৫% কল্যাণ ফান্ড</p>
+            <p className="text-[11px] text-amber-900 font-bold">
+              {language === "bn" ? "টিজিএস ৫% কল্যাণ ফান্ড" : "TGS 5% Welfare Fund"}
+            </p>
             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-200 text-amber-950 font-mono">5%</span>
           </div>
           <p className="text-lg sm:text-xl font-bold font-mono text-amber-950 mt-1">
             {formatMoney(calculation.tgsFundAmount)}
           </p>
-          <p className="text-[10px] text-amber-800 mt-0.5">সংগঠন কল্যাণ তহবিলে জমা</p>
+          <p className="text-[10px] text-amber-800 mt-0.5">
+            {language === "bn" ? "সংগঠন কল্যাণ তহবিলে জমা" : "Deposited to organization welfare fund"}
+          </p>
         </div>
 
         {/* 95% Members Pool */}
         <div className="bg-emerald-50/80 rounded-xl border border-emerald-200 p-4 shadow-xs">
           <div className="flex items-center justify-between">
-            <p className="text-[11px] text-emerald-950 font-bold">মেম্বারদের ৯৫% প্রফিট পুল</p>
+            <p className="text-[11px] text-emerald-950 font-bold">
+              {language === "bn" ? "মেম্বারদের ৯৫% প্রফিট পুল" : "Members' 95% Profit Pool"}
+            </p>
             <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-950 font-mono">95%</span>
           </div>
           <p className="text-lg sm:text-xl font-bold font-mono text-emerald-950 mt-1">
             {formatMoney(calculation.membersPoolAmount)}
           </p>
-          <p className="text-[10px] text-emerald-800 mt-0.5">সকল সদস্যের মাঝে বণ্টনযোগ্য</p>
+          <p className="text-[10px] text-emerald-800 mt-0.5">
+            {language === "bn" ? "সকল সদস্যের মাঝে বণ্টনযোগ্য" : "Distributable among all members"}
+          </p>
         </div>
 
         {/* Total Fund at Date */}
         <div className="bg-stone-50 rounded-xl border border-stone-200 p-4 shadow-xs col-span-2 lg:col-span-1">
-          <p className="text-[11px] text-stone-500 font-semibold">তারিখে মোট জমা ফান্ড</p>
+          <p className="text-[11px] text-stone-500 font-semibold">
+            {language === "bn" ? "তারিখে মোট জমা ফান্ড" : "Total Deposited Fund at Date"}
+          </p>
           <p className="text-lg sm:text-xl font-bold font-mono text-stone-800 mt-1">
             {formatMoney(calculation.totalDepositsAtDate)}
           </p>
           <p className="text-[10px] text-stone-400 mt-0.5">
-            যোগ্য সদস্য: {calculation.shares.filter((s) => s.depositAtInvestDate > 0).length} জন
+            {language === "bn"
+              ? `যোগ্য সদস্য: ${calculation.shares.filter((s) => s.depositAtInvestDate > 0).length} জন`
+              : `Eligible Members: ${calculation.shares.filter((s) => s.depositAtInvestDate > 0).length}`}
           </p>
         </div>
       </div>
@@ -529,7 +584,7 @@ export function ProfitCenter({
               type="text"
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
-              placeholder="সদস্যের নাম বা আইডি খুঁজুন..."
+              placeholder={language === "bn" ? "সদস্যের নাম বা আইডি খুঁজুন..." : "Search member name or ID..."}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
             />
           </div>
@@ -539,13 +594,13 @@ export function ProfitCenter({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-stone-50 text-stone-700 font-bold border-b border-stone-200">
-                <th className="p-3 text-center w-12">ক্র:</th>
-                <th className="p-3 text-center">সদস্য আইডি</th>
-                <th className="p-3">সদস্যের নাম</th>
-                <th className="p-3 text-right">বিনিয়োগ তারিখে জমা</th>
-                <th className="p-3 text-center">অংশীদারিত্ব অনুপাত (%)</th>
-                <th className="p-3 text-right">বিনিয়োগকৃত মূলধন অংশ</th>
-                <th className="p-3 text-right font-bold text-emerald-950">৯৫% মুনাফা লভ্যাংশ</th>
+                <th className="p-3 text-center w-12">{language === "bn" ? "ক্র:" : "SL:"}</th>
+                <th className="p-3 text-center">{language === "bn" ? "সদস্য আইডি" : "Member ID"}</th>
+                <th className="p-3">{language === "bn" ? "সদস্যের নাম" : "Member Name"}</th>
+                <th className="p-3 text-right">{language === "bn" ? "বিনিয়োগ তারিখে জমা" : "Deposit at Investment Date"}</th>
+                <th className="p-3 text-center">{language === "bn" ? "অংশীদারিত্ব অনুপাত (%)" : "Share Ratio (%)"}</th>
+                <th className="p-3 text-right">{language === "bn" ? "বিনিয়োগকৃত মূলধন অংশ" : "Invested Capital Share"}</th>
+                <th className="p-3 text-right font-bold text-emerald-950">{language === "bn" ? "৯৫% মুনাফা লভ্যাংশ" : "95% Profit Share"}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-stone-100">
@@ -576,7 +631,9 @@ export function ProfitCenter({
             <tfoot>
               <tr className="bg-stone-100/90 font-bold border-t-2 border-stone-300 text-stone-900">
                 <td className="p-3 text-center" colSpan={3}>
-                  মোট সর্বমোট ({calculation.shares.length} জন সদস্য)
+                  {language === "bn"
+                    ? `মোট সর্বমোট (${calculation.shares.length} জন সদস্য)`
+                    : `Grand Total (${calculation.shares.length} Members)`}
                 </td>
                 <td className="p-3 text-right font-mono">{formatMoney(calculation.totalDepositsAtDate)}</td>
                 <td className="p-3 text-center font-mono text-emerald-900">100.00%</td>
@@ -601,7 +658,7 @@ export function ProfitCenter({
                   <h3 className="font-bold text-sm sm:text-base">
                     {language === "bn" ? "অফিসিয়াল বিনিয়োগ মুনাফা বণ্টনপত্র" : "Investment Profit Share Statement"}
                   </h3>
-                  <p className="text-[11px] text-emerald-300">পিডিএফ এবং জেপিজি উভয় ফরম্যাটে ডাউনলোড করুন</p>
+                  <p className="text-[11px] text-emerald-300">{language === "bn" ? "পিডিএফ এবং জেপিজি উভয় ফরম্যাটে ডাউনলোড করুন" : "Download in both PDF and JPG formats"}</p>
                 </div>
               </div>
 
@@ -629,32 +686,32 @@ export function ProfitCenter({
                     <TgsLogoSvg size={50} logoUrl={settings.logoUrl} />
                   </div>
                   <h1 className="text-lg sm:text-xl font-bold text-emerald-950 uppercase tracking-tight">
-                    {settings.societyName || "ট্রাস্ট গ্রোথ সোসাইটি"}
+                    {settings.societyName || (language === "bn" ? "ট্রাস্ট গ্রোথ সোসাইটি" : "Trust Growth Society")}
                   </h1>
                   <p className="text-[11px] text-stone-600">
-                    {settings.societyAddress || "উলানিয়া বাজার, গলাচিপা, পটুয়াখালী"}
+                    {settings.societyAddress || (language === "bn" ? "উলানিয়া বাজার, গলাচিপা, পটুয়াখালী" : "Ulania Bazar, Galachipa, Patuakhali")}
                   </p>
                   <div className="mt-2 inline-block px-4 py-1 rounded-full bg-emerald-900 text-amber-300 font-bold text-xs">
-                    বিনিয়োগ মুনাফা বণ্টন ও লভ্যাংশ বিবরণী (৫% টিজিএস + ৯৫% মেম্বার)
+                    {language === "bn" ? "বিনিয়োগ মুনাফা বণ্টন ও লভ্যাংশ বিবরণী (৫% টিজিএস + ৯৫% মেম্বার)" : "Investment Profit Distribution & Dividend Statement (5% TGS + 95% Member)"}
                   </div>
                 </div>
 
                 {/* Investment Meta Summary Box */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4 bg-stone-50 p-3.5 rounded-lg border border-stone-200 text-[11px]">
                   <div>
-                    <span className="text-stone-500">প্রকল্পের নাম: </span>
+                    <span className="text-stone-500">{language === "bn" ? "প্রকল্পের নাম: " : "Project Name: "}</span>
                     <strong className="text-stone-900 block truncate">{customTitle}</strong>
                   </div>
                   <div>
-                    <span className="text-stone-500">বিনিয়োগ মূলধন: </span>
+                    <span className="text-stone-500">{language === "bn" ? "বিনিয়োগ মূলধন: " : "Investment Capital: "}</span>
                     <strong className="text-stone-900 block font-mono">{formatMoney(investmentAmount)}</strong>
                   </div>
                   <div>
-                    <span className="text-stone-500">মোট মুনাফা: </span>
+                    <span className="text-stone-500">{language === "bn" ? "মোট মুনাফা: " : "Total Profit: "}</span>
                     <strong className="text-emerald-800 block font-mono">{formatMoney(profitAmount)}</strong>
                   </div>
                   <div>
-                    <span className="text-stone-500">তারিখ: </span>
+                    <span className="text-stone-500">{language === "bn" ? "তারিখ: " : "Date: "}</span>
                     <strong className="text-stone-900 block font-mono">{investmentDate}</strong>
                   </div>
                 </div>
@@ -662,11 +719,11 @@ export function ProfitCenter({
                 {/* Pool Allocation Breakdown */}
                 <div className="grid grid-cols-2 gap-3 mb-4 text-[11px]">
                   <div className="p-2.5 rounded bg-amber-50 border border-amber-200">
-                    <span className="text-amber-900 font-bold">টিজিএস ৫% কল্যাণ ফান্ড: </span>
+                    <span className="text-amber-900 font-bold">{language === "bn" ? "টিজিএস ৫% কল্যাণ ফান্ড: " : "TGS 5% Welfare Fund: "}</span>
                     <span className="font-mono font-bold text-amber-950">{formatMoney(calculation.tgsFundAmount)}</span>
                   </div>
                   <div className="p-2.5 rounded bg-emerald-50 border border-emerald-200">
-                    <span className="text-emerald-900 font-bold">সদস্যদের ৯৫% বণ্টনযোগ্য মুনাফা: </span>
+                    <span className="text-emerald-900 font-bold">{language === "bn" ? "সদস্যদের ৯৫% বণ্টনযোগ্য মুনাফা: " : "Members' 95% Distributable Profit: "}</span>
                     <span className="font-mono font-bold text-emerald-950">{formatMoney(calculation.membersPoolAmount)}</span>
                   </div>
                 </div>
@@ -675,13 +732,13 @@ export function ProfitCenter({
                 <table className="w-full text-left border-collapse border border-stone-300 text-[10.5px]">
                   <thead>
                     <tr className="bg-emerald-900 text-white font-bold">
-                      <th className="border border-stone-300 p-1.5 text-center w-8">ক্র:</th>
-                      <th className="border border-stone-300 p-1.5 text-center">আইডি</th>
-                      <th className="border border-stone-300 p-1.5">সদস্যের নাম</th>
-                      <th className="border border-stone-300 p-1.5 text-right">জমা ফান্ড</th>
-                      <th className="border border-stone-300 p-1.5 text-center">অনুপাত %</th>
-                      <th className="border border-stone-300 p-1.5 text-right">মূলধন অংশ</th>
-                      <th className="border border-stone-300 p-1.5 text-right">৯৫% মুনাফা (৳)</th>
+                      <th className="border border-stone-300 p-1.5 text-center w-8">{language === "bn" ? "ক্র:" : "SL:"}</th>
+                      <th className="border border-stone-300 p-1.5 text-center">{language === "bn" ? "আইডি" : "ID"}</th>
+                      <th className="border border-stone-300 p-1.5">{language === "bn" ? "সদস্যের নাম" : "Member Name"}</th>
+                      <th className="border border-stone-300 p-1.5 text-right">{language === "bn" ? "জমা ফান্ড" : "Deposit Fund"}</th>
+                      <th className="border border-stone-300 p-1.5 text-center">{language === "bn" ? "অনুপাত %" : "Ratio %"}</th>
+                      <th className="border border-stone-300 p-1.5 text-right">{language === "bn" ? "মূলধন অংশ" : "Capital Share"}</th>
+                      <th className="border border-stone-300 p-1.5 text-right">{language === "bn" ? "৯৫% মুনাফা (৳)" : "95% Profit (৳)"}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -704,7 +761,7 @@ export function ProfitCenter({
                   <tfoot>
                     <tr className="bg-stone-100 font-bold border-t border-stone-400 text-stone-900">
                       <td className="border border-stone-300 p-1.5 text-center" colSpan={3}>
-                        মোট সর্বমোট
+                        {language === "bn" ? "মোট সর্বমোট" : "Grand Total"}
                       </td>
                       <td className="border border-stone-300 p-1.5 text-right font-mono">
                         {formatMoney(calculation.totalDepositsAtDate)}
@@ -722,28 +779,28 @@ export function ProfitCenter({
                 <div className="grid grid-cols-3 gap-4 pt-12 mt-8 text-center text-[10px] text-stone-600 border-t border-stone-200">
                   <div>
                     <div className="h-8 flex items-end justify-center">
-                      <span className="text-stone-300 text-[10px]">স্বাক্ষর</span>
+                      <span className="text-stone-300 text-[10px]">{language === "bn" ? "স্বাক্ষর" : "Signature"}</span>
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
-                      কোষাধ্যক্ষ / অডিটর
+                      {language === "bn" ? "কোষাধ্যক্ষ / অডিটর" : "Treasurer / Auditor"}
                     </div>
                   </div>
 
                   <div>
                     <div className="h-8 flex items-end justify-center">
-                      <span className="text-stone-300 text-[10px]">স্বাক্ষর</span>
+                      <span className="text-stone-300 text-[10px]">{language === "bn" ? "স্বাক্ষর" : "Signature"}</span>
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
-                      সাধারণ সম্পাদক
+                      {language === "bn" ? "সাধারণ সম্পাদক" : "General Secretary"}
                     </div>
                   </div>
 
                   <div>
                     <div className="h-8 flex items-end justify-center">
-                      <span className="text-stone-300 text-[10px]">স্বাক্ষর</span>
+                      <span className="text-stone-300 text-[10px]">{language === "bn" ? "স্বাক্ষর" : "Signature"}</span>
                     </div>
                     <div className="border-t border-stone-400 pt-1 font-bold text-stone-800">
-                      সভাপতি
+                      {language === "bn" ? "সভাপতি" : "President"}
                     </div>
                   </div>
                 </div>
@@ -763,7 +820,7 @@ export function ProfitCenter({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-amber-300 font-bold text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <Download size={14} />
-                  {isExporting && exportFormat === "pdf" ? "তৈরি হচ্ছে..." : "PDF ডাউনলোড"}
+                  {isExporting && exportFormat === "pdf" ? (language === "bn" ? "তৈরি হচ্ছে..." : "Generating...") : (language === "bn" ? "PDF ডাউনলোড" : "Download PDF")}
                 </button>
 
                 <button
@@ -772,7 +829,7 @@ export function ProfitCenter({
                   className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-bold text-xs transition-colors shadow-xs cursor-pointer disabled:opacity-50"
                 >
                   <ImageIcon size={14} />
-                  {isExporting && exportFormat === "jpg" ? "তৈরি হচ্ছে..." : "JPG ছবি ডাউনলোড"}
+                  {isExporting && exportFormat === "jpg" ? (language === "bn" ? "তৈরি হচ্ছে..." : "Generating...") : (language === "bn" ? "JPG ছবি ডাউনলোড" : "Download JPG Image")}
                 </button>
               </div>
             </div>

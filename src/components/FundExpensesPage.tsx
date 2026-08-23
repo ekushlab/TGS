@@ -22,8 +22,9 @@ interface FundExpensesPageProps {
   fundTotal: number;
   expensesTotal: number;
   fundNow: number;
-  onAddIncome: () => void;
-  onAddExpense: () => void;
+  /** Omit both to hide the "New Fund Inflow" / "New Expense" buttons — Super Admin and Treasurer/Secretary only. */
+  onAddIncome?: () => void;
+  onAddExpense?: () => void;
   onDeleteIncome?: (id: string) => void;
   onDeleteExpense?: (id: string) => void;
 }
@@ -185,23 +186,27 @@ export function FundExpensesPage({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              id="add-tgs-income-btn"
-              onClick={onAddIncome}
-              className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-            >
-              <PlusCircle size={15} className="text-amber-300" />
-              <span>{language === 'bn' ? "+ নতুন জমা এন্ট্রি" : "+ New Fund Inflow"}</span>
-            </button>
+            {onAddIncome && (
+              <button
+                id="add-tgs-income-btn"
+                onClick={onAddIncome}
+                className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+              >
+                <PlusCircle size={15} className="text-amber-300" />
+                <span>{language === 'bn' ? "+ নতুন জমা এন্ট্রি" : "+ New Fund Inflow"}</span>
+              </button>
+            )}
 
-            <button
-              id="add-tgs-expense-btn"
-              onClick={onAddExpense}
-              className="flex items-center gap-1.5 bg-rose-800 hover:bg-rose-900 text-white px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-            >
-              <PlusCircle size={15} />
-              <span>{language === 'bn' ? "- নতুন খরচ এন্ট্রি" : "- New Expense"}</span>
-            </button>
+            {onAddExpense && (
+              <button
+                id="add-tgs-expense-btn"
+                onClick={onAddExpense}
+                className="flex items-center gap-1.5 bg-rose-800 hover:bg-rose-900 text-white px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+              >
+                <PlusCircle size={15} />
+                <span>{language === 'bn' ? "- নতুন খরচ এন্ট্রি" : "- New Expense"}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -468,7 +473,7 @@ export function FundExpensesPage({
                           </button>
                         )}
                         {row.type === "invest_5" && (
-                          <span className="text-[10px] text-stone-400 italic">বিনিয়োগ খতিয়ানে</span>
+                          <span className="text-[10px] text-stone-400 italic">{language === 'bn' ? "বিনিয়োগ খতিয়ানে" : "In Investment Ledger"}</span>
                         )}
                       </td>
                     </tr>
@@ -653,7 +658,9 @@ export function FundExpensesPage({
         <ConfirmDeleteModal
           isOpen={Boolean(deletingIncome)}
           title={language === 'bn' ? "ফান্ড জমা আয় মুছে ফেলুন" : "Delete Fund Income"}
-          itemDescription={`${deletingIncome.source} · ${deletingIncome.desc} · ${formatMoney(deletingIncome.amount)} (তারিখ: ${deletingIncome.date})`}
+          itemDescription={language === 'bn'
+            ? `${deletingIncome.source} · ${deletingIncome.desc} · ${formatMoney(deletingIncome.amount)} (তারিখ: ${deletingIncome.date})`
+            : `${deletingIncome.source} · ${deletingIncome.desc} · ${formatMoney(deletingIncome.amount)} (Date: ${deletingIncome.date})`}
           warningMessage={language === 'bn'
             ? "সতর্কতা: এই সরাসরি ফান্ড জমার রেকর্ড মুছে ফেললে টিজিএস মোট ব্যালেন্স হ্রাস পাবে। আপনি কি নিশ্চিত?"
             : "Warning: Deleting this fund income record will reduce the TGS Fund balance. Proceed?"}
@@ -672,7 +679,9 @@ export function FundExpensesPage({
         <ConfirmDeleteModal
           isOpen={Boolean(deletingExpense)}
           title={language === 'bn' ? "খরচ রেকর্ড মুছে ফেলুন" : "Delete Expense Record"}
-          itemDescription={`${deletingExpense.desc} · ${formatMoney(deletingExpense.amount)} (ভাউচার #${deletingExpense.invoice || 'N/A'}, তারিখ: ${deletingExpense.date})`}
+          itemDescription={language === 'bn'
+            ? `${deletingExpense.desc} · ${formatMoney(deletingExpense.amount)} (ভাউচার #${deletingExpense.invoice || 'N/A'}, তারিখ: ${deletingExpense.date})`
+            : `${deletingExpense.desc} · ${formatMoney(deletingExpense.amount)} (Voucher #${deletingExpense.invoice || 'N/A'}, Date: ${deletingExpense.date})`}
           warningMessage={language === 'bn'
             ? "সতর্কতা: এই ব্যয়ের ভাউচার ও রেকর্ডটি স্থায়ীভাবে মুছে ফেলা হবে। আপনি কি নিশ্চিত?"
             : "Warning: Deleting this expense voucher will permanently remove it from the society expense ledger. Proceed?"}

@@ -250,7 +250,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <button
               type="button"
               onClick={handleCloseAllActivePolls}
-              title="চলমান সকল লাইভ ভোট অবিলম্বে ক্লোজ ও সমাপ্ত করুন"
+              title={language === "bn" ? "চলমান সকল লাইভ ভোট অবিলম্বে ক্লোজ ও সমাপ্ত করুন" : "Close all active live polls immediately"}
               className="px-3.5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-amber-300 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs active:scale-95 border border-stone-700"
             >
               <AlertCircle size={15} className="text-amber-400" />
@@ -395,7 +395,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <UserPlus size={22} />
               </div>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-mono">
-                {formatNumber(members.length)} সদস্য
+                {formatNumber(members.length)} {language === "bn" ? "সদস্য" : "Members"}
               </span>
             </div>
             <div className="mt-3">
@@ -422,7 +422,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <PlusCircle size={22} />
               </div>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-mono font-bold">
-                {formatNumber(deposits.length)} ভাউচার
+                {formatNumber(deposits.length)} {language === "bn" ? "ভাউচার" : "Vouchers"}
               </span>
             </div>
             <div className="mt-3">
@@ -454,7 +454,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 </span>
               ) : (
                 <span className="text-[11px] px-2 py-0.5 rounded-full bg-stone-100 text-stone-700 font-mono">
-                  {formatNumber(notifications.length)} নোটিশ
+                  {formatNumber(notifications.length)} {language === "bn" ? "নোটিশ" : "Notices"}
                 </span>
               )}
             </div>
@@ -482,7 +482,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <Percent size={22} />
               </div>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 font-bold">
-                ৫% + ৯৫%
+                {language === "bn" ? "৫% + ৯৫%" : "5% + 95%"}
               </span>
             </div>
             <div className="mt-3">

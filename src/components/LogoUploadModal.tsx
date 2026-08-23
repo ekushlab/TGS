@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { STORAGE_MIME_TYPES, openFilePickerWithStorage } from '../utils/fileStorage';
+import { useLanguage } from '../utils/LanguageContext';
 
 interface LogoUploadModalProps {
   settings: AppSettings;
@@ -36,6 +37,8 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
   onClose,
   onSaveLogo,
 }) => {
+  const { language } = useLanguage();
+
   // Source image loaded (before crop)
   const [sourceImage, setSourceImage] = useState<string | null>(settings.logoUrl || null);
   const [rawImageElement, setRawImageElement] = useState<HTMLImageElement | null>(null);
@@ -80,7 +83,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
       setFlipH(false);
     };
     img.onerror = () => {
-      setErrorMsg('ছবি লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে অন্য ছবি নির্বাচন করুন।');
+      setErrorMsg(language === 'bn' ? 'ছবি লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে অন্য ছবি নির্বাচন করুন।' : 'There was a problem loading the image. Please select a different image.');
     };
     img.src = sourceImage;
   }, [sourceImage]);
@@ -174,12 +177,12 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
     if (!file) return;
 
     if (!file.type.startsWith('image/') && !file.name.match(/\.(png|jpe?g|webp|svg|bmp)$/i)) {
-      setErrorMsg('অনুগ্রহ করে সঠিক ইমেজ ফাইল (PNG, JPG, JPEG, WEBP, SVG) নির্বাচন করুন।');
+      setErrorMsg(language === 'bn' ? 'অনুগ্রহ করে সঠিক ইমেজ ফাইল (PNG, JPG, JPEG, WEBP, SVG) নির্বাচন করুন।' : 'Please select a valid image file (PNG, JPG, JPEG, WEBP, SVG).');
       return;
     }
 
     if (file.size > 15 * 1024 * 1024) {
-      setErrorMsg('ছবির সাইজ সর্বোচ্চ ১৫ মেগাবাইট (15MB) এর মধ্যে হতে হবে।');
+      setErrorMsg(language === 'bn' ? 'ছবির সাইজ সর্বোচ্চ ১৫ মেগাবাইট (15MB) এর মধ্যে হতে হবে।' : 'The image size must not exceed 15 megabytes (15MB).');
       return;
     }
 
@@ -310,13 +313,13 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-white text-base sm:text-lg">প্রতিষ্ঠানের গোল লোগো ও ছবি এডজাস্টমেন্ট</h3>
+                <h3 className="font-bold text-white text-base sm:text-lg">{language === 'bn' ? 'প্রতিষ্ঠানের গোল লোগো ও ছবি এডজাস্টমেন্ট' : 'Organization Circular Logo & Image Adjustment'}</h3>
                 <span className="text-[10px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
-                  ক্রপ ও স্কেলিং
+                  {language === 'bn' ? 'ক্রপ ও স্কেলিং' : 'Crop & Scale'}
                 </span>
               </div>
               <p className="text-[11px] text-emerald-300">
-                ছবি টেনে বা জুম করে গোল ফ্রেমের ঠিক মাঝে বসান
+                {language === 'bn' ? 'ছবি টেনে বা জুম করে গোল ফ্রেমের ঠিক মাঝে বসান' : 'Drag or zoom the image to center it exactly within the circular frame'}
               </p>
             </div>
           </div>
@@ -408,7 +411,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                     {/* Quick Hint Overlay */}
                     <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-[10px] text-white/80 bg-black/60 backdrop-blur-xs px-2.5 py-1 rounded-lg pointer-events-none">
                       <span className="flex items-center gap-1 font-medium">
-                        <Move size={11} className="text-amber-300" /> ড্র্যাগ করে পজিশন ঠিক করুন
+                        <Move size={11} className="text-amber-300" /> {language === 'bn' ? 'ড্র্যাগ করে পজিশন ঠিক করুন' : 'Drag to adjust position'}
                       </span>
                       <span className="font-mono text-amber-300">
                         {Math.round(zoom * 100)}% · {rotation}°
@@ -417,7 +420,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                   </div>
 
                   <p className="text-[11px] text-stone-500 mt-2 font-medium">
-                    🖱️ মাউস বা আঙুল দিয়ে ছবি সরিয়ে গোল বৃত্তের মাঝে ঠিকমতো বসান।
+                    {language === 'bn' ? '🖱️ মাউস বা আঙুল দিয়ে ছবি সরিয়ে গোল বৃত্তের মাঝে ঠিকমতো বসান।' : '🖱️ Move the image with your mouse or finger to position it correctly within the circle.'}
                   </p>
                 </div>
 
@@ -425,9 +428,9 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 <div className="flex flex-col items-center justify-center p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-4">
                   <div className="text-center">
                     <span className="text-xs font-bold text-stone-800 flex items-center justify-center gap-1">
-                      <Eye size={13} className="text-emerald-700" /> অ্যাপে যেমন দেখাবে
+                      <Eye size={13} className="text-emerald-700" /> {language === 'bn' ? 'অ্যাপে যেমন দেখাবে' : 'How it will appear in the app'}
                     </span>
-                    <p className="text-[10px] text-stone-500 mt-0.5">রিয়েল-টাইম লাইভ প্রিভিউ</p>
+                    <p className="text-[10px] text-stone-500 mt-0.5">{language === 'bn' ? 'রিয়েল-টাইম লাইভ প্রিভিউ' : 'Real-time live preview'}</p>
                   </div>
 
                   {/* Header Style Preview Badge */}
@@ -441,7 +444,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-white text-xs font-bold truncate">{settings.societyName}</p>
-                      <p className="text-[10px] text-emerald-300 truncate">হেডার ও মেনুবার ভিউ</p>
+                      <p className="text-[10px] text-emerald-300 truncate">{language === 'bn' ? 'হেডার ও মেনুবার ভিউ' : 'Header & menu bar view'}</p>
                     </div>
                   </div>
 
@@ -455,8 +458,8 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-stone-800 text-[11px] font-bold truncate">রসিদ ও রিপোর্ট ভিউ</p>
-                      <p className="text-[9px] text-stone-500 truncate">মানি রিসিট ও ডকুমেন্টস</p>
+                      <p className="text-stone-800 text-[11px] font-bold truncate">{language === 'bn' ? 'রসিদ ও রিপোর্ট ভিউ' : 'Receipt & report view'}</p>
+                      <p className="text-[9px] text-stone-500 truncate">{language === 'bn' ? 'মানি রিসিট ও ডকুমেন্টস' : 'Money receipts & documents'}</p>
                     </div>
                   </div>
 
@@ -471,7 +474,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                     }`}
                   >
                     <Grid size={13} />
-                    <span>{showGrid ? 'গ্রিড গাইডলাইন বন্ধ' : 'গ্রিড গাইডলাইন চালু'}</span>
+                    <span>{showGrid ? (language === 'bn' ? 'গ্রিড গাইডলাইন বন্ধ' : 'Turn off grid guide') : (language === 'bn' ? 'গ্রিড গাইডলাইন চালু' : 'Turn on grid guide')}</span>
                   </button>
                 </div>
               </div>
@@ -482,7 +485,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs font-semibold text-stone-700">
                     <span className="flex items-center gap-1.5">
-                      <ZoomIn size={14} className="text-emerald-800" /> জুম / সাইজ এডজাস্ট (Zoom):
+                      <ZoomIn size={14} className="text-emerald-800" /> {language === 'bn' ? 'জুম / সাইজ এডজাস্ট (Zoom):' : 'Zoom / Size Adjust:'}
                     </span>
                     <span className="font-mono text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded">
                       {Math.round(zoom * 100)}%
@@ -494,7 +497,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                       type="button"
                       onClick={() => setZoom((z) => Math.max(0.4, Number((z - 0.1).toFixed(2))))}
                       className="p-1.5 bg-white hover:bg-stone-100 border border-stone-300 rounded-lg text-stone-700 transition-colors cursor-pointer"
-                      title="জুম কমান"
+                      title={language === 'bn' ? 'জুম কমান' : 'Zoom out'}
                     >
                       <ZoomOut size={15} />
                     </button>
@@ -513,7 +516,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                       type="button"
                       onClick={() => setZoom((z) => Math.min(3.5, Number((z + 0.1).toFixed(2))))}
                       className="p-1.5 bg-white hover:bg-stone-100 border border-stone-300 rounded-lg text-stone-700 transition-colors cursor-pointer"
-                      title="জুম বাড়ান"
+                      title={language === 'bn' ? "জুম বাড়ান" : "Zoom in"}
                     >
                       <ZoomIn size={15} />
                     </button>
@@ -524,7 +527,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 <div className="space-y-1.5 pt-2 border-t border-stone-200">
                   <div className="flex items-center justify-between text-xs font-semibold text-stone-700">
                     <span className="flex items-center gap-1.5">
-                      <RotateCw size={14} className="text-emerald-800" /> ঘূর্ণন / সোজা করা (Rotate):
+                      <RotateCw size={14} className="text-emerald-800" /> {language === 'bn' ? "ঘূর্ণন / সোজা করা (Rotate):" : "Rotate / Straighten:"}
                     </span>
                     <span className="font-mono text-stone-700 font-bold bg-stone-200 px-2 py-0.5 rounded">
                       {rotation}°
@@ -537,7 +540,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                       onClick={() => handleRotateBy(-90)}
                       className="px-2.5 py-1.5 bg-white hover:bg-stone-100 border border-stone-300 rounded-lg text-xs text-stone-700 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                     >
-                      <RotateCcw size={13} /> -৯০°
+                      <RotateCcw size={13} /> {language === 'bn' ? "-৯০°" : "-90°"}
                     </button>
 
                     <button
@@ -545,7 +548,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                       onClick={() => handleRotateBy(90)}
                       className="px-2.5 py-1.5 bg-white hover:bg-stone-100 border border-stone-300 rounded-lg text-xs text-stone-700 font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                     >
-                      <RotateCw size={13} /> +৯০°
+                      <RotateCw size={13} /> {language === 'bn' ? "+৯০°" : "+90°"}
                     </button>
 
                     <input
@@ -566,9 +569,9 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                           ? 'bg-amber-100 text-amber-900 border-amber-300'
                           : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
                       }`}
-                      title="ছবি ডানে-বামে উল্টান"
+                      title={language === 'bn' ? "ছবি ডানে-বামে উল্টান" : "Flip image horizontally"}
                     >
-                      <FlipHorizontal size={13} /> উল্টান
+                      <FlipHorizontal size={13} /> {language === 'bn' ? "উল্টান" : "Flip"}
                     </button>
                   </div>
                 </div>
@@ -576,7 +579,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 {/* 3. Background fill options and Quick Actions */}
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-stone-200 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-stone-600">ব্যাকগ্রাউন্ড:</span>
+                    <span className="text-xs font-semibold text-stone-600">{language === 'bn' ? "ব্যাকগ্রাউন্ড:" : "Background:"}</span>
                     <div className="flex items-center gap-1 bg-stone-200/80 p-0.5 rounded-lg text-xs">
                       <button
                         type="button"
@@ -587,7 +590,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                             : 'text-stone-600 hover:text-stone-900'
                         }`}
                       >
-                        স্বচ্ছ (PNG)
+                        {language === 'bn' ? "স্বচ্ছ (PNG)" : "Transparent (PNG)"}
                       </button>
                       <button
                         type="button"
@@ -598,7 +601,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                             : 'text-stone-600 hover:text-stone-900'
                         }`}
                       >
-                        সাদা ব্যাকগ্রাউন্ড
+                        {language === 'bn' ? "সাদা ব্যাকগ্রাউন্ড" : "White background"}
                       </button>
                       <button
                         type="button"
@@ -609,7 +612,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                             : 'text-stone-600 hover:text-stone-900'
                         }`}
                       >
-                        গাঢ় সবুজ
+                        {language === 'bn' ? "গাঢ় সবুজ" : "Dark green"}
                       </button>
                     </div>
                   </div>
@@ -620,14 +623,14 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                       onClick={handleAutoFit}
                       className="px-2.5 py-1.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                     >
-                      <Maximize2 size={13} className="text-emerald-700" /> অটো ফিট
+                      <Maximize2 size={13} className="text-emerald-700" /> {language === 'bn' ? "অটো ফিট" : "Auto fit"}
                     </button>
                     <button
                       type="button"
                       onClick={handleResetAdjustments}
                       className="px-2.5 py-1.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
                     >
-                      <RefreshCw size={13} className="text-amber-700" /> রিসেট
+                      <RefreshCw size={13} className="text-amber-700" /> {language === 'bn' ? "রিসেট" : "Reset"}
                     </button>
                   </div>
                 </div>
@@ -648,9 +651,9 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 <Landmark size={32} />
               </div>
               <div className="space-y-1">
-                <h4 className="font-bold text-stone-800 text-base">সংগঠনের লোগো বা ছবি আপলোড করুন</h4>
+                <h4 className="font-bold text-stone-800 text-base">{language === 'bn' ? "সংগঠনের লোগো বা ছবি আপলোড করুন" : "Upload Organization Logo or Image"}</h4>
                 <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                  ছবি আপলোড করার পর আপনি জুম, ঘূর্ণন ও টেনে গোল ফ্রেমের ঠিক মাঝে বসাতে পারবেন।
+                  {language === 'bn' ? "ছবি আপলোড করার পর আপনি জুম, ঘূর্ণন ও টেনে গোল ফ্রেমের ঠিক মাঝে বসাতে পারবেন।" : "After uploading an image, you can zoom, rotate, and drag it to center it exactly within the circular frame."}
                 </p>
               </div>
 
@@ -661,22 +664,22 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-amber-400 hover:bg-amber-300 text-emerald-950 font-bold text-sm rounded-xl shadow-xs transition-all cursor-pointer border border-amber-500/50 w-full sm:w-auto"
                 >
                   <Upload size={16} />
-                  <span>ডিভাইস / স্টোরেজ থেকে ছবি নির্বাচন</span>
+                  <span>{language === 'bn' ? "ডিভাইস / স্টোরেজ থেকে ছবি নির্বাচন" : "Select image from device / storage"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-stone-100 text-stone-800 font-semibold text-xs rounded-xl border border-stone-300 shadow-2xs transition-colors cursor-pointer w-full sm:w-auto"
-                  title="মেমোরি কার্ড (SD Card), OTG/পেনড্রাইভ বা ফাইল ম্যানেজার থেকে বেছে নিন"
+                  title={language === 'bn' ? "মেমোরি কার্ড (SD Card), OTG/পেনড্রাইভ বা ফাইল ম্যানেজার থেকে বেছে নিন" : "Choose from memory card (SD Card), OTG/pen drive, or file manager"}
                 >
                   <HardDrive size={14} className="text-emerald-800" />
-                  <span>এক্সটার্নাল স্টোরেজ / ফাইল ব্রাউজ</span>
+                  <span>{language === 'bn' ? "এক্সটার্নাল স্টোরেজ / ফাইল ব্রাউজ" : "External storage / Browse files"}</span>
                 </button>
               </div>
 
               <p className="text-[11px] text-stone-400 pt-1">
-                (ইন্টারনাল স্টোরেজ, SD Card, OTG পেনড্রাইভ, Google Drive বা ফাইল ড্রপ সাপোর্ট করে)
+                {language === 'bn' ? "(ইন্টারনাল স্টোরেজ, SD Card, OTG পেনড্রাইভ, Google Drive বা ফাইল ড্রপ সাপোর্ট করে)" : "(Supports internal storage, SD Card, OTG pen drive, Google Drive, or file drop)"}
               </p>
             </div>
           )}
@@ -708,7 +711,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 className="px-3.5 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs rounded-xl flex items-center gap-1.5 transition-colors border border-stone-300 cursor-pointer"
               >
                 <Upload size={14} className="text-emerald-800" />
-                <span>অন্য ছবি নির্বাচন / এক্সটার্নাল স্টোরেজ</span>
+                <span>{language === 'bn' ? "অন্য ছবি নির্বাচন / এক্সটার্নাল স্টোরেজ" : "Select another image / External storage"}</span>
               </button>
 
               <button
@@ -717,7 +720,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
                 className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs rounded-xl border border-rose-200 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Trash2 size={14} />
-                <span>লোগো মুছে ফেলুন</span>
+                <span>{language === 'bn' ? "লোগো মুছে ফেলুন" : "Remove logo"}</span>
               </button>
             </div>
           )}
@@ -725,13 +728,13 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
           {/* Guidance Notice */}
           <div className="p-3 bg-emerald-50/70 rounded-xl border border-emerald-200 text-[11px] text-emerald-900 space-y-1">
             <p className="font-bold flex items-center gap-1">
-              <Sparkles size={13} className="text-emerald-700" /> পরামর্শ:
+              <Sparkles size={13} className="text-emerald-700" /> {language === 'bn' ? "পরামর্শ:" : "Suggestions:"}
             </p>
             <p>
-              • ছবিকে টেনে ঠিক মাঝখানে রাখুন এবং জুম স্লাইডার দিয়ে সাইজ এমনভাবে রাখুন যেন লোগোর কোনো লেখা বা সীমানা কেটে না যায়।
+              {language === 'bn' ? "• ছবিকে টেনে ঠিক মাঝখানে রাখুন এবং জুম স্লাইডার দিয়ে সাইজ এমনভাবে রাখুন যেন লোগোর কোনো লেখা বা সীমানা কেটে না যায়।" : "• Drag the image to the exact center and use the zoom slider to size it so no part of the logo text or border gets cut off."}
             </p>
             <p>
-              • "সংরক্ষণ করুন" বাটনে ক্লিক করলেই অ্যাডজাস্ট করা ক্রপড গোল ছবিটি হেডার, রসিদ এবং অফিসিয়াল প্রতিবেদনে সেট হয়ে যাবে।
+              {language === 'bn' ? "• \"সংরক্ষণ করুন\" বাটনে ক্লিক করলেই অ্যাডজাস্ট করা ক্রপড গোল ছবিটি হেডার, রসিদ এবং অফিসিয়াল প্রতিবেদনে সেট হয়ে যাবে।" : "• Clicking the \"Save\" button will set the adjusted, cropped circular image on the header, receipts, and official reports."}
             </p>
           </div>
         </div>
@@ -743,7 +746,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 rounded-xl border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-100 transition-colors cursor-pointer"
           >
-            বাতিল
+            {language === 'bn' ? "বাতিল" : "Cancel"}
           </button>
           <button
             type="button"
@@ -751,7 +754,7 @@ export const LogoUploadModal: React.FC<LogoUploadModalProps> = ({
             className="px-5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs sm:text-sm font-bold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer border border-emerald-900"
           >
             <Check size={16} className="text-amber-300" />
-            <span>লোগো সংরক্ষণ করুন</span>
+            <span>{language === 'bn' ? "লোগো সংরক্ষণ করুন" : "Save logo"}</span>
           </button>
         </div>
       </div>

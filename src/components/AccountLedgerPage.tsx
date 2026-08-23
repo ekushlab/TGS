@@ -9,7 +9,8 @@ interface AccountLedgerPageProps {
   title: string;
   balance: number;
   entries: AccountEntry[];
-  onAdd: () => void;
+  /** Omit to hide the "New Bank/Investment Entry" button — Super Admin and Treasurer/Secretary only. */
+  onAdd?: () => void;
   showPlace?: boolean;
   onDeleteEntry?: (id: string) => void;
 }
@@ -68,15 +69,17 @@ export function AccountLedgerPage({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              id={`add-${showPlace ? 'invest' : 'bank'}-btn`}
-              onClick={onAdd}
-              className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-            >
-              <PlusCircle size={16} /> {showPlace ? (language === 'bn' ? 'নতুন বিনিয়োগ এন্ট্রি' : 'New Investment Entry') : (language === 'bn' ? 'নতুন ব্যাংক এন্ট্রি' : 'New Bank Entry')}
-            </button>
-          </div>
+          {onAdd && (
+            <div className="flex items-center gap-3">
+              <button
+                id={`add-${showPlace ? 'invest' : 'bank'}-btn`}
+                onClick={onAdd}
+                className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+              >
+                <PlusCircle size={16} /> {showPlace ? (language === 'bn' ? 'নতুন বিনিয়োগ এন্ট্রি' : 'New Investment Entry') : (language === 'bn' ? 'নতুন ব্যাংক এন্ট্রি' : 'New Bank Entry')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5 border-t border-stone-200 text-sm">
@@ -251,7 +254,7 @@ export function AccountLedgerPage({
         <ConfirmDeleteModal
           isOpen={Boolean(deletingEntry)}
           title={language === 'bn' ? `${pageTitle} এন্ট্রি মুছে ফেলুন` : `Delete ${pageTitle} Entry`}
-          itemDescription={`${deletingEntry.desc} · ${formatMoney(deletingEntry.amount)} (${deletingEntry.type === 'in' ? (language === 'bn' ? 'জমা/ইনফ্লো' : 'Deposit/In') : (language === 'bn' ? 'উত্তোলন/খরচ' : 'Withdrawal/Out')}) · তারিখ: ${deletingEntry.date}`}
+          itemDescription={`${deletingEntry.desc} · ${formatMoney(deletingEntry.amount)} (${deletingEntry.type === 'in' ? (language === 'bn' ? 'জমা/ইনফ্লো' : 'Deposit/In') : (language === 'bn' ? 'উত্তোলন/খরচ' : 'Withdrawal/Out')}) · ${language === 'bn' ? 'তারিখ' : 'Date'}: ${deletingEntry.date}`}
           warningMessage={language === 'bn'
             ? `সতর্কতা: এই ${pageTitle} হিসাবের এন্ট্রি মুছে ফেললে চলমান মোট স্থিতি (Running Balance) পরিবর্তিত হবে। আপনি কি নিশ্চিত?`
             : `Warning: Deleting this entry will recalculate the ledger's running balance. Proceed?`}

@@ -415,18 +415,18 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                 <div className="flex items-center gap-1.5 pb-1 border-b border-stone-200">
                   <span className="w-2 h-2 rounded-full bg-emerald-600"></span>
                   <h4 className="font-bold text-xs uppercase tracking-wider text-stone-800">
-                    বাংলা তথ্য (Bangla Information)
+                    {language === 'bn' ? 'বাংলা তথ্য (Bangla Information)' : 'Bengali Information'}
                   </h4>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    প্রতিষ্ঠানের নাম (বাংলা) <span className="text-red-500">*</span>
+                    {language === 'bn' ? 'প্রতিষ্ঠানের নাম (বাংলা)' : 'Society Name (Bengali)'} <span className="text-red-500">*</span>
                   </label>
                   <input
                     value={societyName}
                     onChange={(e) => setSocietyName(e.target.value)}
-                    placeholder="যেমন: ট্রাস্ট গ্রোথ সোসাইটি"
+                    placeholder={language === 'bn' ? "যেমন: ট্রাস্ট গ্রোথ সোসাইটি" : "e.g. Trust Growth Society"}
                     className={inputCls}
                     required
                   />
@@ -434,36 +434,36 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    সংক্ষিপ্ত ঠিকানা / উপশিরোনাম (বাংলা)
+                    {language === 'bn' ? 'সংক্ষিপ্ত ঠিকানা / উপশিরোনাম (বাংলা)' : 'Short Address / Subtitle (Bengali)'}
                   </label>
                   <input
                     value={societySubtitle}
                     onChange={(e) => setSocietySubtitle(e.target.value)}
-                    placeholder="যেমন: উলানিয়া বাজার, উলানিয়া, গলাচিপা"
+                    placeholder={language === 'bn' ? "যেমন: উলানিয়া বাজার, উলানিয়া, গলাচিপা" : "e.g. Ulania Bazar, Ulania, Galachipa"}
                     className={inputCls}
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    পূর্ণাঙ্গ ঠিকানা (অ্যাড্রেস বার - বাংলা)
+                    {language === 'bn' ? 'পূর্ণাঙ্গ ঠিকানা (অ্যাড্রেস বার - বাংলা)' : 'Full Address (Address Bar - Bengali)'}
                   </label>
                   <input
                     value={societyAddress}
                     onChange={(e) => setSocietyAddress(e.target.value)}
-                    placeholder="যেমন: উলানিয়া বাজার, উলানিয়া, গলাচিপা, পটুয়াখালী"
+                    placeholder={language === 'bn' ? "যেমন: উলানিয়া বাজার, উলানিয়া, গলাচিপা, পটুয়াখালী" : "e.g. Ulania Bazar, Ulania, Galachipa, Patuakhali"}
                     className={inputCls}
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    প্রতিষ্ঠার তারিখ (বাংলা)
+                    {language === 'bn' ? 'প্রতিষ্ঠার তারিখ (বাংলা)' : 'Established Date (Bengali)'}
                   </label>
                   <input
                     value={establishedDate}
                     onChange={(e) => setEstablishedDate(e.target.value)}
-                    placeholder="যেমন: ২৫ সেপ্টেম্বর ২০২৫"
+                    placeholder={language === 'bn' ? "যেমন: ২৫ সেপ্টেম্বর ২০২৫" : "e.g. 25 September 2025"}
                     className={inputCls}
                   />
                 </div>
@@ -474,7 +474,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                 <div className="flex items-center gap-1.5 pb-1 border-b border-stone-200">
                   <span className="w-2 h-2 rounded-full bg-amber-500"></span>
                   <h4 className="font-bold text-xs uppercase tracking-wider text-stone-800">
-                    ইংরেজি তথ্য (English Information)
+                    {language === 'bn' ? 'ইংরেজি তথ্য (English Information)' : 'English Information'}
                   </h4>
                 </div>
 
@@ -531,7 +531,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
               {/* Contact Phone */}
               <div className="p-4 bg-white border border-stone-200 rounded-xl space-y-1.5">
                 <label className="block text-xs font-bold text-stone-800">
-                  রসিদ ও ডকুমেন্টে প্রদর্শিত মোবাইল নম্বর (Contact Phone)
+                  {language === 'bn' ? 'রসিদ ও ডকুমেন্টে প্রদর্শিত মোবাইল নম্বর (Contact Phone)' : 'Mobile Number Shown on Receipts & Documents (Contact Phone)'}
                 </label>
                 <input
                   value={contactPhone}
@@ -564,16 +564,18 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                     className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   >
                     <Camera size={24} />
-                    <span className="text-[10px] font-bold mt-1">ছবি পরিবর্তন</span>
+                    <span className="text-[10px] font-bold mt-1">{language === 'bn' ? 'ছবি পরিবর্তন' : 'Change Photo'}</span>
                   </button>
                 </div>
 
                 <div>
                   <h4 className="font-bold text-stone-900 text-sm sm:text-base">
-                    {logoUrl ? 'কাস্টম গোল লোগো সক্রিয়' : 'ডিফল্ট ভেক্টর সিল সক্রিয়'}
+                    {language === 'bn'
+                      ? (logoUrl ? 'কাস্টম গোল লোগো সক্রিয়' : 'ডিফল্ট ভেক্টর সিল সক্রিয়')
+                      : (logoUrl ? 'Custom Round Logo Active' : 'Default Vector Seal Active')}
                   </h4>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    হেডার, মানি রসিদ, সাইডবার ও ডাউনলোড শিটে এই গোল লোগোটি ব্যবহৃত হবে।
+                    {language === 'bn' ? 'হেডার, মানি রসিদ, সাইডবার ও ডাউনলোড শিটে এই গোল লোগোটি ব্যবহৃত হবে।' : 'This round logo will be used in the header, money receipts, sidebar, and download sheets.'}
                   </p>
                 </div>
 
@@ -584,7 +586,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                     className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
                   >
                     <Upload size={14} />
-                    <span>নতুন লোগো / ছবি আপলোড</span>
+                    <span>{language === 'bn' ? 'নতুন লোগো / ছবি আপলোড' : 'Upload New Logo / Image'}</span>
                   </button>
                   <input
                     ref={logoInputRef}
@@ -601,7 +603,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                       className="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <Trash2 size={14} />
-                      <span>রিমুভ / ডিফল্ট সিল</span>
+                      <span>{language === 'bn' ? 'রিমুভ / ডিফল্ট সিল' : 'Remove / Default Seal'}</span>
                     </button>
                   )}
                 </div>
@@ -623,7 +625,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                       {language === 'bn' ? 'ডকুমেন্ট ব্যাকগ্রাউন্ড জলছাপ (Watermark)' : 'Document Watermark'}
                     </h4>
                     <p className="text-xs text-stone-600 mt-0.5">
-                      মানি রসিদ, মাসিক শিট ও গঠনতন্ত্রে হালকা প্রাতিষ্ঠানিক জলছাপ
+                      {language === 'bn' ? 'মানি রসিদ, মাসিক শিট ও গঠনতন্ত্রে হালকা প্রাতিষ্ঠানিক জলছাপ' : 'A subtle institutional watermark on money receipts, monthly sheets, and the constitution'}
                     </p>
                   </div>
                 </div>
@@ -647,14 +649,30 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   {/* Watermark Type */}
                   <div>
                     <label className="block text-xs font-bold text-stone-800 mb-2">
-                      জলছাপের ধরন নির্বাচন করুন:
+                      {language === 'bn' ? 'জলছাপের ধরন নির্বাচন করুন:' : 'Select Watermark Type:'}
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
-                        { id: 'seal' as const, label: 'অফিসিয়াল সিল', desc: 'বৃত্তাকার সিল' },
-                        { id: 'logo' as const, label: 'প্রধান লোগো', desc: 'আপলোডকৃত লোগো' },
-                        { id: 'custom_image' as const, label: 'কাস্টম ছবি', desc: 'আলাদা ব্যাকগ্রাউন্ড' },
-                        { id: 'custom_text' as const, label: 'কাস্টম টেক্সট', desc: 'সোসাইটির নাম' },
+                        {
+                          id: 'seal' as const,
+                          label: language === 'bn' ? 'অফিসিয়াল সিল' : 'Official Seal',
+                          desc: language === 'bn' ? 'বৃত্তাকার সিল' : 'Circular seal',
+                        },
+                        {
+                          id: 'logo' as const,
+                          label: language === 'bn' ? 'প্রধান লোগো' : 'Main Logo',
+                          desc: language === 'bn' ? 'আপলোডকৃত লোগো' : 'Uploaded logo',
+                        },
+                        {
+                          id: 'custom_image' as const,
+                          label: language === 'bn' ? 'কাস্টম ছবি' : 'Custom Image',
+                          desc: language === 'bn' ? 'আলাদা ব্যাকগ্রাউন্ড' : 'Separate background',
+                        },
+                        {
+                          id: 'custom_text' as const,
+                          label: language === 'bn' ? 'কাস্টম টেক্সট' : 'Custom Text',
+                          desc: language === 'bn' ? 'সোসাইটির নাম' : "Society's name",
+                        },
                       ].map((t) => (
                         <button
                           key={t.id}
@@ -677,7 +695,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   {watermarkType === 'custom_image' && (
                     <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-stone-800">কাস্টম জলছাপ ছবি আপলোড</span>
+                        <span className="text-xs font-bold text-stone-800">{language === 'bn' ? 'কাস্টম জলছাপ ছবি আপলোড' : 'Upload Custom Watermark Image'}</span>
                         <label className="flex items-center gap-1.5 text-xs text-emerald-900 cursor-pointer">
                           <input
                             type="checkbox"
@@ -685,7 +703,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                             onChange={(e) => setWatermarkRemoveBg(e.target.checked)}
                             className="rounded text-emerald-600"
                           />
-                          <span>সাদা ব্যাকগ্রাউন্ড অটো রিমুভ</span>
+                          <span>{language === 'bn' ? 'সাদা ব্যাকগ্রাউন্ড অটো রিমুভ' : 'Auto-remove white background'}</span>
                         </label>
                       </div>
                       <div className="flex items-center gap-3">
@@ -695,7 +713,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                           className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
                         >
                           <Upload size={14} />
-                          <span>ছবি সিলেক্ট করুন</span>
+                          <span>{language === 'bn' ? 'ছবি সিলেক্ট করুন' : 'Select Image'}</span>
                         </button>
                         <input
                           ref={watermarkInputRef}
@@ -706,7 +724,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                         />
                         {watermarkUrl && (
                           <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                            <CheckCircle2 size={14} /> ছবি প্রস্তুত
+                            <CheckCircle2 size={14} /> {language === 'bn' ? 'ছবি প্রস্তুত' : 'Image ready'}
                           </span>
                         )}
                       </div>
@@ -717,7 +735,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   {watermarkType === 'custom_text' && (
                     <div>
                       <label className="block text-xs font-bold text-stone-800 mb-1">
-                        জলছাপ টেক্সট (Watermark Text)
+                        {language === 'bn' ? 'জলছাপ টেক্সট (Watermark Text)' : 'Watermark Text'}
                       </label>
                       <input
                         value={watermarkText}
@@ -732,7 +750,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 bg-stone-50 border border-stone-200 rounded-xl">
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-stone-800">গাঢ়ত্ব / অপাসিটি (Opacity)</span>
+                        <span className="text-xs font-bold text-stone-800">{language === 'bn' ? 'গাঢ়ত্ব / অপাসিটি (Opacity)' : 'Opacity'}</span>
                         <span className="text-xs font-mono font-bold text-emerald-900">
                           {Math.round(watermarkOpacity * 100)}%
                         </span>
@@ -746,12 +764,12 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                         onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
                         className="w-full accent-emerald-800 cursor-pointer"
                       />
-                      <span className="text-[10px] text-stone-500">প্রস্তাবিত: ৫% থেকে ১০% (লেখা স্পষ্ট রাখতে)</span>
+                      <span className="text-[10px] text-stone-500">{language === 'bn' ? 'প্রস্তাবিত: ৫% থেকে ১০% (লেখা স্পষ্ট রাখতে)' : 'Recommended: 5% to 10% (to keep text legible)'}</span>
                     </div>
 
                     <div>
                       <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-bold text-stone-800">আকার / সাইজ (Size)</span>
+                        <span className="text-xs font-bold text-stone-800">{language === 'bn' ? 'আকার / সাইজ (Size)' : 'Size'}</span>
                         <span className="text-xs font-mono font-bold text-emerald-900">{watermarkSize}px</span>
                       </div>
                       <input
@@ -763,13 +781,13 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                         onChange={(e) => setWatermarkSize(parseInt(e.target.value))}
                         className="w-full accent-emerald-800 cursor-pointer"
                       />
-                      <span className="text-[10px] text-stone-500">প্রস্তাবিত: ৪৫০px থেকে ৫৫০px</span>
+                      <span className="text-[10px] text-stone-500">{language === 'bn' ? 'প্রস্তাবিত: ৪৫০px থেকে ৫৫০px' : 'Recommended: 450px to 550px'}</span>
                     </div>
                   </div>
 
                   {/* Display Target Checkboxes */}
                   <div className="p-3 bg-white border border-stone-200 rounded-xl space-y-2">
-                    <span className="text-xs font-bold text-stone-800 block">জলছাপ প্রদর্শনের স্থানসমূহ:</span>
+                    <span className="text-xs font-bold text-stone-800 block">{language === 'bn' ? 'জলছাপ প্রদর্শনের স্থানসমূহ:' : 'Watermark Display Locations:'}</span>
                     <div className="flex items-center gap-4 flex-wrap text-xs text-stone-700">
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
@@ -778,7 +796,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                           onChange={(e) => setWatermarkInReceipts(e.target.checked)}
                           className="rounded text-emerald-600"
                         />
-                        <span>টাকা প্রাপ্তি রসিদে</span>
+                        <span>{language === 'bn' ? 'টাকা প্রাপ্তি রসিদে' : 'Money receipts'}</span>
                       </label>
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
@@ -787,7 +805,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                           onChange={(e) => setWatermarkInReports(e.target.checked)}
                           className="rounded text-emerald-600"
                         />
-                        <span>মাসিক অডিট শিট ও রিপোর্টে</span>
+                        <span>{language === 'bn' ? 'মাসিক অডিট শিট ও রিপোর্টে' : 'Monthly audit sheets & reports'}</span>
                       </label>
                       <label className="flex items-center gap-1.5 cursor-pointer">
                         <input
@@ -796,7 +814,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                           onChange={(e) => setWatermarkInConstitution(e.target.checked)}
                           className="rounded text-emerald-600"
                         />
-                        <span>গঠনতন্ত্র নীতিমালায়</span>
+                        <span>{language === 'bn' ? 'গঠনতন্ত্র নীতিমালায়' : 'Constitution document'}</span>
                       </label>
                     </div>
                   </div>
@@ -809,9 +827,9 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           {activeTab === 'language' && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
-                <h4 className="font-bold text-stone-900 text-sm">অ্যাপ্লিকেশনের ভাষা পরিবর্তন (Select Language)</h4>
+                <h4 className="font-bold text-stone-900 text-sm">{language === 'bn' ? 'অ্যাপ্লিকেশনের ভাষা পরিবর্তন (Select Language)' : 'Change Application Language'}</h4>
                 <p className="text-xs text-stone-600">
-                  সফটওয়্যারের সকল মেনু, ট্যাব, রসিদ, টেবিল ও হিসাব বিবরণী প্রদর্শনের ভাষা নির্বাচন করুন।
+                  {language === 'bn' ? 'সফটওয়্যারের সকল মেনু, ট্যাব, রসিদ, টেবিল ও হিসাব বিবরণী প্রদর্শনের ভাষা নির্বাচন করুন।' : 'Choose the language used to display all menus, tabs, receipts, tables, and financial statements in the software.'}
                 </p>
 
                 <div className="grid grid-cols-2 gap-3 pt-2">
@@ -826,7 +844,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   >
                     <div className="text-left">
                       <p className="font-bold text-base">বাংলা (Bangla)</p>
-                      <p className="text-xs text-stone-500">ডিফল্ট ভাষা</p>
+                      <p className="text-xs text-stone-500">{language === 'bn' ? 'ডিফল্ট ভাষা' : 'Default Language'}</p>
                     </div>
                     {language === 'bn' && <CheckCircle2 size={22} className="text-emerald-700" />}
                   </button>
@@ -855,7 +873,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
           {activeTab === 'signatures' && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950">
-                রসিদ ও প্রিন্ট কপিতে স্বয়ংক্রিয়ভাবে সিল ও স্বাক্ষর যুক্ত করার জন্য নিচে কোষাধ্যক্ষ ও সভাপতির নাম ও স্বাক্ষর সংরক্ষণ করুন।
+                {language === 'bn' ? 'রসিদ ও প্রিন্ট কপিতে স্বয়ংক্রিয়ভাবে সিল ও স্বাক্ষর যুক্ত করার জন্য নিচে কোষাধ্যক্ষ ও সভাপতির নাম ও স্বাক্ষর সংরক্ষণ করুন।' : "Save the treasurer's and president's names and signatures below to automatically add a seal and signature to receipts and printed copies."}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -863,23 +881,23 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs uppercase tracking-wider text-stone-800">
-                      কোষাধ্যক্ষ (Treasurer)
+                      {language === 'bn' ? 'কোষাধ্যক্ষ (Treasurer)' : 'Treasurer'}
                     </span>
                     <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
-                      স্বাক্ষর ১
+                      {language === 'bn' ? 'স্বাক্ষর ১' : 'Signature 1'}
                     </span>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">কোষাধ্যক্ষের নাম</label>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">{language === 'bn' ? 'কোষাধ্যক্ষের নাম' : "Treasurer's Name"}</label>
                     <input
                       value={treasurerName}
                       onChange={(e) => setTreasurerName(e.target.value)}
-                      placeholder="কোষাধ্যক্ষের নাম"
+                      placeholder={language === 'bn' ? 'কোষাধ্যক্ষের নাম' : "Treasurer's Name"}
                       className={inputCls}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">স্বাক্ষর</label>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">{language === 'bn' ? 'স্বাক্ষর' : 'Signature'}</label>
                     <SignatureDrawCanvas
                       value={treasurerSignature}
                       onChange={(sig) => setTreasurerSignature(sig)}
@@ -891,7 +909,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                 <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs uppercase tracking-wider text-stone-800">
-                      দ্বিতীয় স্বাক্ষরকারী
+                      {language === 'bn' ? 'দ্বিতীয় স্বাক্ষরকারী' : 'Second Signatory'}
                     </span>
                     <div className="flex items-center gap-1 bg-stone-200/80 p-0.5 rounded text-[10px]">
                       <button
@@ -901,7 +919,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                           presidentRole === 'president' ? 'bg-emerald-800 text-white' : 'text-stone-700'
                         }`}
                       >
-                        সভাপতি
+                        {language === 'bn' ? 'সভাপতি' : 'President'}
                       </button>
                       <button
                         type="button"
@@ -910,23 +928,23 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                           presidentRole === 'secretary' ? 'bg-emerald-800 text-white' : 'text-stone-700'
                         }`}
                       >
-                        সেক্রেটারি
+                        {language === 'bn' ? 'সেক্রেটারি' : 'Secretary'}
                       </button>
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      {presidentRole === 'secretary' ? 'সাধারণ সম্পাদকের নাম' : 'সভাপতির নাম'}
+                      {language === 'bn' ? (presidentRole === 'secretary' ? 'সাধারণ সম্পাদকের নাম' : 'সভাপতির নাম') : (presidentRole === 'secretary' ? "Secretary's Name" : "President's Name")}
                     </label>
                     <input
                       value={presidentName}
                       onChange={(e) => setPresidentName(e.target.value)}
-                      placeholder={presidentRole === 'secretary' ? 'সেক্রেটারির নাম' : 'সভাপতির নাম'}
+                      placeholder={language === 'bn' ? (presidentRole === 'secretary' ? 'সেক্রেটারির নাম' : 'সভাপতির নাম') : (presidentRole === 'secretary' ? "Secretary's Name" : "President's Name")}
                       className={inputCls}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">স্বাক্ষর</label>
+                    <label className="block text-xs font-semibold text-stone-700 mb-1">{language === 'bn' ? 'স্বাক্ষর' : 'Signature'}</label>
                     <SignatureDrawCanvas
                       value={presidentSignature}
                       onChange={(sig) => setPresidentSignature(sig)}
@@ -943,7 +961,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
               <div className="p-4 bg-stone-50 border border-stone-200 rounded-xl space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-stone-800 mb-1.5">
-                    মাসিক ডিফল্ট বিলম্ব ফি / জরিমানা (৳)
+                    {language === 'bn' ? 'মাসিক ডিফল্ট বিলম্ব ফি / জরিমানা (৳)' : 'Monthly Default Late Fee / Fine (৳)'}
                   </label>
                   <div className="flex items-center gap-3">
                     <input
@@ -975,7 +993,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-stone-800 mb-1.5">
-                    মাসের জমার শেষ সময়সীমা (Deadline Day of Month)
+                    {language === 'bn' ? 'মাসের জমার শেষ সময়সীমা (Deadline Day of Month)' : 'Deadline Day of Month'}
                   </label>
                   <div className="flex items-center gap-2 max-w-[200px]">
                     <input
@@ -986,10 +1004,10 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                       onChange={(e) => setDeadlineDay(Number(e.target.value))}
                       className={`${inputCls} font-mono font-bold text-emerald-900 text-base`}
                     />
-                    <span className="text-xs font-bold text-stone-600 whitespace-nowrap">তারিখের মধ্যে</span>
+                    <span className="text-xs font-bold text-stone-600 whitespace-nowrap">{language === 'bn' ? 'তারিখের মধ্যে' : 'by this date'}</span>
                   </div>
                   <p className="text-[11px] text-stone-500 mt-1">
-                    মাসের এই তারিখ পার হলে স্বয়ংক্রিয়ভাবে সফটওয়্যার বিলম্ব ফি হিসাব করবে।
+                    {language === 'bn' ? 'মাসের এই তারিখ পার হলে স্বয়ংক্রিয়ভাবে সফটওয়্যার বিলম্ব ফি হিসাব করবে।' : 'After this date each month, the software will automatically calculate the late fee.'}
                   </p>
                 </div>
               </div>

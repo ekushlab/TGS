@@ -44,6 +44,7 @@ import { Member, AccountEntry, FundIncome, Expense, Deposit, AppSettings, AppDat
 import { TgsLogoSvg, PageWatermark } from './TgsLogoWatermark';
 import { AttachmentUpload } from './AttachmentUpload';
 import { NidDocumentUpload, NomineePhotoUpload } from './DocumentUploads';
+import { useLanguage } from '../utils/LanguageContext';
 import {
   getRecentMonths,
   getDepositTimelineMonths,
@@ -156,6 +157,7 @@ export function AddDepositModal({
   onClose: () => void;
   onSubmit: (entry: Omit<Deposit, 'id'>) => void;
 }) {
+  const { language } = useLanguage();
   const runningMonth = useMemo(() => getCurrentRunningMonth(), []);
   const timelineMonths = useMemo(() => {
     const list = getDepositTimelineMonths(2025, 9, 60);
@@ -266,7 +268,11 @@ export function AddDepositModal({
     e.preventDefault();
     if (!memberUid || !amount) return;
     if (isDuplicatePayment) {
-      alert(`এই সদস্যের ${overlappingPaidMonths.join(', ')} মাসের জমা ইতোমধ্যে পরিশোধ করা হয়েছে। ডুপ্লিকেট জমা গ্রহণ করা সম্ভব নয়।`);
+      alert(
+        language === 'bn'
+          ? `এই সদস্যের ${overlappingPaidMonths.join(', ')} মাসের জমা ইতোমধ্যে পরিশোধ করা হয়েছে। ডুপ্লিকেট জমা গ্রহণ করা সম্ভব নয়।`
+          : `This member's ${overlappingPaidMonths.join(', ')} deposit has already been paid. A duplicate deposit cannot be accepted.`
+      );
       return;
     }
 
@@ -290,9 +296,9 @@ export function AddDepositModal({
   const finePerMonth = settings.defaultFine ?? 50;
 
   return (
-    <Modal id="add-deposit-modal" title="নতুন মাসিক সঞ্চয় জমা" onClose={onClose} maxWidth="max-w-xl">
+    <Modal id="add-deposit-modal" title={language === 'bn' ? "নতুন মাসিক সঞ্চয় জমা" : "New Monthly Savings Deposit"} onClose={onClose} maxWidth="max-w-xl">
       <form onSubmit={submit} className="space-y-3.5">
-        <Field label="সদস্য নির্বাচন করুন" required>
+        <Field label={language === 'bn' ? "সদস্য নির্বাচন করুন" : "Select Member"} required>
           <select
             value={memberUid}
             onChange={(e) => setMemberUid(e.target.value)}
@@ -308,10 +314,10 @@ export function AddDepositModal({
 
         {selectedMember && (
           <div className="p-2.5 bg-emerald-50/70 border border-emerald-200/80 rounded-lg text-xs text-emerald-900 flex items-center justify-between flex-wrap gap-2">
-            <span>সদস্য: <strong>{selectedMember.name}</strong> ({selectedMember.uid})</span>
+            <span>{language === 'bn' ? 'সদস্য' : 'Member'}: <strong>{selectedMember.name}</strong> ({selectedMember.uid})</span>
             <div className="flex items-center gap-2 font-mono text-emerald-800">
-              <span>পরিশোধিত কিস্তি: <strong>{memberDepositsCount} টি</strong></span>
-              <span>মোবাইল: {selectedMember.mobile || "নম্বর নেই"}</span>
+              <span>{language === 'bn' ? 'পরিশোধিত কিস্তি' : 'Deposits paid'}: <strong>{memberDepositsCount} {language === 'bn' ? 'টি' : ''}</strong></span>
+              <span>{language === 'bn' ? 'মোবাইল' : 'Mobile'}: {selectedMember.mobile || (language === 'bn' ? "নম্বর নেই" : "No number")}</span>
             </div>
           </div>
         )}
@@ -322,17 +328,33 @@ export function AddDepositModal({
             <ShieldAlert size={20} className="text-rose-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <p className="font-bold text-rose-900 text-sm">
-                🚫 বকেয়া ছাড়া জমা গ্রহণ নিষিদ্ধ / ইতোমধ্যে পরিশোধিত মাস!
+                {language === 'bn'
+                  ? '🚫 বকেয়া ছাড়া জমা গ্রহণ নিষিদ্ধ / ইতোমধ্যে পরিশোধিত মাস!'
+                  : '🚫 Deposit blocked — this month is already paid!'}
               </p>
               <p className="text-rose-800 leading-relaxed">
-                এই সদস্যের (<strong>{selectedMember?.name}</strong>) এর নির্বাচিত{' '}
-                <strong className="underline decoration-rose-500 font-bold">
-                  {overlappingPaidMonths.join(', ')}
-                </strong>{' '}
-                মাসের সঞ্চয় জমা ইতোমধ্যে সম্পন্ন হয়েছে (বকেয়া নেই)। যে মাসের জমা একবার সম্পন্ন হয়ে গেছে, সেই মাসের পুনরায় ইনপুট বা জমা নেওয়া যাবে না।
+                {language === 'bn' ? (
+                  <>
+                    এই সদস্যের (<strong>{selectedMember?.name}</strong>) এর নির্বাচিত{' '}
+                    <strong className="underline decoration-rose-500 font-bold">
+                      {overlappingPaidMonths.join(', ')}
+                    </strong>{' '}
+                    মাসের সঞ্চয় জমা ইতোমধ্যে সম্পন্ন হয়েছে (বকেয়া নেই)। যে মাসের জমা একবার সম্পন্ন হয়ে গেছে, সেই মাসের পুনরায় ইনপুট বা জমা নেওয়া যাবে না।
+                  </>
+                ) : (
+                  <>
+                    This member's (<strong>{selectedMember?.name}</strong>) selected{' '}
+                    <strong className="underline decoration-rose-500 font-bold">
+                      {overlappingPaidMonths.join(', ')}
+                    </strong>{' '}
+                    deposit is already complete (no due). A month whose deposit is already complete cannot be entered or paid again.
+                  </>
+                )}
               </p>
               <p className="text-rose-900 font-semibold pt-0.5">
-                💡 অনুগ্রহ করে নিচের তালিকা থেকে অপরিশোধিত বা বকেয়া মাস নির্বাচন করুন।
+                {language === 'bn'
+                  ? '💡 অনুগ্রহ করে নিচের তালিকা থেকে অপরিশোধিত বা বকেয়া মাস নির্বাচন করুন।'
+                  : '💡 Please select an unpaid or due month from the list below.'}
               </p>
             </div>
           </div>
@@ -341,9 +363,9 @@ export function AddDepositModal({
         {/* Month & Period / Months Count Selection */}
         <div className="bg-stone-50/80 p-3 rounded-xl border border-stone-200/80 space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-stone-700">কয় মাসের সঞ্চয় জমা দিচ্ছেন?</span>
+            <span className="text-xs font-semibold text-stone-700">{language === 'bn' ? 'কয় মাসের সঞ্চয় জমা দিচ্ছেন?' : 'How many months of savings are you depositing?'}</span>
             <span className="text-xs font-bold text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-full">
-              {monthsCount} মাসের সঞ্চয়
+              {language === 'bn' ? `${monthsCount} মাসের সঞ্চয়` : `${monthsCount} month(s) savings`}
             </span>
           </div>
 
@@ -360,16 +382,18 @@ export function AddDepositModal({
                     : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
                 }`}
               >
-                {cnt === 1 ? "১ মাস" : cnt === 2 ? "২ মাস" : cnt === 3 ? "৩ মাস" : cnt === 4 ? "৪ মাস" : cnt === 5 ? "৫ মাস" : cnt === 6 ? "৬ মাস" : "১ বছর"}
+                {language === 'bn'
+                  ? (cnt === 1 ? "১ মাস" : cnt === 2 ? "২ মাস" : cnt === 3 ? "৩ মাস" : cnt === 4 ? "৪ মাস" : cnt === 5 ? "৫ মাস" : cnt === 6 ? "৬ মাস" : "১ বছর")
+                  : (cnt === 12 ? "1 year" : `${cnt} month${cnt > 1 ? 's' : ''}`)}
               </button>
             ))}
-            
+
             <div className="flex items-center ml-auto gap-1">
               <button
                 type="button"
                 onClick={() => handleMonthsCountChange(Math.max(1, monthsCount - 1))}
                 className="p-1 rounded bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs cursor-pointer"
-                title="১ মাস কমান"
+                title={language === 'bn' ? "১ মাস কমান" : "Decrease by 1 month"}
               >
                 <Minus size={13} />
               </button>
@@ -378,7 +402,7 @@ export function AddDepositModal({
                 type="button"
                 onClick={() => handleMonthsCountChange(monthsCount + 1)}
                 className="p-1 rounded bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 text-xs cursor-pointer"
-                title="১ মাস বাড়ান"
+                title={language === 'bn' ? "১ মাস বাড়ান" : "Increase by 1 month"}
               >
                 <Plus size={13} />
               </button>
@@ -387,7 +411,11 @@ export function AddDepositModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="কোন মাস থেকে শুরু" required hint="ডিফল্ট রানিং মাস · পূর্ববর্তী ও পরবর্তী মাসগুলোতে যাওয়ার সুবিধা">
+          <Field
+            label={language === 'bn' ? "কোন মাস থেকে শুরু" : "Starting Month"}
+            required
+            hint={language === 'bn' ? "ডিফল্ট রানিং মাস · পূর্ববর্তী ও পরবর্তী মাসগুলোতে যাওয়ার সুবিধা" : "Defaults to the running month · use arrows to move between months"}
+          >
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5">
                 <button
@@ -395,7 +423,7 @@ export function AddDepositModal({
                   onClick={handlePrevMonth}
                   disabled={timelineMonths.indexOf(month) <= 0}
                   className="px-2.5 py-2 rounded-lg border border-stone-200 bg-stone-100 hover:bg-stone-200 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-stone-700 transition-all flex items-center justify-center cursor-pointer shrink-0"
-                  title="পূর্ববর্তী মাস"
+                  title={language === 'bn' ? "পূর্ববর্তী মাস" : "Previous month"}
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -410,19 +438,23 @@ export function AddDepositModal({
                   {Array.from(new Set(timelineMonths.map((m) => m.split(' ')[1]))).map((yearBn) => {
                     const monthsInYear = timelineMonths.filter((m) => m.endsWith(yearBn));
                     return (
-                      <optgroup key={yearBn} label={`${yearBn} সাল ${yearBn === '২০২৫' ? '(প্রতিষ্ঠার ১ম অর্থবছর)' : ''}`}>
+                      <optgroup key={yearBn} label={language === 'bn' ? `${yearBn} সাল ${yearBn === '২০২৫' ? '(প্রতিষ্ঠার ১ম অর্থবছর)' : ''}` : `${yearBn}${yearBn === '২০২৫' ? ' (1st fiscal year)' : ''}`}>
                         {monthsInYear.map((m) => {
                           const isPaid = paidMonthKeys.has(getMonthIndexKey(m));
                           const isRunning = m === runningMonth;
                           const timelineIdx = timelineMonths.indexOf(m) + 1;
-                          const serialLabel =
-                            timelineIdx === 1 ? '১ম কিস্তি · ' :
-                            timelineIdx === 2 ? '২য় কিস্তি · ' :
-                            timelineIdx === 3 ? '৩য় কিস্তি · ' :
-                            `${toBnDigits(timelineIdx)}ম কিস্তি · `;
+                          const serialLabel = language === 'bn'
+                            ? (timelineIdx === 1 ? '১ম কিস্তি · ' :
+                               timelineIdx === 2 ? '২য় কিস্তি · ' :
+                               timelineIdx === 3 ? '৩য় কিস্তি · ' :
+                               `${toBnDigits(timelineIdx)}ম কিস্তি · `)
+                            : (timelineIdx === 1 ? '1st installment · ' :
+                               timelineIdx === 2 ? '2nd installment · ' :
+                               timelineIdx === 3 ? '3rd installment · ' :
+                               `${timelineIdx}th installment · `);
                           return (
                             <option key={m} value={m}>
-                              {serialLabel}{m} {isRunning ? ' ⭐ (রানিং মাস)' : ''} {isPaid ? ' (পরিশোধিত ✓)' : ' (বকেয়া)'}
+                              {serialLabel}{m} {isRunning ? (language === 'bn' ? ' ⭐ (রানিং মাস)' : ' ⭐ (running month)') : ''} {isPaid ? (language === 'bn' ? ' (পরিশোধিত ✓)' : ' (paid ✓)') : (language === 'bn' ? ' (বকেয়া)' : ' (due)')}
                             </option>
                           );
                         })}
@@ -436,7 +468,7 @@ export function AddDepositModal({
                   onClick={handleNextMonth}
                   disabled={timelineMonths.indexOf(month) >= timelineMonths.length - 1}
                   className="px-2.5 py-2 rounded-lg border border-stone-200 bg-stone-100 hover:bg-stone-200 active:scale-95 disabled:opacity-30 disabled:pointer-events-none text-stone-700 transition-all flex items-center justify-center cursor-pointer shrink-0"
-                  title="পরবর্তী মাস"
+                  title={language === 'bn' ? "পরবর্তী মাস" : "Next month"}
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -451,9 +483,9 @@ export function AddDepositModal({
                       ? "bg-amber-400 text-emerald-950 border-amber-500 font-bold shadow-xs"
                       : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
                   }`}
-                  title="বর্তমান রানিং মাস নির্বাচন করুন"
+                  title={language === 'bn' ? "বর্তমান রানিং মাস নির্বাচন করুন" : "Select the current running month"}
                 >
-                  🗓️ রানিং মাস ({runningMonth})
+                  {language === 'bn' ? `🗓️ রানিং মাস (${runningMonth})` : `🗓️ Running Month (${runningMonth})`}
                 </button>
 
                 <button
@@ -464,9 +496,9 @@ export function AddDepositModal({
                       ? "bg-emerald-800 text-white border-emerald-900 font-bold"
                       : "bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100"
                   }`}
-                  title="প্রতিষ্ঠার ১ম কিস্তি (অক্টোবর ২০২৫) নির্বাচন করুন"
+                  title={language === 'bn' ? "প্রতিষ্ঠার ১ম কিস্তি (অক্টোবর ২০২৫) নির্বাচন করুন" : "Select the founding 1st installment (October 2025)"}
                 >
-                  📌 ১ম কিস্তি (অক্টোবর ২০২৫)
+                  {language === 'bn' ? `📌 ১ম কিস্তি (অক্টোবর ২০২৫)` : `📌 1st Installment (October 2025)`}
                 </button>
                 {(() => {
                   const firstUnpaid = timelineMonths.find((m) => !paidMonthKeys.has(getMonthIndexKey(m)));
@@ -480,9 +512,9 @@ export function AddDepositModal({
                             ? "bg-stone-800 text-white border-stone-900 font-bold"
                             : "bg-stone-100 text-stone-700 border-stone-200 hover:bg-stone-200"
                         }`}
-                        title="পরবর্তী প্রথম বকেয়া মাস নির্বাচন করুন"
+                        title={language === 'bn' ? "পরবর্তী প্রথম বকেয়া মাস নির্বাচন করুন" : "Select the next first due month"}
                       >
-                        ⚡ ১ম বকেয়া ({firstUnpaid})
+                        {language === 'bn' ? `⚡ ১ম বকেয়া (${firstUnpaid})` : `⚡ 1st Due (${firstUnpaid})`}
                       </button>
                     );
                   }
@@ -492,7 +524,7 @@ export function AddDepositModal({
             </div>
           </Field>
 
-          <Field label="জমার তারিখ" required hint={`সময়সীমা: প্রতি মাসের ${settings.deadlineDay ?? 10} তারিখ`}>
+          <Field label={language === 'bn' ? "জমার তারিখ" : "Deposit Date"} required hint={language === 'bn' ? `সময়সীমা: প্রতি মাসের ${settings.deadlineDay ?? 10} তারিখ` : `Deadline: the ${settings.deadlineDay ?? 10}th of every month`}>
             <input
               type="text"
               value={date}
@@ -507,7 +539,7 @@ export function AddDepositModal({
         {/* Display covered months breakdown if monthsCount > 1 */}
         {monthsCount > 1 && (
           <div className="p-2.5 bg-stone-100 rounded-lg text-xs text-stone-700 space-y-1">
-            <span className="font-bold text-stone-800">অন্তর্ভুক্ত মাসসমূহ ({monthsCount} টি):</span>
+            <span className="font-bold text-stone-800">{language === 'bn' ? `অন্তর্ভুক্ত মাসসমূহ (${monthsCount} টি):` : `Included Months (${monthsCount}):`}</span>
             <div className="flex flex-wrap gap-1.5 pt-0.5">
               {targetMonths.map((m) => {
                 const isPaid = paidMonthKeys.has(getMonthIndexKey(m));
@@ -520,7 +552,7 @@ export function AddDepositModal({
                         : "bg-emerald-100 text-emerald-900 border border-emerald-300"
                     }`}
                   >
-                    {m} {isPaid ? '(পরিশোধিত)' : '(বকেয়া)'}
+                    {m} {isPaid ? (language === 'bn' ? '(পরিশোধিত)' : '(paid)') : (language === 'bn' ? '(বকেয়া)' : '(due)')}
                   </span>
                 );
               })}
@@ -529,7 +561,7 @@ export function AddDepositModal({
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label={`সঞ্চয় জমার পরিমাণ (${monthsCount} মাসের)`} required>
+          <Field label={language === 'bn' ? `সঞ্চয় জমার পরিমাণ (${monthsCount} মাসের)` : `Savings Deposit Amount (${monthsCount} month(s))`} required>
             <input
               type="number"
               min="0"
@@ -542,7 +574,7 @@ export function AddDepositModal({
           </Field>
 
           <div>
-            <Field label="বিলম্ব জরিমানা (৳)" hint={`১ মাস = ৳${finePerMonth}, ২ মাস = ৳${finePerMonth * 2}`}>
+            <Field label={language === 'bn' ? "বিলম্ব জরিমানা (৳)" : "Late Fine (৳)"} hint={language === 'bn' ? `১ মাস = ৳${finePerMonth}, ২ মাস = ৳${finePerMonth * 2}` : `1 month = ৳${finePerMonth}, 2 months = ৳${finePerMonth * 2}`}>
               <div className="flex items-center gap-1.5">
                 <input
                   type="number"
@@ -550,7 +582,7 @@ export function AddDepositModal({
                   value={fine}
                   onChange={(e) => setFine(Math.max(0, Number(e.target.value)))}
                   className={`${inputCls} font-mono font-bold text-amber-900`}
-                  placeholder="০"
+                  placeholder={language === 'bn' ? "০" : "0"}
                 />
               </div>
             </Field>
@@ -561,15 +593,15 @@ export function AddDepositModal({
         <div className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-3 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-amber-950 flex items-center gap-1">
-              <span>⚠️ গুণিতক হারে জরিমানা নির্ধারণ:</span>
+              <span>{language === 'bn' ? '⚠️ গুণিতক হারে জরিমানা নির্ধারণ:' : '⚠️ Multiplied Fine Setting:'}</span>
             </span>
             <span className="font-mono font-bold text-emerald-950 bg-white/90 px-2 py-0.5 rounded border border-amber-300">
-              সর্বমোট: {currency(Number(amount) + Number(fine))}
+              {language === 'bn' ? 'সর্বমোট: ' : 'Total: '}{currency(Number(amount) + Number(fine))}
             </span>
           </div>
 
           <div className="space-y-1.5">
-            <div className="text-[11px] font-medium text-stone-600">মাসের গুণিতক নির্বাচন করুন:</div>
+            <div className="text-[11px] font-medium text-stone-600">{language === 'bn' ? 'মাসের গুণিতক নির্বাচন করুন:' : 'Select month multiplier:'}</div>
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 type="button"
@@ -580,7 +612,7 @@ export function AddDepositModal({
                     : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
                 }`}
               >
-                মওকুফ (৳০)
+                {language === 'bn' ? 'মওকুফ (৳০)' : 'Waived (৳0)'}
               </button>
 
               {[1, 2, 3, 4, 5, 6].map((m) => {
@@ -597,7 +629,7 @@ export function AddDepositModal({
                         : "bg-white text-amber-950 border-amber-300 hover:bg-amber-100/60"
                     }`}
                   >
-                    {m} মাস (৳{fineVal})
+                    {m} {language === 'bn' ? 'মাস' : 'month(s)'} (৳{fineVal})
                   </button>
                 );
               })}
@@ -605,35 +637,35 @@ export function AddDepositModal({
           </div>
 
           <div className="flex items-center justify-between pt-1 border-t border-amber-200/60 text-xs">
-            <span className="text-[11px] text-stone-500">সূক্ষ্ম পরিবর্তন:</span>
+            <span className="text-[11px] text-stone-500">{language === 'bn' ? 'সূক্ষ্ম পরিবর্তন:' : 'Fine adjustment:'}</span>
             <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 type="button"
                 onClick={() => adjustFine(-50)}
                 className="px-2 py-0.5 text-xs font-semibold rounded bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 flex items-center gap-0.5 cursor-pointer"
               >
-                <Minus size={11} /> ৳৫০
+                <Minus size={11} /> {language === 'bn' ? '৳৫০' : '৳50'}
               </button>
               <button
                 type="button"
                 onClick={() => adjustFine(-10)}
                 className="px-2 py-0.5 text-xs font-semibold rounded bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 flex items-center gap-0.5 cursor-pointer"
               >
-                <Minus size={11} /> ৳১০
+                <Minus size={11} /> {language === 'bn' ? '৳১০' : '৳10'}
               </button>
               <button
                 type="button"
                 onClick={() => adjustFine(10)}
                 className="px-2 py-0.5 text-xs font-semibold rounded bg-white hover:bg-stone-100 border border-stone-300 text-stone-700 flex items-center gap-0.5 cursor-pointer"
               >
-                <Plus size={11} /> ৳১০
+                <Plus size={11} /> {language === 'bn' ? '৳১০' : '৳10'}
               </button>
               <button
                 type="button"
                 onClick={() => adjustFine(50)}
                 className="px-2 py-0.5 text-xs font-semibold rounded bg-amber-100 hover:bg-amber-200 border border-amber-300 text-amber-900 flex items-center gap-0.5 cursor-pointer"
               >
-                <Plus size={11} /> ৳৫০
+                <Plus size={11} /> {language === 'bn' ? '৳৫০' : '৳50'}
               </button>
             </div>
           </div>
@@ -643,7 +675,7 @@ export function AddDepositModal({
           </p>
         </div>
 
-        <Field label="টাকা জমা দেওয়ার মাধ্যম" required>
+        <Field label={language === 'bn' ? "টাকা জমা দেওয়ার মাধ্যম" : "Payment Method"} required>
           <select value={method} onChange={(e) => setMethod(e.target.value)} className={inputCls}>
             {METHODS.map((m) => (
               <option key={m} value={m}>
@@ -653,18 +685,18 @@ export function AddDepositModal({
           </select>
         </Field>
 
-        <Field label="মন্তব্য / ট্রানজেকশন আইডি (ঐচ্ছিক)">
+        <Field label={language === 'bn' ? "মন্তব্য / ট্রানজেকশন আইডি (ঐচ্ছিক)" : "Note / Transaction ID (optional)"}>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className={inputCls}
-            placeholder="রিসিপ্ট নং বা TrxID..."
+            placeholder={language === 'bn' ? "রিসিপ্ট নং বা TrxID..." : "Receipt no. or TrxID..."}
           />
         </Field>
 
         <AttachmentUpload
-          label="ব্যাংক/বিকাশ জমার স্লিপ বা রশিদ (ঐচ্ছিক)"
-          hint="অনলাইন পেমেন্ট স্ক্রিনশট বা জমা স্লিপের ছবি যুক্ত করুন"
+          label={language === 'bn' ? "ব্যাংক/বিকাশ জমার স্লিপ বা রশিদ (ঐচ্ছিক)" : "Bank/bKash Deposit Slip or Receipt (optional)"}
+          hint={language === 'bn' ? "অনলাইন পেমেন্ট স্ক্রিনশট বা জমা স্লিপের ছবি যুক্ত করুন" : "Attach an online payment screenshot or deposit slip image"}
           value={attachment}
           fileName={attachmentName}
           onChange={(val, name) => {
@@ -679,7 +711,7 @@ export function AddDepositModal({
             onClick={onClose}
             className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors cursor-pointer"
           >
-            বাতিল
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
           </button>
           <button
             id="submit-deposit-btn"
@@ -690,10 +722,16 @@ export function AddDepositModal({
                 ? 'bg-stone-400 cursor-not-allowed opacity-75'
                 : 'bg-emerald-800 hover:bg-emerald-900 cursor-pointer'
             }`}
-            title={isDuplicatePayment ? 'নির্বাচিত মাসটি ইতোমধ্যে পরিশোধিত' : 'জমা সম্পন্ন করুন'}
+            title={
+            isDuplicatePayment
+              ? (language === 'bn' ? 'নির্বাচিত মাসটি ইতোমধ্যে পরিশোধিত' : 'The selected month is already paid')
+              : (language === 'bn' ? 'জমা সম্পন্ন করুন' : 'Complete deposit')
+          }
           >
             <Check size={16} />{' '}
-            {isDuplicatePayment ? 'পরিশোধিত মাস (জমা নেওয়া যাবে না)' : 'জমা করুন ও রসিদ তৈরি করুন'}
+            {isDuplicatePayment
+              ? (language === 'bn' ? 'পরিশোধিত মাস (জমা নেওয়া যাবে না)' : 'Paid Month (deposit not allowed)')
+              : (language === 'bn' ? 'জমা করুন ও রসিদ তৈরি করুন' : 'Deposit & Generate Receipt')}
           </button>
         </div>
       </form>
@@ -713,6 +751,7 @@ export function AddMemberModal({
   onClose: () => void;
   onSubmit: (member: Member) => void;
 }) {
+  const { language } = useLanguage();
   const [tab, setTab] = useState<'basic' | 'photo_nid' | 'nominee'>('basic');
 
   // Basic Information
@@ -769,7 +808,7 @@ export function AddMemberModal({
 
     const validation = validatePhotoFileSize(file, 30, 300);
     if (!validation.valid) {
-      setPhotoError(validation.error || 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।');
+      setPhotoError(validation.error || (language === 'bn' ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।' : 'Photo size must be between 30 KB and 300 KB.'));
       if (photoInputRef.current) photoInputRef.current.value = '';
       return;
     }
@@ -781,7 +820,7 @@ export function AddMemberModal({
       setPhotoSize(file.size);
     } catch (err) {
       console.error("Failed to process member photo", err);
-      setPhotoError("ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।");
+      setPhotoError(language === 'bn' ? "ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।" : "There was a problem processing the photo.");
     } finally {
       setIsProcessingPhoto(false);
     }
@@ -851,13 +890,13 @@ export function AddMemberModal({
   };
 
   return (
-    <Modal id="add-member-modal" title="নতুন সদস্য নিবন্ধন (Member Registration)" onClose={onClose} maxWidth="max-w-2xl">
+    <Modal id="add-member-modal" title={language === 'bn' ? "নতুন সদস্য নিবন্ধন (Member Registration)" : "New Member Registration (Member Registration)"} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={submit} className="space-y-4">
         {/* UID Badge */}
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <CheckCircle2 size={16} className="text-amber-700" />
-            <span>স্বয়ংক্রিয় ইউনিক মেম্বার আইডি:</span>
+            <span>{language === 'bn' ? 'স্বয়ংক্রিয় ইউনিক মেম্বার আইডি:' : 'Auto-generated Unique Member ID:'}</span>
           </div>
           <span className="font-mono font-bold text-sm bg-amber-200/80 px-2.5 py-0.5 rounded text-amber-950">
             {assignedUid}
@@ -875,7 +914,7 @@ export function AddMemberModal({
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            <User size={14} /> ১. সাধারণ তথ্য
+            <User size={14} /> {language === 'bn' ? '১. সাধারণ তথ্য' : '1. Basic Info'}
           </button>
 
           <button
@@ -887,7 +926,7 @@ export function AddMemberModal({
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            <Camera size={14} /> ২. ছবি ও এনআইডি
+            <Camera size={14} /> {language === 'bn' ? '২. ছবি ও এনআইডি' : '2. Photo & NID'}
             {(photo || nidDoc) && <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />}
           </button>
 
@@ -900,7 +939,7 @@ export function AddMemberModal({
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            <Users size={14} /> ৩. নমিনীর তথ্য ও এনআইডি
+            <Users size={14} /> {language === 'bn' ? '৩. নমিনীর তথ্য ও এনআইডি' : '3. Nominee Info & NID'}
             {(nomineeName || nomineePhoto || nomineeNidDoc) && <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />}
           </button>
         </div>
@@ -909,12 +948,12 @@ export function AddMemberModal({
         {tab === 'basic' && (
           <div className="space-y-3.5 animate-in fade-in duration-150">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="সদস্যের পুরো নাম (বাংলায়)" required>
+              <Field label={language === 'bn' ? "সদস্যের পুরো নাম (বাংলায়)" : "Member's Full Name (in Bangla)"} required>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={inputCls}
-                  placeholder="যেমন: মোঃ রাশেদুল ইসলাম"
+                  placeholder={language === 'bn' ? "যেমন: মোঃ রাশেদুল ইসলাম" : "e.g. Md. Rashedul Islam"}
                   required
                 />
               </Field>
@@ -930,27 +969,27 @@ export function AddMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="পিতার নাম (Father's Name)">
+              <Field label={language === 'bn' ? "পিতার নাম (Father's Name)" : "Father's Name"}>
                 <input
                   value={fatherName}
                   onChange={(e) => setFatherName(e.target.value)}
                   className={inputCls}
-                  placeholder="পিতার নাম লিখুন"
+                  placeholder={language === 'bn' ? "পিতার নাম লিখুন" : "Enter father's name"}
                 />
               </Field>
 
-              <Field label="জাতীয় পরিচয়পত্র নম্বর (NID Number)">
+              <Field label={language === 'bn' ? "জাতীয় পরিচয়পত্র নম্বর (NID Number)" : "National ID Number (NID Number)"}>
                 <input
                   value={nid}
                   onChange={(e) => setNid(e.target.value)}
                   className={inputCls}
-                  placeholder="১০/১৩/১৭ সংখ্যার NID নম্বর"
+                  placeholder={language === 'bn' ? "১০/১৩/১৭ সংখ্যার NID নম্বর" : "10/13/17-digit NID number"}
                 />
               </Field>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="মোবাইল নম্বর (WhatsApp)" required hint="রসিদ পাঠাতে ব্যবহৃত হবে">
+              <Field label={language === 'bn' ? "মোবাইল নম্বর (WhatsApp)" : "Mobile Number (WhatsApp)"} required hint={language === 'bn' ? "রসিদ পাঠাতে ব্যবহৃত হবে" : "Used to send the receipt"}>
                 <input
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
@@ -960,9 +999,9 @@ export function AddMemberModal({
                 />
               </Field>
 
-              <Field label="রক্তের গ্রুপ">
+              <Field label={language === 'bn' ? "রক্তের গ্রুপ" : "Blood Group"}>
                 <select value={blood} onChange={(e) => setBlood(e.target.value)} className={inputCls}>
-                  <option value="">নির্বাচন করুন</option>
+                  <option value="">{language === 'bn' ? "নির্বাচন করুন" : "Select"}</option>
                   {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
                     <option key={b} value={b}>
                       {b}
@@ -973,7 +1012,7 @@ export function AddMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="যোগদানের তারিখ">
+              <Field label={language === 'bn' ? "যোগদানের তারিখ" : "Joining Date"}>
                 <input
                   value={joined}
                   onChange={(e) => setJoined(e.target.value)}
@@ -981,7 +1020,7 @@ export function AddMemberModal({
                   placeholder="dd/mm/yyyy"
                 />
               </Field>
-              <Field label="ইমেইল ঠিকানা">
+              <Field label={language === 'bn' ? "ইমেইল ঠিকানা" : "Email Address"}>
                 <input
                   type="email"
                   value={email}
@@ -992,12 +1031,12 @@ export function AddMemberModal({
               </Field>
             </div>
 
-            <Field label="ঠিকানা / গ্রাম / এলাকা">
+            <Field label={language === 'bn' ? "ঠিকানা / গ্রাম / এলাকা" : "Address / Village / Area"}>
               <input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 className={inputCls}
-                placeholder="যেমন: উলানিয়া বাজার, গলাচিপা"
+                placeholder={language === 'bn' ? "যেমন: উলানিয়া বাজার, গলাচিপা" : "e.g. Ulania Bazar, Galachipa"}
               />
             </Field>
           </div>
@@ -1010,18 +1049,18 @@ export function AddMemberModal({
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                  <Camera size={15} className="text-emerald-800" /> সদস্যের প্রোফাইল ছবি (৩০ KB – ৩০০ KB)
+                  <Camera size={15} className="text-emerald-800" /> {language === 'bn' ? 'সদস্যের প্রোফাইল ছবি (৩০ KB – ৩০০ KB)' : "Member's Profile Photo (30 KB – 300 KB)"}
                 </span>
                 {photo && (
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    {photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০ × ৩০০ সাইজ'}
+                    {language === 'bn' ? (photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০ × ৩০০ সাইজ') : (photoFormat === 'passport' ? 'Passport Size' : '300×300 Size')}
                     {photoSize ? ` (${Math.round(photoSize / 1024)} KB)` : ''}
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-medium text-stone-600">ছবির ফরম্যাট:</span>
+                <span className="text-[11px] font-medium text-stone-600">{language === 'bn' ? 'ছবির ফরম্যাট:' : 'Photo format:'}</span>
                 <button
                   type="button"
                   onClick={() => handleFormatChange('passport')}
@@ -1031,7 +1070,7 @@ export function AddMemberModal({
                       : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
                   }`}
                 >
-                  পাসপোর্ট সাইজ (Passport: 3.5×4.5)
+                  {language === 'bn' ? 'পাসপোর্ট সাইজ (Passport: 3.5×4.5)' : 'Passport Size (Passport: 3.5×4.5)'}
                 </button>
                 <button
                   type="button"
@@ -1042,7 +1081,7 @@ export function AddMemberModal({
                       : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
                   }`}
                 >
-                  ৩০০ × ৩০০ সাইজ (Square)
+                  {language === 'bn' ? '৩০০ × ৩০০ সাইজ (Square)' : '300×300 Size (Square)'}
                 </button>
               </div>
 
@@ -1064,7 +1103,7 @@ export function AddMemberModal({
                       type="button"
                       onClick={clearPhoto}
                       className="absolute -top-2 -right-2 bg-rose-600 text-white p-1 rounded-full shadow-xs hover:bg-rose-700 transition-colors cursor-pointer"
-                      title="ছবি মুছুন"
+                      title={language === 'bn' ? "ছবি মুছুন" : "Remove photo"}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -1075,7 +1114,7 @@ export function AddMemberModal({
                     className="w-24 h-24 rounded-xl border-2 border-dashed border-stone-300 bg-white hover:border-emerald-700 hover:bg-emerald-50/40 cursor-pointer flex flex-col items-center justify-center text-stone-400 hover:text-emerald-800 transition-all p-2 text-center"
                   >
                     <Camera size={24} />
-                    <span className="text-[10px] font-semibold mt-1">ছবি নির্বাচন</span>
+                    <span className="text-[10px] font-semibold mt-1">{language === 'bn' ? "ছবি নির্বাচন" : "Select Photo"}</span>
                   </div>
                 )}
 
@@ -1093,10 +1132,14 @@ export function AddMemberModal({
                     className="px-3 py-1.5 rounded-lg bg-white border border-stone-300 hover:bg-stone-100 text-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                   >
                     <Upload size={13} className="text-emerald-800" />
-                    <span>{photo ? "ছবি পরিবর্তন করুন" : "সদস্যের ছবি আপলোড করুন"}</span>
+                    <span>{photo
+                    ? (language === 'bn' ? "ছবি পরিবর্তন করুন" : "Change Photo")
+                    : (language === 'bn' ? "সদস্যের ছবি আপলোড করুন" : "Upload Member's Photo")}</span>
                   </button>
                   <p className="text-[11px] text-stone-500 leading-tight">
-                    ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে। স্বয়ংক্রিয়ভাবে ক্রপ এবং অপটিমাইজ করা হবে।
+                    {language === 'bn'
+                      ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে। স্বয়ংক্রিয়ভাবে ক্রপ এবং অপটিমাইজ করা হবে।'
+                      : 'Photo size must be between 30 KB and 300 KB. It will be automatically cropped and optimized.'}
                   </p>
                 </div>
               </div>
@@ -1112,8 +1155,8 @@ export function AddMemberModal({
             {/* Member NID Document Upload */}
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl">
               <NidDocumentUpload
-                label="সদস্যের জাতীয় পরিচয়পত্র (NID) কার্ড ডকুমেন্ট"
-                hint="PDF অথবা JPG/PNG ফরম্যাটে NID আপলোড করুন (১০০ KB থেকে ১ MB)"
+                label={language === 'bn' ? "সদস্যের জাতীয় পরিচয়পত্র (NID) কার্ড ডকুমেন্ট" : "Member's National ID (NID) Card Document"}
+                hint={language === 'bn' ? "PDF অথবা JPG/PNG ফরম্যাটে NID আপলোড করুন (১০০ KB থেকে ১ MB)" : "Upload NID as PDF or JPG/PNG (100 KB to 1 MB)"}
                 value={nidDoc}
                 fileName={nidDocName}
                 fileType={nidDocType}
@@ -1134,26 +1177,26 @@ export function AddMemberModal({
           <div className="space-y-4 animate-in fade-in duration-150">
             <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-1.5">
               <Info size={15} className="text-amber-700 shrink-0" />
-              <span>সদস্যের অবর্তমানে সঞ্চয়ের হকদার নমিনীর বিস্তারিত তথ্য, ছবি ও NID ডকুমেন্ট নিচে যুক্ত করুন:</span>
+              <span>{language === 'bn' ? "সদস্যের অবর্তমানে সঞ্চয়ের হকদার নমিনীর বিস্তারিত তথ্য, ছবি ও NID ডকুমেন্ট নিচে যুক্ত করুন:" : "Add the nominee's detailed information, photo, and NID document below — the person entitled to the savings in the member's absence:"}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="নমিনীর পুরো নাম">
+              <Field label={language === 'bn' ? "নমিনীর পুরো নাম" : "Nominee's Full Name"}>
                 <input
                   value={nomineeName}
                   onChange={(e) => setNomineeName(e.target.value)}
                   className={inputCls}
-                  placeholder="নমিনীর নাম লিখুন"
+                  placeholder={language === 'bn' ? "নমিনীর নাম লিখুন" : "Enter nominee's name"}
                 />
               </Field>
 
-              <Field label="সদস্যের সাথে সম্পর্ক">
+              <Field label={language === 'bn' ? "সদস্যের সাথে সম্পর্ক" : "Relation to Member"}>
                 <select
                   value={nomineeRelation}
                   onChange={(e) => setNomineeRelation(e.target.value)}
                   className={inputCls}
                 >
-                  <option value="">সম্পর্ক নির্বাচন করুন</option>
+                  <option value="">{language === 'bn' ? "সম্পর্ক নির্বাচন করুন" : "Select relation"}</option>
                   {["স্ত্রী", "স্বামী", "পুত্র", "কন্যা", "পিতা", "মাতা", "ভাই", "বোন", "দাদা/দাদী", "অন্যান্য"].map((rel) => (
                     <option key={rel} value={rel}>
                       {rel}
@@ -1164,7 +1207,7 @@ export function AddMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="নমিনীর মোবাইল নম্বর">
+              <Field label={language === 'bn' ? "নমিনীর মোবাইল নম্বর" : "Nominee's Mobile Number"}>
                 <input
                   value={nomineeMobile}
                   onChange={(e) => setNomineeMobile(e.target.value)}
@@ -1173,22 +1216,22 @@ export function AddMemberModal({
                 />
               </Field>
 
-              <Field label="নমিনীর জাতীয় পরিচয়পত্র (NID) নম্বর">
+              <Field label={language === 'bn' ? "নমিনীর জাতীয় পরিচয়পত্র (NID) নম্বর" : "Nominee's National ID (NID) Number"}>
                 <input
                   value={nomineeNid}
                   onChange={(e) => setNomineeNid(e.target.value)}
                   className={inputCls}
-                  placeholder="নমিনীর NID নম্বর"
+                  placeholder={language === 'bn' ? "নমিনীর NID নম্বর" : "Nominee's NID number"}
                 />
               </Field>
             </div>
 
-            <Field label="নমিনীর ঠিকানা">
+            <Field label={language === 'bn' ? "নমিনীর ঠিকানা" : "Nominee's Address"}>
               <input
                 value={nomineeAddress}
                 onChange={(e) => setNomineeAddress(e.target.value)}
                 className={inputCls}
-                placeholder="নমিনীর স্থায়ী বা বর্তমান ঠিকানা"
+                placeholder={language === 'bn' ? "নমিনীর স্থায়ী বা বর্তমান ঠিকানা" : "Nominee's permanent or current address"}
               />
             </Field>
 
@@ -1207,8 +1250,8 @@ export function AddMemberModal({
             {/* Nominee NID Document Upload */}
             <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl">
               <NidDocumentUpload
-                label="নমিনীর জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট"
-                hint="নমিনীর NID এর PDF বা JPG/PNG ফাইল (১০০ KB থেকে ১ MB)"
+                label={language === 'bn' ? "নমিনীর জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট" : "Nominee's National ID (NID) Document"}
+                hint={language === 'bn' ? "নমিনীর NID এর PDF বা JPG/PNG ফাইল (১০০ KB থেকে ১ MB)" : "Nominee's NID as a PDF or JPG/PNG file (100 KB to 1 MB)"}
                 value={nomineeNidDoc}
                 fileName={nomineeNidDocName}
                 fileType={nomineeNidDocType}
@@ -1233,7 +1276,7 @@ export function AddMemberModal({
                 onClick={() => setTab(tab === 'nominee' ? 'photo_nid' : 'basic')}
                 className="px-3 py-2 rounded-lg border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-100 transition-colors cursor-pointer"
               >
-                ← পূর্ববর্তী ধাপ
+                {language === 'bn' ? '← পূর্ববর্তী ধাপ' : '← Previous Step'}
               </button>
             )}
             {tab !== 'nominee' && (
@@ -1242,7 +1285,7 @@ export function AddMemberModal({
                 onClick={() => setTab(tab === 'basic' ? 'photo_nid' : 'nominee')}
                 className="px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors cursor-pointer"
               >
-                পরবর্তী ধাপ →
+                {language === 'bn' ? 'পরবর্তী ধাপ →' : 'Next Step →'}
               </button>
             )}
           </div>
@@ -1253,7 +1296,7 @@ export function AddMemberModal({
               onClick={onClose}
               className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors cursor-pointer"
             >
-              বাতিল
+              {language === 'bn' ? 'বাতিল' : 'Cancel'}
             </button>
             <button
               id="submit-member-btn"
@@ -1261,7 +1304,7 @@ export function AddMemberModal({
               disabled={isProcessingPhoto}
               className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
-              <Check size={16} /> সদস্য নিবন্ধন সম্পন্ন করুন
+              <Check size={16} /> {language === 'bn' ? 'সদস্য নিবন্ধন সম্পন্ন করুন' : 'Complete Member Registration'}
             </button>
           </div>
         </div>
@@ -1282,6 +1325,7 @@ export function EditMemberModal({
   onClose: () => void;
   onUpdate: (member: Member) => void;
 }) {
+  const { language } = useLanguage();
   const [tab, setTab] = useState<'basic' | 'photo_nid' | 'nominee'>('basic');
 
   // Basic Information
@@ -1330,7 +1374,7 @@ export function EditMemberModal({
 
     const validation = validatePhotoFileSize(file, 30, 300);
     if (!validation.valid) {
-      setPhotoError(validation.error || 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।');
+      setPhotoError(validation.error || (language === 'bn' ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।' : 'Photo size must be between 30 KB and 300 KB.'));
       if (photoInputRef.current) photoInputRef.current.value = '';
       return;
     }
@@ -1342,7 +1386,7 @@ export function EditMemberModal({
       setPhotoSize(file.size);
     } catch (err) {
       console.error("Failed to process member photo", err);
-      setPhotoError("ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।");
+      setPhotoError(language === 'bn' ? "ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।" : "There was a problem processing the photo.");
     } finally {
       setIsProcessingPhoto(false);
     }
@@ -1414,7 +1458,7 @@ export function EditMemberModal({
   return (
     <Modal
       id="edit-member-modal"
-      title={`সদস্য তথ্য, এনআইডি ও নমিনী সংশোধন (${member.uid})`}
+      title={language === 'bn' ? `সদস্য তথ্য, এনআইডি ও নমিনী সংশোধন (${member.uid})` : `Edit Member Info, NID & Nominee (${member.uid})`}
       onClose={onClose}
       maxWidth="max-w-2xl"
     >
@@ -1430,7 +1474,7 @@ export function EditMemberModal({
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            <User size={14} /> ১. সাধারণ তথ্য
+            <User size={14} /> {language === 'bn' ? '১. সাধারণ তথ্য' : '1. Basic Info'}
           </button>
 
           <button
@@ -1442,7 +1486,7 @@ export function EditMemberModal({
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            <Camera size={14} /> ২. ছবি ও এনআইডি
+            <Camera size={14} /> {language === 'bn' ? '২. ছবি ও এনআইডি' : '2. Photo & NID'}
             {(photo || nidDoc) && <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />}
           </button>
 
@@ -1455,7 +1499,7 @@ export function EditMemberModal({
                 : 'text-stone-600 hover:bg-stone-100'
             }`}
           >
-            <Users size={14} /> ৩. নমিনীর তথ্য ও এনআইডি
+            <Users size={14} /> {language === 'bn' ? '৩. নমিনীর তথ্য ও এনআইডি' : '3. Nominee Info & NID'}
             {(nomineeName || nomineePhoto || nomineeNidDoc) && <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />}
           </button>
         </div>
@@ -1464,7 +1508,7 @@ export function EditMemberModal({
         {tab === 'basic' && (
           <div className="space-y-3.5 animate-in fade-in duration-150">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="সদস্যের পুরো নাম (বাংলায়)" required>
+              <Field label={language === 'bn' ? "সদস্যের পুরো নাম (বাংলায়)" : "Member's Full Name (in Bangla)"} required>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -1483,7 +1527,7 @@ export function EditMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="পিতার নাম (Father's Name)">
+              <Field label={language === 'bn' ? "পিতার নাম (Father's Name)" : "Father's Name"}>
                 <input
                   value={fatherName}
                   onChange={(e) => setFatherName(e.target.value)}
@@ -1491,7 +1535,7 @@ export function EditMemberModal({
                 />
               </Field>
 
-              <Field label="জাতীয় পরিচয়পত্র নম্বর (NID Number)">
+              <Field label={language === 'bn' ? "জাতীয় পরিচয়পত্র নম্বর (NID Number)" : "National ID Number (NID Number)"}>
                 <input
                   value={nid}
                   onChange={(e) => setNid(e.target.value)}
@@ -1501,7 +1545,7 @@ export function EditMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="মোবাইল নম্বর (WhatsApp)" required>
+              <Field label={language === 'bn' ? "মোবাইল নম্বর (WhatsApp)" : "Mobile Number (WhatsApp)"} required>
                 <input
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
@@ -1510,9 +1554,9 @@ export function EditMemberModal({
                 />
               </Field>
 
-              <Field label="রক্তের গ্রুপ">
+              <Field label={language === 'bn' ? "রক্তের গ্রুপ" : "Blood Group"}>
                 <select value={blood} onChange={(e) => setBlood(e.target.value)} className={inputCls}>
-                  <option value="">নির্বাচন করুন</option>
+                  <option value="">{language === 'bn' ? "নির্বাচন করুন" : "Select"}</option>
                   {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
                     <option key={b} value={b}>
                       {b}
@@ -1523,14 +1567,14 @@ export function EditMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="যোগদানের তারিখ">
+              <Field label={language === 'bn' ? "যোগদানের তারিখ" : "Joining Date"}>
                 <input
                   value={joined}
                   onChange={(e) => setJoined(e.target.value)}
                   className={inputCls}
                 />
               </Field>
-              <Field label="ইমেইল ঠিকানা">
+              <Field label={language === 'bn' ? "ইমেইল ঠিকানা" : "Email Address"}>
                 <input
                   type="email"
                   value={email}
@@ -1540,7 +1584,7 @@ export function EditMemberModal({
               </Field>
             </div>
 
-            <Field label="ঠিকানা / গ্রাম / এলাকা">
+            <Field label={language === 'bn' ? "ঠিকানা / গ্রাম / এলাকা" : "Address / Village / Area"}>
               <input
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
@@ -1557,18 +1601,18 @@ export function EditMemberModal({
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-                  <Camera size={15} className="text-emerald-800" /> সদস্যের প্রোফাইল ছবি (৩০ KB – ৩০০ KB)
+                  <Camera size={15} className="text-emerald-800" /> {language === 'bn' ? 'সদস্যের প্রোফাইল ছবি (৩০ KB – ৩০০ KB)' : "Member's Profile Photo (30 KB – 300 KB)"}
                 </span>
                 {photo && (
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                    {photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০ × ৩০০ সাইজ'}
+                    {language === 'bn' ? (photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০ × ৩০০ সাইজ') : (photoFormat === 'passport' ? 'Passport Size' : '300×300 Size')}
                     {photoSize ? ` (${Math.round(photoSize / 1024)} KB)` : ''}
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-medium text-stone-600">ছবির সাইজ:</span>
+                <span className="text-[11px] font-medium text-stone-600">{language === 'bn' ? 'ছবির সাইজ:' : 'Photo size:'}</span>
                 <button
                   type="button"
                   onClick={() => handleFormatChange('passport')}
@@ -1578,7 +1622,7 @@ export function EditMemberModal({
                       : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
                   }`}
                 >
-                  পাসপোর্ট সাইজ (Passport)
+                  {language === 'bn' ? 'পাসপোর্ট সাইজ (Passport)' : 'Passport Size (Passport)'}
                 </button>
                 <button
                   type="button"
@@ -1589,7 +1633,7 @@ export function EditMemberModal({
                       : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
                   }`}
                 >
-                  ৩০০ × ৩০০ সাইজ (Square)
+                  {language === 'bn' ? '৩০০ × ৩০০ সাইজ (Square)' : '300×300 Size (Square)'}
                 </button>
               </div>
 
@@ -1611,7 +1655,7 @@ export function EditMemberModal({
                       type="button"
                       onClick={clearPhoto}
                       className="absolute -top-2 -right-2 bg-rose-600 text-white p-1 rounded-full shadow-xs hover:bg-rose-700 transition-colors cursor-pointer"
-                      title="ছবি মুছুন"
+                      title={language === 'bn' ? "ছবি মুছুন" : "Remove photo"}
                     >
                       <Trash2 size={12} />
                     </button>
@@ -1622,7 +1666,7 @@ export function EditMemberModal({
                     className="w-24 h-24 rounded-xl border-2 border-dashed border-stone-300 bg-white hover:border-emerald-700 hover:bg-emerald-50/40 cursor-pointer flex flex-col items-center justify-center text-stone-400 hover:text-emerald-800 transition-all p-2 text-center"
                   >
                     <Camera size={24} />
-                    <span className="text-[10px] font-semibold mt-1">ছবি যোগ করুন</span>
+                    <span className="text-[10px] font-semibold mt-1">{language === 'bn' ? "ছবি যোগ করুন" : "Add Photo"}</span>
                   </div>
                 )}
 
@@ -1640,10 +1684,12 @@ export function EditMemberModal({
                     className="px-3 py-1.5 rounded-lg bg-white border border-stone-300 hover:bg-stone-100 text-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                   >
                     <Upload size={13} className="text-emerald-800" />
-                    <span>{photo ? "নতুন ছবি পরিবর্তন করুন" : "ছবি আপলোড করুন"}</span>
+                    <span>{photo
+                    ? (language === 'bn' ? "নতুন ছবি পরিবর্তন করুন" : "Change to New Photo")
+                    : (language === 'bn' ? "ছবি আপলোড করুন" : "Upload Photo")}</span>
                   </button>
                   <p className="text-[11px] text-stone-500 leading-tight">
-                    ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।
+                    {language === 'bn' ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।' : 'Photo size must be between 30 KB and 300 KB.'}
                   </p>
                 </div>
               </div>
@@ -1659,8 +1705,8 @@ export function EditMemberModal({
             {/* Member NID Document Upload */}
             <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl">
               <NidDocumentUpload
-                label="সদস্যের জাতীয় পরিচয়পত্র (NID) কার্ড ডকুমেন্ট"
-                hint="PDF অথবা JPG/PNG ফরম্যাটে NID আপলোড করুন (১০০ KB থেকে ১ MB)"
+                label={language === 'bn' ? "সদস্যের জাতীয় পরিচয়পত্র (NID) কার্ড ডকুমেন্ট" : "Member's National ID (NID) Card Document"}
+                hint={language === 'bn' ? "PDF অথবা JPG/PNG ফরম্যাটে NID আপলোড করুন (১০০ KB থেকে ১ MB)" : "Upload NID as PDF or JPG/PNG (100 KB to 1 MB)"}
                 value={nidDoc}
                 fileName={nidDocName}
                 fileType={nidDocType}
@@ -1681,26 +1727,26 @@ export function EditMemberModal({
           <div className="space-y-4 animate-in fade-in duration-150">
             <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-lg text-xs text-amber-900 flex items-center gap-1.5">
               <Info size={15} className="text-amber-700 shrink-0" />
-              <span>সদস্যের অবর্তমানে সঞ্চয়ের হকদার নমিনীর বিস্তারিত তথ্য, ছবি ও NID ডকুমেন্ট নিচে যুক্ত করুন:</span>
+              <span>{language === 'bn' ? "সদস্যের অবর্তমানে সঞ্চয়ের হকদার নমিনীর বিস্তারিত তথ্য, ছবি ও NID ডকুমেন্ট নিচে যুক্ত করুন:" : "Add the nominee's detailed information, photo, and NID document below — the person entitled to the savings in the member's absence:"}</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="নমিনীর পুরো নাম">
+              <Field label={language === 'bn' ? "নমিনীর পুরো নাম" : "Nominee's Full Name"}>
                 <input
                   value={nomineeName}
                   onChange={(e) => setNomineeName(e.target.value)}
                   className={inputCls}
-                  placeholder="নমিনীর নাম লিখুন"
+                  placeholder={language === 'bn' ? "নমিনীর নাম লিখুন" : "Enter nominee's name"}
                 />
               </Field>
 
-              <Field label="সদস্যের সাথে সম্পর্ক">
+              <Field label={language === 'bn' ? "সদস্যের সাথে সম্পর্ক" : "Relation to Member"}>
                 <select
                   value={nomineeRelation}
                   onChange={(e) => setNomineeRelation(e.target.value)}
                   className={inputCls}
                 >
-                  <option value="">সম্পর্ক নির্বাচন করুন</option>
+                  <option value="">{language === 'bn' ? "সম্পর্ক নির্বাচন করুন" : "Select relation"}</option>
                   {["স্ত্রী", "স্বামী", "পুত্র", "কন্যা", "পিতা", "মাতা", "ভাই", "বোন", "দাদা/দাদী", "অন্যান্য"].map((rel) => (
                     <option key={rel} value={rel}>
                       {rel}
@@ -1711,7 +1757,7 @@ export function EditMemberModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="নমিনীর মোবাইল নম্বর">
+              <Field label={language === 'bn' ? "নমিনীর মোবাইল নম্বর" : "Nominee's Mobile Number"}>
                 <input
                   value={nomineeMobile}
                   onChange={(e) => setNomineeMobile(e.target.value)}
@@ -1720,22 +1766,22 @@ export function EditMemberModal({
                 />
               </Field>
 
-              <Field label="নমিনীর জাতীয় পরিচয়পত্র (NID) নম্বর">
+              <Field label={language === 'bn' ? "নমিনীর জাতীয় পরিচয়পত্র (NID) নম্বর" : "Nominee's National ID (NID) Number"}>
                 <input
                   value={nomineeNid}
                   onChange={(e) => setNomineeNid(e.target.value)}
                   className={inputCls}
-                  placeholder="নমিনীর NID নম্বর"
+                  placeholder={language === 'bn' ? "নমিনীর NID নম্বর" : "Nominee's NID number"}
                 />
               </Field>
             </div>
 
-            <Field label="নমিনীর ঠিকানা">
+            <Field label={language === 'bn' ? "নমিনীর ঠিকানা" : "Nominee's Address"}>
               <input
                 value={nomineeAddress}
                 onChange={(e) => setNomineeAddress(e.target.value)}
                 className={inputCls}
-                placeholder="নমিনীর স্থায়ী বা বর্তমান ঠিকানা"
+                placeholder={language === 'bn' ? "নমিনীর স্থায়ী বা বর্তমান ঠিকানা" : "Nominee's permanent or current address"}
               />
             </Field>
 
@@ -1754,8 +1800,8 @@ export function EditMemberModal({
             {/* Nominee NID Document Upload */}
             <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl">
               <NidDocumentUpload
-                label="নমিনীর জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট"
-                hint="নমিনীর NID এর PDF বা JPG/PNG ফাইল (১০০ KB থেকে ১ MB)"
+                label={language === 'bn' ? "নমিনীর জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট" : "Nominee's National ID (NID) Document"}
+                hint={language === 'bn' ? "নমিনীর NID এর PDF বা JPG/PNG ফাইল (১০০ KB থেকে ১ MB)" : "Nominee's NID as a PDF or JPG/PNG file (100 KB to 1 MB)"}
                 value={nomineeNidDoc}
                 fileName={nomineeNidDocName}
                 fileType={nomineeNidDocType}
@@ -1780,7 +1826,7 @@ export function EditMemberModal({
                 onClick={() => setTab(tab === 'nominee' ? 'photo_nid' : 'basic')}
                 className="px-3 py-2 rounded-lg border border-stone-300 text-stone-700 text-xs font-semibold hover:bg-stone-100 transition-colors cursor-pointer"
               >
-                ← পূর্ববর্তী ধাপ
+                {language === 'bn' ? '← পূর্ববর্তী ধাপ' : '← Previous Step'}
               </button>
             )}
             {tab !== 'nominee' && (
@@ -1789,7 +1835,7 @@ export function EditMemberModal({
                 onClick={() => setTab(tab === 'basic' ? 'photo_nid' : 'nominee')}
                 className="px-3 py-2 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors cursor-pointer"
               >
-                পরবর্তী ধাপ →
+                {language === 'bn' ? 'পরবর্তী ধাপ →' : 'Next Step →'}
               </button>
             )}
           </div>
@@ -1800,7 +1846,7 @@ export function EditMemberModal({
               onClick={onClose}
               className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors cursor-pointer"
             >
-              বাতিল
+              {language === 'bn' ? 'বাতিল' : 'Cancel'}
             </button>
             <button
               id="update-member-btn"
@@ -1808,7 +1854,7 @@ export function EditMemberModal({
               disabled={isProcessingPhoto}
               className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
             >
-              <Check size={16} /> সংরক্ষণ করুন
+              <Check size={16} /> {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save'}
             </button>
           </div>
         </div>
@@ -1827,6 +1873,7 @@ export function SignatureDrawCanvas({
   value?: string;
   onChange: (dataUrl: string) => void;
 }) {
+  const { language } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasStroke, setHasStroke] = useState(false);
@@ -1926,7 +1973,7 @@ export function SignatureDrawCanvas({
         />
         {!hasStroke && !value && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-stone-300 text-[11px] italic">
-            মাউস বা আঙুল দিয়ে এখানে স্বাক্ষর করুন
+            {language === 'bn' ? 'মাউস বা আঙুল দিয়ে এখানে স্বাক্ষর করুন' : 'Sign here with your mouse or finger'}
           </div>
         )}
       </div>
@@ -1937,12 +1984,12 @@ export function SignatureDrawCanvas({
           onClick={clear}
           className="px-2 py-1 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-md font-medium flex items-center gap-1 transition-colors text-[11px]"
         >
-          <RotateCcw size={11} /> পরিষ্কার করুন
+          <RotateCcw size={11} /> {language === 'bn' ? 'পরিষ্কার করুন' : 'Clear'}
         </button>
 
         <label className="cursor-pointer px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md font-semibold flex items-center gap-1 transition-colors text-[11px]">
           <Upload size={11} />
-          <span>স্বাক্ষর ছবি আপলোড</span>
+          <span>{language === 'bn' ? 'স্বাক্ষর ছবি আপলোড' : 'Upload Signature Image'}</span>
           <input
             type="file"
             accept="image/*"
@@ -1971,6 +2018,7 @@ export function ReceiptModal({
   onClose: () => void;
   onUpdateSettings?: (settings: AppSettings) => void;
 }) {
+  const { language } = useLanguage();
   const [customPhone, setCustomPhone] = useState(member?.mobile || "");
   const [copiedImage, setCopiedImage] = useState(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -2060,8 +2108,10 @@ export function ReceiptModal({
           const file = new File([blob], fileName, { type: "image/jpeg" });
           await navigator.share({
             files: [file],
-            title: `টাকা প্রাপ্তি রসিদ - ${member?.name || deposit.memberUid}`,
-            text: `সম্মানিত সদস্য ${member?.name || ''}, আপনার ${deposit.month} মাসের সঞ্চয় জমা ৳${totalAmount} এর রসিদ। রসিদ নং: ${deposit.id}। ট্রাস্ট গ্রোথ সোসাইটি।`,
+            title: language === 'bn' ? `টাকা প্রাপ্তি রসিদ - ${member?.name || deposit.memberUid}` : `Money Receipt - ${member?.name || deposit.memberUid}`,
+            text: language === 'bn'
+              ? `সম্মানিত সদস্য ${member?.name || ''}, আপনার ${deposit.month} মাসের সঞ্চয় জমা ৳${totalAmount} এর রসিদ। রসিদ নং: ${deposit.id}। ট্রাস্ট গ্রোথ সোসাইটি।`
+              : `Dear member ${member?.name || ''}, here is your receipt for the ${deposit.month} savings deposit of ৳${totalAmount}. Receipt No: ${deposit.id}. Trust Growth Society.`,
           });
           return;
         } catch (shareError) {
@@ -2103,7 +2153,9 @@ export function ReceiptModal({
 
       // Open WhatsApp chat directly for the member number
       const msg = encodeURIComponent(
-        `সম্মানিত সদস্য ${member?.name || ''}, আপনার ${deposit.month} মাসের সঞ্চয় জমা ৳${totalAmount} এর রসিদ প্রস্তুত হয়েছে। রসিদ নং: ${deposit.id}। ট্রাস্ট গ্রোথ সোসাইটি।`
+        language === 'bn'
+          ? `সম্মানিত সদস্য ${member?.name || ''}, আপনার ${deposit.month} মাসের সঞ্চয় জমা ৳${totalAmount} এর রসিদ প্রস্তুত হয়েছে। রসিদ নং: ${deposit.id}। ট্রাস্ট গ্রোথ সোসাইটি।`
+          : `Dear member ${member?.name || ''}, your ${deposit.month} savings deposit of ৳${totalAmount} receipt is ready. Receipt No: ${deposit.id}. Trust Growth Society.`
       );
       
       const waUrl = cleanPhone.length >= 10 
@@ -2117,7 +2169,9 @@ export function ReceiptModal({
       let cleanPhone = (customPhone || member?.mobile || "").replace(/[^0-9]/g, "");
       if (cleanPhone.startsWith("0")) cleanPhone = "88" + cleanPhone;
       const msg = encodeURIComponent(
-        `সম্মানিত সদস্য ${member?.name || ''}, আপনার ${deposit.month} মাসের সঞ্চয় জমা ৳${totalAmount} গ্রহণ করা হয়েছে। রসিদ নং: ${deposit.id}।`
+        language === 'bn'
+          ? `সম্মানিত সদস্য ${member?.name || ''}, আপনার ${deposit.month} মাসের সঞ্চয় জমা ৳${totalAmount} গ্রহণ করা হয়েছে। রসিদ নং: ${deposit.id}।`
+          : `Dear member ${member?.name || ''}, your ${deposit.month} savings deposit of ৳${totalAmount} has been received. Receipt No: ${deposit.id}.`
       );
       const waUrl = cleanPhone.length >= 10 
         ? `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}` 
@@ -2137,7 +2191,7 @@ export function ReceiptModal({
       dataUrl = await generateJpg();
     }
     if (!dataUrl) {
-      alert("রশিদ জেপিজি ফাইল তৈরিতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।");
+      alert(language === 'bn' ? "রশিদ জেপিজি ফাইল তৈরিতে সমস্যা হয়েছে। পুনরায় চেষ্টা করুন।" : "There was a problem generating the JPG receipt file. Please try again.");
       return;
     }
 
@@ -2202,13 +2256,13 @@ export function ReceiptModal({
   };
 
   return (
-    <Modal id="receipt-modal" title="টাকা প্রাপ্তি রসিদ (JPG Image Receipt)" onClose={onClose} maxWidth="max-w-xl">
+    <Modal id="receipt-modal" title={language === 'bn' ? "টাকা প্রাপ্তি রসিদ (JPG Image Receipt)" : "Money Receipt (JPG Image Receipt)"} onClose={onClose} maxWidth="max-w-xl">
       <div className="space-y-4">
         {/* Status banner */}
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
-            <span className="font-medium">জমা সম্পন্ন ও জেপিজি (.JPG) রসিদ ইমেজ প্রস্তুত</span>
+            <span className="font-medium">{language === 'bn' ? "জমা সম্পন্ন ও জেপিজি (.JPG) রসিদ ইমেজ প্রস্তুত" : "Deposit complete and JPG (.JPG) receipt image ready"}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-mono text-emerald-800 font-bold bg-emerald-100/70 px-2 py-0.5 rounded">
@@ -2221,9 +2275,9 @@ export function ReceiptModal({
         <div className="bg-emerald-900 text-white p-3.5 rounded-2xl shadow-sm space-y-2.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-bold text-amber-300 flex items-center gap-1.5">
-              <MessageCircle size={15} /> WhatsApp এ সরাসরি JPG রসিদ পাঠান:
+              <MessageCircle size={15} /> {language === 'bn' ? 'WhatsApp এ সরাসরি JPG রসিদ পাঠান:' : 'Send JPG receipt directly on WhatsApp:'}
             </span>
-            <span className="text-[11px] text-emerald-200 font-medium">সদস্য মোবাইল নম্বর</span>
+            <span className="text-[11px] text-emerald-200 font-medium">{language === 'bn' ? "সদস্য মোবাইল নম্বর" : "Member Mobile Number"}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -2231,7 +2285,7 @@ export function ReceiptModal({
               type="text"
               value={customPhone}
               onChange={(e) => setCustomPhone(e.target.value)}
-              placeholder="মোবাইল নম্বর (যেমন: 01911797438)"
+              placeholder={language === 'bn' ? "মোবাইল নম্বর (যেমন: 01911797438)" : "Mobile number (e.g. 01911797438)"}
               className="flex-1 px-3 py-2 text-xs rounded-xl border border-emerald-700 bg-emerald-950 text-white placeholder:text-emerald-400 font-mono focus:outline-none focus:ring-2 focus:ring-amber-400"
             />
             <button
@@ -2244,18 +2298,20 @@ export function ReceiptModal({
               {isSharingWhatsApp ? (
                 <>
                   <RefreshCw size={15} className="animate-spin" />
-                  <span>পাঠানো হচ্ছে...</span>
+                  <span>{language === 'bn' ? 'পাঠানো হচ্ছে...' : 'Sending...'}</span>
                 </>
               ) : (
                 <>
                   <Send size={15} />
-                  <span>WhatsApp এ পাঠান</span>
+                  <span>{language === 'bn' ? 'WhatsApp এ পাঠান' : 'Send on WhatsApp'}</span>
                 </>
               )}
             </button>
           </div>
           <p className="text-[10px] text-emerald-300">
-            💡 মোবাইলে চাপ দিলে সরাসরি WhatsApp অ্যাপে JPG ছবিসহ ওপেন হবে। কম্পিউটারে স্বয়ংক্রিয়ভাবে ডাউনলোড ও কপি হয়ে WhatsApp Web ওপেন হবে (শুধু চ্যাটে পেস্ট/সংযুক্ত করুন)।
+            {language === 'bn'
+              ? '💡 মোবাইলে চাপ দিলে সরাসরি WhatsApp অ্যাপে JPG ছবিসহ ওপেন হবে। কম্পিউটারে স্বয়ংক্রিয়ভাবে ডাউনলোড ও কপি হয়ে WhatsApp Web ওপেন হবে (শুধু চ্যাটে পেস্ট/সংযুক্ত করুন)।'
+              : '💡 Tapping on mobile opens WhatsApp directly with the JPG image attached. On a computer it downloads and copies automatically, then opens WhatsApp Web (just paste/attach it in the chat).'}
           </p>
         </div>
 
@@ -2271,12 +2327,12 @@ export function ReceiptModal({
             {isGeneratingImage ? (
               <>
                 <RefreshCw size={16} className="animate-spin text-amber-300" />
-                <span>জেপিজি ইমেজ তৈরি হচ্ছে...</span>
+                <span>{language === 'bn' ? 'জেপিজি ইমেজ তৈরি হচ্ছে...' : 'Generating JPG image...'}</span>
               </>
             ) : (
               <>
                 <ImageDown size={16} className="text-amber-300" />
-                <span>জেপিজি রসিদ ডাউনলোড (.JPG)</span>
+                <span>{language === 'bn' ? 'জেপিজি রসিদ ডাউনলোড (.JPG)' : 'Download JPG Receipt (.JPG)'}</span>
               </>
             )}
           </button>
@@ -2291,12 +2347,12 @@ export function ReceiptModal({
             {copiedImage ? (
               <>
                 <CheckCircle2 size={16} className="text-emerald-900" />
-                <span>জেপিজি কপি হয়েছে! (Ctrl+V)</span>
+                <span>{language === 'bn' ? 'জেপিজি কপি হয়েছে! (Ctrl+V)' : 'JPG copied! (Ctrl+V)'}</span>
               </>
             ) : (
               <>
                 <Copy size={16} />
-                <span>জেপিজি ছবি কপি করুন</span>
+                <span>{language === 'bn' ? 'জেপিজি ছবি কপি করুন' : 'Copy JPG Image'}</span>
               </>
             )}
           </button>
@@ -2311,7 +2367,7 @@ export function ReceiptModal({
             className="px-3 py-1.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-800 rounded-lg font-bold flex items-center gap-1.5 transition-colors shadow-2xs"
           >
             <PenTool size={13} className="text-emerald-700" />
-            <span>স্বাক্ষর যোগ / পরিবর্তন (Signatures)</span>
+            <span>{language === 'bn' ? 'স্বাক্ষর যোগ / পরিবর্তন (Signatures)' : 'Add / Edit Signature (Signatures)'}</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -2322,7 +2378,7 @@ export function ReceiptModal({
                 className="px-3 py-1.5 bg-emerald-950 hover:bg-emerald-900 text-amber-300 rounded-lg font-semibold flex items-center gap-1.5 transition-colors shadow-2xs"
               >
                 <Eye size={13} />
-                <span>{showFullImageModal ? "কার্ড ভিউ দেখুন" : "📸 JPG ইমেজ প্রিভিউ"}</span>
+                <span>{showFullImageModal ? (language === 'bn' ? "কার্ড ভিউ দেখুন" : "Show Card View") : (language === 'bn' ? "📸 JPG ইমেজ প্রিভিউ" : "📸 JPG Image Preview")}</span>
               </button>
             )}
 
@@ -2331,7 +2387,7 @@ export function ReceiptModal({
               onClick={handlePrint}
               className="py-1.5 px-3 bg-stone-200 hover:bg-stone-300 text-stone-800 rounded-lg text-xs font-bold flex items-center gap-1 transition-colors"
             >
-              <Printer size={13} /> প্রিন্ট / PDF
+              <Printer size={13} /> {language === 'bn' ? 'প্রিন্ট / PDF' : 'Print / PDF'}
             </button>
           </div>
         </div>
@@ -2342,7 +2398,7 @@ export function ReceiptModal({
             <div className="flex items-center justify-between border-b border-emerald-200 pb-2">
               <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
                 <PenTool size={14} className="text-emerald-800" />
-                <span>কোষাধক্ষ্য ও সভাপতি / সেক্রেটারির স্বাক্ষর এডিটর</span>
+                <span>{language === 'bn' ? 'কোষাধক্ষ্য ও সভাপতি / সেক্রেটারির স্বাক্ষর এডিটর' : 'Treasurer & President/Secretary Signature Editor'}</span>
               </h4>
               <button
                 type="button"
@@ -2357,22 +2413,22 @@ export function ReceiptModal({
               {/* 1. Treasurer (কোষাধক্ষ্য) */}
               <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-900">১. কোষাধ্যক্ষ (Treasurer)</span>
+                  <span className="text-xs font-bold text-stone-900">{language === 'bn' ? "১. কোষাধ্যক্ষ (Treasurer)" : "1. Treasurer (Treasurer)"}</span>
                   <span className="text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded">
-                    ক্যাশিয়ার
+                    {language === 'bn' ? 'ক্যাশিয়ার' : 'Cashier'}
                   </span>
                 </div>
                 <div>
-                  <label className="text-[11px] text-stone-500 font-medium">কোষাধ্যক্ষের নাম:</label>
+                  <label className="text-[11px] text-stone-500 font-medium">{language === 'bn' ? "কোষাধ্যক্ষের নাম" : "Treasurer's Name"}:</label>
                   <input
                     value={treasurerName}
                     onChange={(e) => setTreasurerName(e.target.value)}
-                    placeholder="যেমন: মোঃ মহিম খান"
+                    placeholder={language === 'bn' ? "যেমন: মোঃ মহিম খান" : "e.g. Md. Mohim Khan"}
                     className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-medium"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-stone-500 font-medium">স্বাক্ষর আঁকুন বা ছবি দিন:</label>
+                  <label className="text-[11px] text-stone-500 font-medium">{language === 'bn' ? "স্বাক্ষর আঁকুন বা ছবি দিন" : "Draw or upload signature image"}:</label>
                   <SignatureDrawCanvas
                     value={treasurerSignature}
                     onChange={(sig) => setTreasurerSignature(sig)}
@@ -2383,7 +2439,7 @@ export function ReceiptModal({
               {/* 2. President or Secretary (সভাপতি অথবা সাধারণ সম্পাদক) */}
               <div className="bg-white p-3 rounded-xl border border-stone-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-stone-900">২. দ্বিতীয় স্বাক্ষরকারী</span>
+                  <span className="text-xs font-bold text-stone-900">{language === 'bn' ? "২. দ্বিতীয় স্বাক্ষরকারী" : "2. Second Signer"}</span>
                   <div className="flex items-center gap-1 bg-stone-100 p-0.5 rounded-md text-[10px]">
                     <button
                       type="button"
@@ -2394,7 +2450,7 @@ export function ReceiptModal({
                           : "text-stone-600"
                       }`}
                     >
-                      সভাপতি
+                      {language === 'bn' ? 'সভাপতি' : 'President'}
                     </button>
                     <button
                       type="button"
@@ -2405,23 +2461,25 @@ export function ReceiptModal({
                           : "text-stone-600"
                       }`}
                     >
-                      সেক্রেটারি
+                      {language === 'bn' ? 'সেক্রেটারি' : 'Secretary'}
                     </button>
                   </div>
                 </div>
                 <div>
                   <label className="text-[11px] text-stone-500 font-medium">
-                    {presidentRole === "secretary" ? "সেক্রেটারি / সাধারণ সম্পাদকের নাম:" : "সভাপতির নাম:"}
+                    {presidentRole === 'secretary'
+                      ? (language === 'bn' ? "সেক্রেটারি / সাধারণ সম্পাদকের নাম:" : "Secretary / General Secretary's Name:")
+                      : (language === 'bn' ? "সভাপতির নাম:" : "President's Name:")}
                   </label>
                   <input
                     value={presidentName}
                     onChange={(e) => setPresidentName(e.target.value)}
-                    placeholder="যেমন: মোঃ রাশেদুল ইসলাম"
+                    placeholder={language === 'bn' ? "যেমন: মোঃ রাশেদুল ইসলাম" : "e.g. Md. Rashedul Islam"}
                     className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-stone-300 bg-stone-50 font-medium"
                   />
                 </div>
                 <div>
-                  <label className="text-[11px] text-stone-500 font-medium">স্বাক্ষর আঁকুন বা ছবি দিন:</label>
+                  <label className="text-[11px] text-stone-500 font-medium">{language === 'bn' ? "স্বাক্ষর আঁকুন বা ছবি দিন" : "Draw or upload signature image"}:</label>
                   <SignatureDrawCanvas
                     value={presidentSignature}
                     onChange={(sig) => setPresidentSignature(sig)}
@@ -2436,7 +2494,7 @@ export function ReceiptModal({
                 onClick={handleSaveSignatures}
                 className="px-4 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-lg shadow-xs flex items-center gap-1"
               >
-                <Check size={14} /> স্বাক্ষর সংরক্ষণ ও রসিদে প্রয়োগ করুন
+                <Check size={14} /> {language === 'bn' ? 'স্বাক্ষর সংরক্ষণ ও রসিদে প্রয়োগ করুন' : 'Save Signature & Apply to Receipt'}
               </button>
             </div>
           </div>
@@ -2447,14 +2505,14 @@ export function ReceiptModal({
           <div className="p-3 bg-stone-900 text-white rounded-2xl space-y-2.5 animate-in fade-in">
             <div className="flex items-center justify-between text-xs font-semibold text-emerald-400 px-1">
               <span className="flex items-center gap-1.5">
-                <Sparkles size={14} /> তৈরি করা চূড়ান্ত জেপিজি রসিদ ছবি (JPG Preview):
+                <Sparkles size={14} /> {language === 'bn' ? 'তৈরি করা চূড়ান্ত জেপিজি রসিদ ছবি (JPG Preview):' : 'Generated Final JPG Receipt Image (JPG Preview):'}
               </span>
               <button
                 type="button"
                 onClick={() => setShowFullImageModal(false)}
                 className="text-stone-400 hover:text-white text-xs bg-stone-800 px-2 py-0.5 rounded"
               >
-                কার্ড ভিউতে ফিরে যান ✕
+                {language === 'bn' ? 'কার্ড ভিউতে ফিরে যান ✕' : 'Back to Card View ✕'}
               </button>
             </div>
             <div className="bg-white rounded-xl p-2 max-h-[380px] overflow-y-auto flex items-center justify-center">
@@ -2465,13 +2523,13 @@ export function ReceiptModal({
               />
             </div>
             <div className="flex items-center justify-between text-[11px] text-stone-400 px-1">
-              <span>ফাইল ফরম্যাট: JPEG (.jpg)</span>
+              <span>{language === 'bn' ? 'ফাইল ফরম্যাট: JPEG (.jpg)' : 'File format: JPEG (.jpg)'}</span>
               <button
                 type="button"
                 onClick={handleDownloadJpg}
                 className="text-amber-300 hover:underline font-bold flex items-center gap-1"
               >
-                <Download size={12} /> ডাউনলোড করুন
+                <Download size={12} /> {language === 'bn' ? 'ডাউনলোড করুন' : 'Download'}
               </button>
             </div>
           </div>
@@ -2514,10 +2572,10 @@ export function ReceiptModal({
                   </h2>
                 </div>
                 <p className="text-xs text-stone-600 font-medium">
-                  {settings.societySubtitle} · স্থাপিত ২৫-০৯-২০২৫
+                  {settings.societySubtitle} · {language === 'bn' ? 'স্থাপিত' : 'Established'} ২৫-০৯-২০২৫
                 </p>
                 <div className="inline-block mt-2 px-3.5 py-1 text-xs font-bold bg-emerald-900 text-amber-300 rounded-full shadow-xs">
-                  টাকা প্রাপ্তি রসিদ (MONEY RECEIPT)
+                  {language === 'bn' ? 'টাকা প্রাপ্তি রসিদ (MONEY RECEIPT)' : 'Money Receipt (MONEY RECEIPT)'}
                 </div>
               </div>
 
@@ -2536,7 +2594,7 @@ export function ReceiptModal({
                     />
                   </div>
                   <span className="text-[9px] font-bold text-stone-500 mt-0.5">
-                    {member.photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০×৩০০'}
+                    {language === 'bn' ? (member.photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০×৩০০') : (member.photoFormat === 'passport' ? 'Passport Size' : '300×300')}
                   </span>
                 </div>
               )}
@@ -2545,44 +2603,46 @@ export function ReceiptModal({
             {/* Details Grid */}
             <div className="grid grid-cols-2 text-xs gap-y-2.5 pt-1 relative">
               <div>
-                <span className="text-stone-500 font-medium">রসিদ আইডি:</span>
+                <span className="text-stone-500 font-medium">{language === 'bn' ? "রসিদ আইডি" : "Receipt ID"}:</span>
                 <p className="font-mono font-bold text-stone-900 text-sm">{deposit.id}</p>
               </div>
               <div className="text-right">
-                <span className="text-stone-500 font-medium">জমার তারিখ:</span>
+                <span className="text-stone-500 font-medium">{language === 'bn' ? "জমার তারিখ" : "Deposit Date"}:</span>
                 <p className="font-bold text-stone-900 text-sm">{deposit.date || '—'}</p>
               </div>
 
               <div>
-                <span className="text-stone-500 font-medium">সদস্যের নাম:</span>
+                <span className="text-stone-500 font-medium">{language === 'bn' ? "সদস্যের নাম" : "Member's Name"}:</span>
                 <p className="font-bold text-stone-950 text-sm sm:text-base">{member?.name || '—'}</p>
               </div>
               <div className="text-right">
-                <span className="text-stone-500 font-medium">মেম্বার আইডি:</span>
+                <span className="text-stone-500 font-medium">{language === 'bn' ? "মেম্বার আইডি" : "Member ID"}:</span>
                 <p className="font-mono font-bold text-emerald-900 text-sm">{deposit.memberUid}</p>
               </div>
 
               <div>
-                <span className="text-stone-500 font-medium">জমার মাস ও মেয়াদ:</span>
+                <span className="text-stone-500 font-medium">{language === 'bn' ? "জমার মাস ও মেয়াদ" : "Deposit Month & Duration"}:</span>
                 <p className="font-bold text-emerald-950 text-sm">
                   {deposit.month}
-                  {deposit.monthsCount && deposit.monthsCount > 1 ? ` (${deposit.monthsCount} মাসের সঞ্চয়)` : ''}
+                  {deposit.monthsCount && deposit.monthsCount > 1
+                    ? (language === 'bn' ? ` (${deposit.monthsCount} মাসের সঞ্চয়)` : ` (${deposit.monthsCount} month(s) savings)`)
+                    : ''}
                 </p>
               </div>
               <div className="text-right">
-                <span className="text-stone-500 font-medium">পরিশোধ মাধ্যম:</span>
+                <span className="text-stone-500 font-medium">{language === 'bn' ? "পরিশোধ মাধ্যম" : "Payment Method"}:</span>
                 <p className="font-semibold text-stone-900">{deposit.method}</p>
               </div>
 
               {member?.mobile && (
                 <div>
-                  <span className="text-stone-500 font-medium">মোবাইল নম্বর:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "মোবাইল নম্বর" : "Mobile Number"}:</span>
                   <p className="font-mono font-bold text-stone-800">{member.mobile}</p>
                 </div>
               )}
               {deposit.note && (
                 <div className={member?.mobile ? "text-right" : ""}>
-                  <span className="text-stone-500 font-medium">মন্তব্য / TrxID:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "মন্তব্য / TrxID" : "Note / TrxID"}:</span>
                   <p className="font-medium text-stone-800 truncate">{deposit.note}</p>
                 </div>
               )}
@@ -2592,7 +2652,9 @@ export function ReceiptModal({
             <div className="border-t-2 border-b-2 border-dashed border-stone-300 py-3 my-2 space-y-1.5 bg-stone-50/50 p-2.5 rounded-lg">
               <div className="flex justify-between text-xs text-stone-700">
                 <span className="font-medium">
-                  মাসিক সঞ্চয় জমা {deposit.monthsCount && deposit.monthsCount > 1 ? `(${deposit.monthsCount} মাস)` : ''}:
+                  {language === 'bn'
+                    ? `মাসিক সঞ্চয় জমা ${deposit.monthsCount && deposit.monthsCount > 1 ? `(${deposit.monthsCount} মাস)` : ''}:`
+                    : `Monthly Savings Deposit ${deposit.monthsCount && deposit.monthsCount > 1 ? `(${deposit.monthsCount} month(s))` : ''}:`}
                 </span>
                 <span className="font-mono font-bold text-stone-900 text-sm">{currency(depositAmount)}</span>
               </div>
@@ -2600,12 +2662,12 @@ export function ReceiptModal({
               {fineAmount > 0 && (
                 <div className="flex justify-between text-xs text-red-700">
                   <span className="font-medium">
-                    বিলম্ব জরিমানা{" "}
+                    {language === 'bn' ? 'বিলম্ব জরিমানা' : 'Late Fine'}{" "}
                     {deposit.monthsCount && deposit.monthsCount > 1
-                      ? `(${deposit.monthsCount} মাস × ৳${settings.defaultFine})`
+                      ? (language === 'bn' ? `(${deposit.monthsCount} মাস × ৳${settings.defaultFine})` : `(${deposit.monthsCount} month(s) × ৳${settings.defaultFine})`)
                       : settings.defaultFine && Math.round(fineAmount / settings.defaultFine) > 1
-                      ? `(${Math.round(fineAmount / settings.defaultFine)} মাস × ৳${settings.defaultFine})`
-                      : `(১০ তারিখের পর)`}
+                      ? (language === 'bn' ? `(${Math.round(fineAmount / settings.defaultFine)} মাস × ৳${settings.defaultFine})` : `(${Math.round(fineAmount / settings.defaultFine)} month(s) × ৳${settings.defaultFine})`)
+                      : (language === 'bn' ? `(১০ তারিখের পর)` : `(after the 10th)`)}
                     :
                   </span>
                   <span className="font-mono font-bold text-sm">+{currency(fineAmount)}</span>
@@ -2613,7 +2675,7 @@ export function ReceiptModal({
               )}
 
               <div className="flex justify-between items-center pt-2 border-t border-stone-200 text-sm">
-                <span className="font-bold text-stone-950 text-sm sm:text-base">সর্বমোট আদায়কৃত টাকা:</span>
+                <span className="font-bold text-stone-950 text-sm sm:text-base">{language === 'bn' ? "সর্বমোট আদায়কৃত টাকা" : "Total Amount Collected"}:</span>
                 <span className="text-xl sm:text-2xl font-black font-mono text-emerald-950">
                   {currency(totalAmount)}
                 </span>
@@ -2626,7 +2688,7 @@ export function ReceiptModal({
               <div className="flex flex-col items-center justify-end">
                 <div className="h-10 flex items-end justify-center"></div>
                 <div className="w-full max-w-[125px] border-t border-dashed border-stone-400 pt-1">
-                  <span className="font-bold text-[11px] text-stone-800">জমাকারীর স্বাক্ষর</span>
+                  <span className="font-bold text-[11px] text-stone-800">{language === 'bn' ? "জমাকারীর স্বাক্ষর" : "Depositor's Signature"}</span>
                 </div>
               </div>
 
@@ -2641,7 +2703,7 @@ export function ReceiptModal({
                     />
                   ) : (
                     <span className="text-[11px] font-serif italic text-emerald-950 font-bold">
-                      {treasurerName || 'কোষাধ্যক্ষ'}
+                      {treasurerName || (language === 'bn' ? 'কোষাধ্যক্ষ' : 'Treasurer')}
                     </span>
                   )}
                 </div>
@@ -2649,7 +2711,7 @@ export function ReceiptModal({
                   <p className="font-bold text-[11px] text-stone-900 leading-tight">
                     {treasurerName || 'মোঃ মহিম খান'}
                   </p>
-                  <span className="text-[10px] text-stone-500 font-medium">কোষাধক্ষ্য</span>
+                  <span className="text-[10px] text-stone-500 font-medium">{language === 'bn' ? "কোষাধক্ষ্য" : "Treasurer"}</span>
                 </div>
               </div>
 
@@ -2664,7 +2726,9 @@ export function ReceiptModal({
                     />
                   ) : (
                     <span className="text-[11px] font-serif italic text-emerald-950 font-bold">
-                      {presidentName || (presidentRole === 'secretary' ? 'সাধারণ সম্পাদক' : 'সভাপতি')}
+                      {presidentName || (presidentRole === 'secretary'
+                      ? (language === 'bn' ? 'সাধারণ সম্পাদক' : 'General Secretary')
+                      : (language === 'bn' ? 'সভাপতি' : 'President'))}
                     </span>
                   )}
                 </div>
@@ -2673,7 +2737,9 @@ export function ReceiptModal({
                     {presidentName || 'মোঃ রাশেদুল ইসলাম'}
                   </p>
                   <span className="text-[10px] text-stone-500 font-medium">
-                    {presidentRole === 'secretary' ? 'সাধারণ সম্পাদক' : 'সভাপতি'}
+                    {presidentRole === 'secretary'
+                    ? (language === 'bn' ? 'সাধারণ সম্পাদক' : 'General Secretary')
+                    : (language === 'bn' ? 'সভাপতি' : 'President')}
                   </span>
                 </div>
               </div>
@@ -2701,6 +2767,7 @@ export function FineSettingsModal({
   onOpenLogoUpload?: () => void;
   onOpenWatermarkSettings?: () => void;
 }) {
+  const { language } = useLanguage();
   const [defaultFine, setDefaultFine] = useState(settings.defaultFine ?? 50);
   const [deadlineDay, setDeadlineDay] = useState(settings.deadlineDay ?? 10);
   const [societyName, setSocietyName] = useState(settings.societyName || "Trust Growth Society");
@@ -2734,23 +2801,28 @@ export function FineSettingsModal({
   };
 
   return (
-    <Modal id="settings-fine-modal" title="জরিমানা, রসিদ স্বাক্ষর ও সমিতি সেটিংস" onClose={onClose} maxWidth="max-w-2xl">
+    <Modal id="settings-fine-modal" title={language === 'bn' ? "জরিমানা, রসিদ স্বাক্ষর ও সমিতি সেটিংস" : "Fine, Receipt Signatures & Society Settings"} onClose={onClose} maxWidth="max-w-2xl">
       <form onSubmit={submit} className="space-y-4">
         <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1.5 text-xs text-amber-950">
-          <p className="font-bold">⚠️ জরিমানা নিয়মাবলী ও গুণিতক নীতি:</p>
+          <p className="font-bold">{language === 'bn' ? "⚠️ জরিমানা নিয়মাবলী ও গুণিতক নীতি:" : "⚠️ Fine Rules & Multiplier Policy:"}</p>
           <p>
-            প্রতি মাসের নির্ধারিত <strong>{deadlineDay} তারিখের</strong> পর সঞ্চয় জমা দিলে প্রতি মাসের জন্য{" "}
-            <strong>{currency(defaultFine)}</strong> করে গুণিতক হারে জরিমানা গণনা হবে:
+            {language === 'bn' ? (
+              <>প্রতি মাসের নির্ধারিত <strong>{deadlineDay} তারিখের</strong> পর সঞ্চয় জমা দিলে প্রতি মাসের জন্য{" "}
+                <strong>{currency(defaultFine)}</strong> করে গুণিতক হারে জরিমানা গণনা হবে:</>
+            ) : (
+              <>After the <strong>{deadlineDay}th</strong> of each month, a savings deposit will incur a multiplied fine of{" "}
+                <strong>{currency(defaultFine)}</strong> per month:</>
+            )}
           </p>
           <div className="grid grid-cols-3 gap-1.5 pt-1 text-[11px] font-mono font-semibold text-amber-900">
-            <div className="bg-amber-100/70 p-1.5 rounded text-center">১ মাস = {currency(defaultFine)}</div>
-            <div className="bg-amber-100/70 p-1.5 rounded text-center">২ মাস = {currency(defaultFine * 2)}</div>
-            <div className="bg-amber-100/70 p-1.5 rounded text-center">৩ মাস = {currency(defaultFine * 3)}</div>
+            <div className="bg-amber-100/70 p-1.5 rounded text-center">{language === 'bn' ? '১ মাস' : '1 month'} = {currency(defaultFine)}</div>
+মাস<div className="bg-amber-100/70 p-1.5 rounded text-center">{language === 'bn' ? '২ মাস' : '2 months'} = {currency(defaultFine * 2)}</div>
+            <div className="bg-amber-100/70 p-1.5 rounded text-center">{language === 'bn' ? '৩ মাস' : '3 months'} = {currency(defaultFine * 3)}</div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="মাসিক ডিফল্ট জরিমানা (৳)" required hint="বর্তমানে ৫০ টাকা">
+          <Field label={language === 'bn' ? "মাসিক ডিফল্ট জরিমানা (৳)" : "Monthly Default Fine (৳)"} required hint={language === 'bn' ? "বর্তমানে ৫০ টাকা" : "Currently ৳50"}>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -2764,7 +2836,7 @@ export function FineSettingsModal({
             </div>
           </Field>
 
-          <Field label="জমার শেষ তারিখ (Limit Day)" required hint="মাসের কত তারিখের মধ্যে">
+          <Field label={language === 'bn' ? "জমার শেষ তারিখ (Limit Day)" : "Deposit Deadline (Limit Day)"} required hint={language === 'bn' ? "মাসের কত তারিখের মধ্যে" : "By which day of the month"}>
             <div className="flex items-center gap-2">
               <input
                 type="number"
@@ -2775,14 +2847,14 @@ export function FineSettingsModal({
                 className={`${inputCls} font-mono font-bold text-emerald-900`}
                 required
               />
-              <span className="text-xs font-semibold text-stone-600 whitespace-nowrap">তারিখ</span>
+              <span className="text-xs font-semibold text-stone-600 whitespace-nowrap">{language === 'bn' ? "তারিখ" : "date"}</span>
             </div>
           </Field>
         </div>
 
         {/* Quick buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-stone-500">জরিমানা পরিমাণ:</span>
+          <span className="text-xs text-stone-500">{language === 'bn' ? "জরিমানা পরিমাণ" : "Fine Amount"}:</span>
           {[0, 30, 50, 100, 150].map((amt) => (
             <button
               key={amt}
@@ -2804,18 +2876,18 @@ export function FineSettingsModal({
           <div className="flex items-center justify-between border-b border-stone-200 pb-2">
             <h4 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
               <PenTool size={14} className="text-emerald-800" />
-              <span>রসিদের স্বাক্ষরকারী কনফিগারেশন (Signatures)</span>
+              <span>{language === 'bn' ? 'রসিদের স্বাক্ষরকারী কনফিগারেশন (Signatures)' : 'Receipt Signatory Configuration (Signatures)'}</span>
             </h4>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Treasurer */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-stone-800">কোষাধ্যক্ষের নাম ও স্বাক্ষর:</label>
+              <label className="text-xs font-bold text-stone-800">{language === 'bn' ? "কোষাধ্যক্ষের নাম ও স্বাক্ষর" : "Treasurer's Name & Signature"}:</label>
               <input
                 value={treasurerName}
                 onChange={(e) => setTreasurerName(e.target.value)}
-                placeholder="কোষাধ্যক্ষের নাম"
+                placeholder={language === 'bn' ? "কোষাধ্যক্ষের নাম" : "Treasurer's name"}
                 className={inputCls}
               />
               <SignatureDrawCanvas
@@ -2827,7 +2899,7 @@ export function FineSettingsModal({
             {/* President / Secretary */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-stone-800">দ্বিতীয় স্বাক্ষরকারী:</label>
+                <label className="text-xs font-bold text-stone-800">{language === 'bn' ? "দ্বিতীয় স্বাক্ষরকারী" : "Second Signer"}:</label>
                 <div className="flex items-center gap-1 bg-stone-200/80 p-0.5 rounded text-[10px]">
                   <button
                     type="button"
@@ -2836,7 +2908,7 @@ export function FineSettingsModal({
                       presidentRole === "president" ? "bg-emerald-800 text-white" : "text-stone-700"
                     }`}
                   >
-                    সভাপতি
+                    {language === 'bn' ? 'সভাপতি' : 'President'}
                   </button>
                   <button
                     type="button"
@@ -2845,14 +2917,16 @@ export function FineSettingsModal({
                       presidentRole === "secretary" ? "bg-emerald-800 text-white" : "text-stone-700"
                     }`}
                   >
-                    সেক্রেটারি
+                    {language === 'bn' ? 'সেক্রেটারি' : 'Secretary'}
                   </button>
                 </div>
               </div>
               <input
                 value={presidentName}
                 onChange={(e) => setPresidentName(e.target.value)}
-                placeholder={presidentRole === "secretary" ? "সেক্রেটারির নাম" : "সভাপতির নাম"}
+                placeholder={presidentRole === "secretary"
+                  ? (language === 'bn' ? "সেক্রেটারির নাম" : "Secretary's name")
+                  : (language === 'bn' ? "সভাপতির নাম" : "President's name")}
                 className={inputCls}
               />
               <SignatureDrawCanvas
@@ -2863,7 +2937,7 @@ export function FineSettingsModal({
           </div>
         </div>
 
-        <Field label="সমিতির নাম" required>
+        <Field label={language === 'bn' ? "সমিতির নাম" : "Society Name"} required>
           <input
             value={societyName}
             onChange={(e) => setSocietyName(e.target.value)}
@@ -2872,7 +2946,7 @@ export function FineSettingsModal({
           />
         </Field>
 
-        <Field label="উপশিরোনাম / ঠিকানা">
+        <Field label={language === 'bn' ? "উপশিরোনাম / ঠিকানা" : "Subtitle / Address"}>
           <input
             value={societySubtitle}
             onChange={(e) => setSocietySubtitle(e.target.value)}
@@ -2880,7 +2954,7 @@ export function FineSettingsModal({
           />
         </Field>
 
-        <Field label="রসিদে যোগাযোগের মোবাইল নম্বর">
+        <Field label={language === 'bn' ? "রসিদে যোগাযোগের মোবাইল নম্বর" : "Contact Mobile Number on Receipt"}>
           <input
             value={contactPhone}
             onChange={(e) => setContactPhone(e.target.value)}
@@ -2900,10 +2974,10 @@ export function FineSettingsModal({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded">অপশন ১</span>
-                <p className="font-bold text-stone-900 text-xs sm:text-sm">প্রতিষ্ঠানের প্রধান লোগো ও গোল ছবি</p>
+                <span className="text-[10px] font-black uppercase text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded">{language === 'bn' ? "অপশন ১" : "Option 1"}</span>
+                <p className="font-bold text-stone-900 text-xs sm:text-sm">{language === 'bn' ? "প্রতিষ্ঠানের প্রধান লোগো ও গোল ছবি" : "Organization Main Logo & Circular Photo"}</p>
               </div>
-              <p className="text-[11px] text-stone-500 mt-0.5">হেডার, সাইডবার ও রসিদের শীর্ষ গোল লোগো</p>
+              <p className="text-[11px] text-stone-500 mt-0.5">{language === 'bn' ? "হেডার, সাইডবার ও রসিদের শীর্ষ গোল লোগো" : "Header, sidebar, and top circular logo on receipts"}</p>
             </div>
           </div>
           {onOpenLogoUpload && (
@@ -2916,7 +2990,7 @@ export function FineSettingsModal({
               className="px-3 py-1.5 bg-amber-400 hover:bg-amber-300 text-emerald-950 rounded-lg text-xs font-bold transition-colors shadow-2xs flex items-center gap-1 shrink-0 cursor-pointer"
             >
               <Camera size={13} />
-              <span>লোগো ক্রপ / সেট</span>
+              <span>{language === 'bn' ? 'লোগো ক্রপ / সেট' : 'Crop / Set Logo'}</span>
             </button>
           )}
         </div>
@@ -2929,13 +3003,15 @@ export function FineSettingsModal({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black uppercase text-amber-900 bg-amber-200 px-1.5 py-0.2 rounded">অপশন ২</span>
-                <p className="font-bold text-stone-900 text-xs sm:text-sm">ডকুমেন্ট ব্যাকগ্রাউন্ড জলছাপ (Watermark)</p>
+                <span className="text-[10px] font-black uppercase text-amber-900 bg-amber-200 px-1.5 py-0.2 rounded">{language === 'bn' ? "অপশন ২" : "Option 2"}</span>
+                <p className="font-bold text-stone-900 text-xs sm:text-sm">{language === 'bn' ? "ডকুমেন্ট ব্যাকগ্রাউন্ড জলছাপ (Watermark)" : "Document Background Watermark (Watermark)"}</p>
               </div>
               <p className="text-[11px] text-stone-500 mt-0.5">
                 {settings.watermarkEnabled === false
-                  ? 'জলছাপ বন্ধ রয়েছে'
-                  : `জলছাপ সক্রিয় (${settings.watermarkType === 'custom_image' ? 'কাস্টম ছবি' : settings.watermarkType === 'logo' ? 'প্রধান লোগো' : settings.watermarkType === 'custom_text' ? 'টেক্সট' : 'অফিসিয়াল সিল'})`}
+                  ? (language === 'bn' ? 'জলছাপ বন্ধ রয়েছে' : 'Watermark is disabled')
+                  : (language === 'bn'
+                      ? `জলছাপ সক্রিয় (${settings.watermarkType === 'custom_image' ? 'কাস্টম ছবি' : settings.watermarkType === 'logo' ? 'প্রধান লোগো' : settings.watermarkType === 'custom_text' ? 'টেক্সট' : 'অফিসিয়াল সিল'})`
+                      : `Watermark active (${settings.watermarkType === 'custom_image' ? 'Custom Image' : settings.watermarkType === 'logo' ? 'Main Logo' : settings.watermarkType === 'custom_text' ? 'Text' : 'Official Seal'})`)}
               </p>
             </div>
           </div>
@@ -2949,7 +3025,7 @@ export function FineSettingsModal({
               className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-amber-300 rounded-lg text-xs font-bold transition-colors shadow-2xs flex items-center gap-1 shrink-0 cursor-pointer"
             >
               <Sparkles size={13} />
-              <span>জলছাপ সেটিংস</span>
+              <span>{language === 'bn' ? 'জলছাপ সেটিংস' : 'Watermark Settings'}</span>
             </button>
           )}
         </div>
@@ -2960,14 +3036,14 @@ export function FineSettingsModal({
             onClick={onClose}
             className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
           >
-            বাতিল
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
           </button>
           <button
             id="save-settings-btn"
             type="submit"
             className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
-            <Check size={16} /> সেটিংস ও স্বাক্ষর সংরক্ষণ করুন
+            <Check size={16} /> {language === 'bn' ? 'সেটিংস ও স্বাক্ষর সংরক্ষণ করুন' : 'Save Settings & Signatures'}
           </button>
         </div>
       </form>
@@ -2989,24 +3065,25 @@ export function CloudBackupModal({
   onRestoreData: (restored: AppData) => void;
   onNotify: (msg: string) => void;
 }) {
+  const { language } = useLanguage();
   const [copiedLink, setCopiedLink] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDownloadJson = () => {
     exportFullBackupJson(data);
-    onNotify("সম্পূর্ণ ক্লাউড ব্যাকআপ JSON ফাইল ডাউনলোড হয়েছে");
+    onNotify(language === 'bn' ? "সম্পূর্ণ ক্লাউড ব্যাকআপ JSON ফাইল ডাউনলোড হয়েছে" : "Full cloud backup JSON file downloaded");
   };
 
   const handleDownloadExcel = () => {
     downloadExcel(data.members, data.deposits);
-    onNotify("এক্সেল ব্যাকআপ (.xlsx) ডাউনলোড হয়েছে");
+    onNotify(language === 'bn' ? "এক্সেল ব্যাকআপ (.xlsx) ডাউনলোড হয়েছে" : "Excel backup (.xlsx) downloaded");
   };
 
   const handleCopyJson = () => {
     const jsonStr = JSON.stringify(data, null, 2);
     navigator.clipboard.writeText(jsonStr);
     setCopiedLink(true);
-    onNotify("সম্পূর্ণ ব্যাকআপ ডেটা ক্লিপবোর্ডে কপি করা হয়েছে");
+    onNotify(language === 'bn' ? "সম্পূর্ণ ব্যাকআপ ডেটা ক্লিপবোর্ডে কপি করা হয়েছে" : "Full backup data copied to clipboard");
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
@@ -3029,44 +3106,44 @@ export function CloudBackupModal({
             expenses: parsed.expenses || [],
             settings: parsed.settings || DEFAULT_SETTINGS,
           });
-          onNotify("ব্যাকআপ ফাইল সফলভাবে রিস্টোর করা হয়েছে!");
+          onNotify(language === 'bn' ? "ব্যাকআপ ফাইল সফলভাবে রিস্টোর করা হয়েছে!" : "Backup file restored successfully!");
           onClose();
         } else {
-          alert("ভুল ব্যাকআপ ফরম্যাট! সঠিক TGS ব্যাকআপ JSON ফাইল আপলোড করুন।");
+          alert(language === 'bn' ? "ভুল ব্যাকআপ ফরম্যাট! সঠিক TGS ব্যাকআপ JSON ফাইল আপলোড করুন।" : "Invalid backup format! Please upload a valid TGS backup JSON file.");
         }
       } catch (err) {
-        alert("ফাইল পড়তে সমস্যা হয়েছে। সঠিক JSON ফাইল নির্বাচন করুন।");
+        alert(language === 'bn' ? "ফাইল পড়তে সমস্যা হয়েছে। সঠিক JSON ফাইল নির্বাচন করুন।" : "There was a problem reading the file. Please select a valid JSON file.");
       }
     };
     reader.readAsText(file);
   };
 
   return (
-    <Modal id="cloud-backup-modal" title="ক্লাউড ব্যাকআপ ও ডেটা স্টোরেজ লিংক" onClose={onClose} maxWidth="max-w-xl">
+    <Modal id="cloud-backup-modal" title={language === 'bn' ? "ক্লাউড ব্যাকআপ ও ডেটা স্টোরেজ লিংক" : "Cloud Backup & Data Storage Link"} onClose={onClose} maxWidth="max-w-xl">
       <div className="space-y-4">
         {/* Storage stats overview */}
         <div className="p-4 bg-emerald-900 text-amber-50 rounded-xl space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs uppercase tracking-wider font-semibold text-emerald-200">
-              অ্যাপ অভ্যন্তরীণ স্টোরেজ স্থিতি
+              {language === 'bn' ? 'অ্যাপ অভ্যন্তরীণ স্টোরেজ স্থিতি' : 'App Internal Storage Status'}
             </span>
             <span className="text-[11px] bg-emerald-800 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">
-              স্বয়ংক্রিয় সিঙ্ক চালু
+              {language === 'bn' ? 'স্বয়ংক্রিয় সিঙ্ক চালু' : 'Auto Sync On'}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center pt-2">
             <div className="bg-emerald-950/60 p-2 rounded-lg">
-              <span className="text-[11px] text-emerald-300">মোট সদস্য</span>
-              <p className="font-bold text-base text-white">{data.members.length} জন</p>
+              <span className="text-[11px] text-emerald-300">{language === 'bn' ? "মোট সদস্য" : "Total Members"}</span>
+              <p className="font-bold text-base text-white">{data.members.length} {language === 'bn' ? 'জন' : ''}</p>
             </div>
             <div className="bg-emerald-950/60 p-2 rounded-lg">
-              <span className="text-[11px] text-emerald-300">জমার খতিয়ান</span>
-              <p className="font-bold text-base text-white">{data.deposits.length} টি</p>
+              <span className="text-[11px] text-emerald-300">{language === 'bn' ? "জমার খতিয়ান" : "Deposit Ledger"}</span>
+              <p className="font-bold text-base text-white">{data.deposits.length} {language === 'bn' ? 'টি' : ''}</p>
             </div>
             <div className="bg-emerald-950/60 p-2 rounded-lg">
-              <span className="text-[11px] text-emerald-300">হিসাব এন্ট্রি</span>
+              <span className="text-[11px] text-emerald-300">{language === 'bn' ? "হিসাব এন্ট্রি" : "Account Entries"}</span>
               <p className="font-bold text-base text-white">
-                {data.bankEntries.length + data.investEntries.length + data.expenses.length} টি
+                {data.bankEntries.length + data.investEntries.length + data.expenses.length} {language === 'bn' ? 'টি' : ''}
               </p>
             </div>
           </div>
@@ -3076,9 +3153,9 @@ export function CloudBackupModal({
         <div className="space-y-3">
           <div className="p-4 bg-white border border-stone-200 rounded-xl hover:border-emerald-500 transition-all flex items-center justify-between gap-3">
             <div>
-              <p className="font-bold text-stone-900 text-sm">১. সম্পূর্ণ ক্লাউড ব্যাকআপ ফাইল (.json)</p>
+              <p className="font-bold text-stone-900 text-sm">{language === 'bn' ? "১. সম্পূর্ণ ক্লাউড ব্যাকআপ ফাইল (.json)" : "1. Full Cloud Backup File (.json)"}</p>
               <p className="text-xs text-stone-500 mt-0.5">
-                সকল সদস্য, জমার খতিয়ান, ব্যাংক ও ফান্ডের নিরাপদ ব্যাকআপ ফাইল সংরক্ষণ করুন।
+                {language === 'bn' ? 'সকল সদস্য, জমার খতিয়ান, ব্যাংক ও ফান্ডের নিরাপদ ব্যাকআপ ফাইল সংরক্ষণ করুন।' : 'Save a secure backup file of all members, deposits, bank, and fund records.'}
               </p>
             </div>
             <button
@@ -3087,15 +3164,15 @@ export function CloudBackupModal({
               onClick={handleDownloadJson}
               className="px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 shadow-xs"
             >
-              <Download size={14} /> ডাউনলোড
+              <Download size={14} /> {language === 'bn' ? 'ডাউনলোড' : 'Download'}
             </button>
           </div>
 
           <div className="p-4 bg-white border border-stone-200 rounded-xl hover:border-emerald-500 transition-all flex items-center justify-between gap-3">
             <div>
-              <p className="font-bold text-stone-900 text-sm">২. ব্যাকআপ ফাইল থেকে রিস্টোর (Restore Data)</p>
+              <p className="font-bold text-stone-900 text-sm">{language === 'bn' ? "২. ব্যাকআপ ফাইল থেকে রিস্টোর (Restore Data)" : "2. Restore from Backup File (Restore Data)"}</p>
               <p className="text-xs text-stone-500 mt-0.5">
-                পূর্বে সংরক্ষিত কোনো .json ব্যাকআপ ফাইল থেকে সম্পূর্ণ হিসাব ফিরিয়ে আনুন।
+                {language === 'bn' ? 'পূর্বে সংরক্ষিত কোনো .json ব্যাকআপ ফাইল থেকে সম্পূর্ণ হিসাব ফিরিয়ে আনুন।' : 'Restore all records from a previously saved .json backup file.'}
               </p>
             </div>
             <div>
@@ -3112,16 +3189,16 @@ export function CloudBackupModal({
                 onClick={() => fileInputRef.current?.click()}
                 className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-emerald-950 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 shadow-xs"
               >
-                <Upload size={14} /> ফাইল নির্বাচন
+                <Upload size={14} /> {language === 'bn' ? 'ফাইল নির্বাচন' : 'Select File'}
               </button>
             </div>
           </div>
 
           <div className="p-4 bg-white border border-stone-200 rounded-xl hover:border-emerald-500 transition-all flex items-center justify-between gap-3">
             <div>
-              <p className="font-bold text-stone-900 text-sm">৩. ব্যাকআপ ডেটা টেক্সট কপি (Cloud Sync Link)</p>
+              <p className="font-bold text-stone-900 text-sm">{language === 'bn' ? "৩. ব্যাকআপ ডেটা টেক্সট কপি (Cloud Sync Link)" : "3. Copy Backup Data as Text (Cloud Sync Link)"}</p>
               <p className="text-xs text-stone-500 mt-0.5">
-                Google Drive বা ক্লাউড ডকুমেন্টে পেস্ট করে সংরক্ষণ করার জন্য সম্পূর্ণ ডেটা কপি করুন।
+                {language === 'bn' ? 'Google Drive বা ক্লাউড ডকুমেন্টে পেস্ট করে সংরক্ষণ করার জন্য সম্পূর্ণ ডেটা কপি করুন।' : 'Copy all data to paste and save in Google Drive or a cloud document.'}
               </p>
             </div>
             <button
@@ -3131,15 +3208,15 @@ export function CloudBackupModal({
               className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 border border-stone-300"
             >
               {copiedLink ? <CheckCircle2 size={14} className="text-emerald-700" /> : <Copy size={14} />}
-              <span>{copiedLink ? "কপি হয়েছে" : "কপি করুন"}</span>
+              <span>{copiedLink ? (language === 'bn' ? "কপি হয়েছে" : "Copied") : (language === 'bn' ? "কপি করুন" : "Copy")}</span>
             </button>
           </div>
 
           <div className="p-4 bg-white border border-stone-200 rounded-xl hover:border-emerald-500 transition-all flex items-center justify-between gap-3">
             <div>
-              <p className="font-bold text-stone-900 text-sm">৪. এক্সেল স্প্রেডশীট (.xlsx) ডাউনলোড</p>
+              <p className="font-bold text-stone-900 text-sm">{language === 'bn' ? "৪. এক্সেল স্প্রেডশীট (.xlsx) ডাউনলোড" : "4. Download Excel Spreadsheet (.xlsx)"}</p>
               <p className="text-xs text-stone-500 mt-0.5">
-                Microsoft Excel বা Google Sheets-এ ওপেন করার জন্য টেবিল রিপোর্ট।
+                {language === 'bn' ? 'Microsoft Excel বা Google Sheets-এ ওপেন করার জন্য টেবিল রিপোর্ট।' : 'A table report to open in Microsoft Excel or Google Sheets.'}
               </p>
             </div>
             <button
@@ -3148,7 +3225,7 @@ export function CloudBackupModal({
               onClick={handleDownloadExcel}
               className="px-4 py-2 bg-emerald-900 hover:bg-emerald-800 text-amber-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 shadow-xs"
             >
-              <FileSpreadsheet size={14} /> এক্সেল ফাইল
+              <FileSpreadsheet size={14} /> {language === 'bn' ? 'এক্সেল ফাইল' : 'Excel File'}
             </button>
           </div>
         </div>
@@ -3167,6 +3244,7 @@ export function AddBankModal({
   onClose: () => void;
   onSubmit: (entry: Omit<AccountEntry, 'id'>) => void;
 }) {
+  const { language } = useLanguage();
   const [date, setDate] = useState(() => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
@@ -3199,7 +3277,7 @@ export function AddBankModal({
   };
 
   return (
-    <Modal id="add-bank-modal" title="ব্যাংক হিসাব এন্ট্রি" onClose={onClose}>
+    <Modal id="add-bank-modal" title={language === 'bn' ? "ব্যাংক হিসাব এন্ট্রি" : "Bank Account Entry"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3 mb-1">
           <button
@@ -3211,7 +3289,7 @@ export function AddBankModal({
                 : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
             }`}
           >
-            + ব্যাংকে জমা (Deposit)
+            {language === 'bn' ? '+ ব্যাংকে জমা (Deposit)' : '+ Bank Deposit (Deposit)'}
           </button>
           <button
             type="button"
@@ -3222,7 +3300,7 @@ export function AddBankModal({
                 : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
             }`}
           >
-            - ব্যাংক থেকে উত্তোলন (Withdraw)
+            {language === 'bn' ? '- ব্যাংক থেকে উত্তোলন (Withdraw)' : '- Bank Withdrawal (Withdraw)'}
           </button>
         </div>
 
@@ -3234,24 +3312,26 @@ export function AddBankModal({
         }`}>
           <span className="text-base">{type === 'in' ? '🏦' : '💵'}</span>
           <span>
-            {type === 'in'
-              ? 'ব্যাংকে টাকা জমা করলে তা সমিতির ফান্ড/ক্যাশ থেকে মাইনাস হয়ে ব্যাংকের স্থিতিতে জমা হবে।'
-              : 'ব্যাংক থেকে টাকা উঠালে তা ব্যাংক স্থিতি থেকে কমে সরাসরি সমিতির ক্যাশে (হাতে নগদ) যোগ হবে।'}
+            {language === 'bn'
+              ? (type === 'in' ? 'ব্যাংকে টাকা জমা করলে তা সমিতির ফান্ড/ক্যাশ থেকে মাইনাস হয়ে ব্যাংকের স্থিতিতে জমা হবে।' : 'ব্যাংক থেকে টাকা উঠালে তা ব্যাংক স্থিতি থেকে কমে সরাসরি সমিতির ক্যাশে (হাতে নগদ) যোগ হবে।')
+              : (type === 'in'
+                  ? "Depositing money into the bank moves it out of the society's fund/cash and into the bank balance."
+                  : "Withdrawing money from the bank reduces the bank balance and adds it directly to the society's cash on hand.")}
           </span>
         </div>
 
-        <Field label="বিবরণ / ব্যাংকের নাম ও হিসাব" required>
+        <Field label={language === 'bn' ? "বিবরণ / ব্যাংকের নাম ও হিসাব" : "Description / Bank Name & Account"} required>
           <input
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             className={inputCls}
-            placeholder="যেমন: সোনালী ব্যাংক সঞ্চয়ী হিসাব #১২৩৪৫"
+            placeholder={language === 'bn' ? "যেমন: সোনালী ব্যাংক সঞ্চয়ী হিসাব #১২৩৪৫" : "e.g. Sonali Bank Savings Account #12345"}
             required
           />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="তারিখ" required>
+          <Field label={language === 'bn' ? "তারিখ" : "Date"} required>
             <input
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -3259,7 +3339,7 @@ export function AddBankModal({
               placeholder="dd/mm/yyyy"
             />
           </Field>
-          <Field label="পরিমাণ (৳)" required>
+          <Field label={language === 'bn' ? "পরিমাণ (৳)" : "Amount (৳)"} required>
             <input
               type="number"
               min="1"
@@ -3272,29 +3352,29 @@ export function AddBankModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="ব্যাংক মুনাফা / লভ্যাংশ (৳)">
+          <Field label={language === 'bn' ? "ব্যাংক মুনাফা / লভ্যাংশ (৳)" : "Bank Profit / Dividend (৳)"}>
             <input
               type="number"
               min="0"
               value={dividend}
               onChange={(e) => setDividend(e.target.value)}
               className={inputCls}
-              placeholder="০"
+              placeholder={language === 'bn' ? "০" : "0"}
             />
           </Field>
-          <Field label="মন্তব্য / চেক নং">
+          <Field label={language === 'bn' ? "মন্তব্য / চেক নং" : "Note / Check No."}>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className={inputCls}
-              placeholder="চেক নম্বর বা শাখা..."
+              placeholder={language === 'bn' ? "চেক নম্বর বা শাখা..." : "Check number or branch..."}
             />
           </Field>
         </div>
 
         <AttachmentUpload
-          label="ব্যাংক জমা স্লিপ / চেক / ডকুমেন্টের ছবি (ঐচ্ছিক)"
-          hint="ব্যাংক ডিপোজিট স্লিপ, চেকের ছবি বা ট্রানজেকশন স্ক্রিনশট যুক্ত করুন"
+          label={language === 'bn' ? "ব্যাংক জমা স্লিপ / চেক / ডকুমেন্টের ছবি (ঐচ্ছিক)" : "Bank Deposit Slip / Check / Document Image (optional)"}
+          hint={language === 'bn' ? "ব্যাংক ডিপোজিট স্লিপ, চেকের ছবি বা ট্রানজেকশন স্ক্রিনশট যুক্ত করুন" : "Attach a bank deposit slip, check image, or transaction screenshot"}
           value={attachment}
           fileName={attachmentName}
           onChange={(val, name) => {
@@ -3309,14 +3389,14 @@ export function AddBankModal({
             onClick={onClose}
             className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
           >
-            বাতিল
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
           </button>
           <button
             id="submit-bank-btn"
             type="submit"
             className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
-            <Check size={16} /> সংরক্ষণ করুন
+            <Check size={16} /> {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save'}
           </button>
         </div>
       </form>
@@ -3331,6 +3411,7 @@ export function AddInvestModal({
   onClose: () => void;
   onSubmit: (entry: Omit<AccountEntry, 'id'>) => void;
 }) {
+  const { language } = useLanguage();
   const [date, setDate] = useState(() => {
     const today = new Date();
     const dd = String(today.getDate()).padStart(2, '0');
@@ -3408,7 +3489,7 @@ export function AddInvestModal({
   };
 
   return (
-    <Modal id="add-invest-modal" title="নতুন বিনিয়োগ এন্ট্রি ও প্রফিট পরিকল্পনা" onClose={onClose}>
+    <Modal id="add-invest-modal" title={language === 'bn' ? "নতুন বিনিয়োগ এন্ট্রি ও প্রফিট পরিকল্পনা" : "New Investment Entry & Profit Plan"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3.5">
         <div className="grid grid-cols-2 gap-3 mb-1">
           <button
@@ -3420,7 +3501,7 @@ export function AddInvestModal({
                 : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
             }`}
           >
-            + নতুন বিনিয়োগ (Invest)
+            {language === 'bn' ? '+ নতুন বিনিয়োগ (Invest)' : '+ New Investment (Invest)'}
           </button>
           <button
             type="button"
@@ -3431,7 +3512,7 @@ export function AddInvestModal({
                 : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
             }`}
           >
-            - মূলধন ফেরত (Return)
+            {language === 'bn' ? '- মূলধন ফেরত (Return)' : '- Capital Return (Return)'}
           </button>
         </div>
 
@@ -3443,33 +3524,35 @@ export function AddInvestModal({
         }`}>
           <span className="text-base">{type === 'in' ? '📈' : '💰'}</span>
           <span>
-            {type === 'in'
-              ? 'নতুন বিনিয়োগে অর্থ ক্যাশ/ফান্ড থেকে বিনিয়োগে চলে যাবে এবং সমন্বয় হবে।'
-              : 'বিনিয়োগের মূলধন ফেরত প্রাপ্ত হলে তা সরাসরি সমিতির ক্যাশে (হাতে নগদ) পুনরায় যোগ হবে।'}
+            {language === 'bn'
+              ? (type === 'in' ? 'নতুন বিনিয়োগে অর্থ ক্যাশ/ফান্ড থেকে বিনিয়োগে চলে যাবে এবং সমন্বয় হবে।' : 'বিনিয়োগের মূলধন ফেরত প্রাপ্ত হলে তা সরাসরি সমিতির ক্যাশে (হাতে নগদ) পুনরায় যোগ হবে।')
+              : (type === 'in'
+                  ? 'A new investment moves funds from cash/fund into the investment and adjusts accordingly.'
+                  : "When investment capital is returned, it's added back directly to the society's cash on hand.")}
           </span>
         </div>
 
-        <Field label="বিনিয়োগের খাত / বিবরণ" required>
+        <Field label={language === 'bn' ? "বিনিয়োগের খাত / বিবরণ" : "Investment Sector / Description"} required>
           <input
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             className={inputCls}
-            placeholder="যেমন: মৎস্য খামার প্রকল্প বা ব্যবসা শেয়ার"
+            placeholder={language === 'bn' ? "যেমন: মৎস্য খামার প্রকল্প বা ব্যবসা শেয়ার" : "e.g. Fish farm project or business shares"}
             required
           />
         </Field>
 
-        <Field label="বিনিয়োগের স্থান / প্রতিষ্ঠান">
+        <Field label={language === 'bn' ? "বিনিয়োগের স্থান / প্রতিষ্ঠান" : "Investment Location / Institution"}>
           <input
             value={place}
             onChange={(e) => setPlace(e.target.value)}
             className={inputCls}
-            placeholder="যেমন: উলানিয়া বাজার"
+            placeholder={language === 'bn' ? "যেমন: উলানিয়া বাজার" : "e.g. Ulania Bazar"}
           />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="তারিখ" required>
+          <Field label={language === 'bn' ? "তারিখ" : "Date"} required>
             <input
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -3477,7 +3560,7 @@ export function AddInvestModal({
               placeholder="dd/mm/yyyy"
             />
           </Field>
-          <Field label="বিনিয়োগের মূলধন পরিমাণ (৳)" required>
+          <Field label={language === 'bn' ? "বিনিয়োগের মূলধন পরিমাণ (৳)" : "Investment Capital Amount (৳)"} required>
             <input
               type="number"
               min="1"
@@ -3493,17 +3576,17 @@ export function AddInvestModal({
         <div className="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-200 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
-              <span>📈 প্রত্যাশিত মুনাফা ও মেয়াদপূর্তির সময়কাল</span>
+              <span>{language === 'bn' ? '📈 প্রত্যাশিত মুনাফা ও মেয়াদপূর্তির সময়কাল' : '📈 Expected Profit & Maturity Period'}</span>
             </span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-emerald-950 font-bold">
-              অটো-হিসাব
+              {language === 'bn' ? 'অটো-হিসাব' : 'Auto-Calculated'}
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs font-medium text-stone-700 mb-1">
-                প্রত্যাশিত মুনাফা (%)
+                {language === 'bn' ? 'প্রত্যাশিত মুনাফা (%)' : 'Expected Profit (%)'}
               </label>
               <input
                 type="number"
@@ -3512,12 +3595,12 @@ export function AddInvestModal({
                 value={expectedProfitPercent}
                 onChange={(e) => handlePercentChange(e.target.value)}
                 className={inputCls}
-                placeholder="যেমন: ১৫"
+                placeholder={language === 'bn' ? "যেমন: ১৫" : "e.g. 15"}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-stone-700 mb-1">
-                আনুমানিক মুনাফা (৳)
+                {language === 'bn' ? 'আনুমানিক মুনাফা (৳)' : 'Estimated Profit (৳)'}
               </label>
               <input
                 type="number"
@@ -3525,12 +3608,12 @@ export function AddInvestModal({
                 value={expectedProfitAmount}
                 onChange={(e) => handleProfitAmountChange(e.target.value)}
                 className={inputCls}
-                placeholder="যেমন: ৭৫০০"
+                placeholder={language === 'bn' ? "যেমন: ৭৫০০" : "e.g. 7500"}
               />
             </div>
             <div>
               <label className="block text-xs font-medium text-stone-700 mb-1">
-                মেয়াদপূর্তি / ম্যাচুরিটি তারিখ
+                {language === 'bn' ? 'মেয়াদপূর্তি / ম্যাচুরিটি তারিখ' : 'Maturity Date'}
               </label>
               <input
                 value={maturityDate}
@@ -3541,34 +3624,36 @@ export function AddInvestModal({
             </div>
           </div>
           <p className="text-[11px] text-emerald-800 leading-relaxed">
-            * মেয়াদপূর্তির তারিখ পৌঁছালে অটো নোটিফিকেশন আসবে এবং এডমিন প্যানেল থেকে অর্জিত বাস্তব মুনাফা ৯৫% সাধারণ সদস্য ও ৫% টিজিএস ফান্ডে বণ্টন করা যাবে।
+            {language === 'bn'
+              ? '* মেয়াদপূর্তির তারিখ পৌঁছালে অটো নোটিফিকেশন আসবে এবং এডমিন প্যানেল থেকে অর্জিত বাস্তব মুনাফা ৯৫% সাধারণ সদস্য ও ৫% টিজিএস ফান্ডে বণ্টন করা যাবে।'
+              : '* When the maturity date arrives, an automatic notification will appear, and the actual profit earned can be distributed from the admin panel — 95% to general members and 5% to the TGS Fund.'}
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="তাত্ক্ষণিক প্রাপ্ত লভ্যাংশ (যদি থাকে ৳)">
+          <Field label={language === 'bn' ? "তাত্ক্ষণিক প্রাপ্ত লভ্যাংশ (যদি থাকে ৳)" : "Immediate Dividend Received (if any, ৳)"}>
             <input
               type="number"
               min="0"
               value={dividend}
               onChange={(e) => setDividend(e.target.value)}
               className={inputCls}
-              placeholder="০"
+              placeholder={language === 'bn' ? "০" : "0"}
             />
           </Field>
-          <Field label="চুক্তিনামা বা নোট">
+          <Field label={language === 'bn' ? "চুক্তিনামা বা নোট" : "Agreement or Note"}>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className={inputCls}
-              placeholder="মেয়াদ বা শর্তাবলী..."
+              placeholder={language === 'bn' ? "মেয়াদ বা শর্তাবলী..." : "Term or conditions..."}
             />
           </Field>
         </div>
 
         <AttachmentUpload
-          label="বিনিয়োগ চুক্তিপত্র বা প্রমাণক সংযুক্তি (ঐচ্ছিক)"
-          hint="চুক্তিপত্র, স্ট্যাম্প, বা চেক/রশিদের ছবি যুক্ত করুন"
+          label={language === 'bn' ? "বিনিয়োগ চুক্তিপত্র বা প্রমাণক সংযুক্তি (ঐচ্ছিক)" : "Investment Agreement or Proof Attachment (optional)"}
+          hint={language === 'bn' ? "চুক্তিপত্র, স্ট্যাম্প, বা চেক/রশিদের ছবি যুক্ত করুন" : "Attach the agreement, stamp, or check/receipt image"}
           value={attachment}
           fileName={attachmentName}
           onChange={(val, name) => {
@@ -3583,14 +3668,14 @@ export function AddInvestModal({
             onClick={onClose}
             className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
           >
-            বাতিল
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
           </button>
           <button
             id="submit-invest-btn"
             type="submit"
             className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
-            <Check size={16} /> সংরক্ষণ করুন
+            <Check size={16} /> {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save'}
           </button>
         </div>
       </form>
@@ -3605,6 +3690,7 @@ export function AddFundIncomeModal({
   onClose: () => void;
   onSubmit: (income: Omit<FundIncome, 'id'>) => void;
 }) {
+  const { language } = useLanguage();
   const [source, setSource] = useState("টিজিএস আলাদা আয়");
   const [desc, setDesc] = useState("");
   const [date, setDate] = useState(() => {
@@ -3642,22 +3728,24 @@ export function AddFundIncomeModal({
   };
 
   return (
-    <Modal id="add-tgs-fund-modal" title="টিজিএস ফান্ডে আলাদা টাকা এন্ট্রি (TGS Fund Entry)" onClose={onClose}>
+    <Modal id="add-tgs-fund-modal" title={language === 'bn' ? "টিজিএস ফান্ডে আলাদা টাকা এন্ট্রি (TGS Fund Entry)" : "TGS Fund Separate Money Entry (TGS Fund Entry)"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
         {/* Explanatory Info Card */}
         <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
           <Sparkles size={16} className="text-amber-700 shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold">টিজিএস ফান্ড (TGS Special Reserve Fund)</p>
+            <p className="font-semibold">{language === 'bn' ? "টিজিএস ফান্ড" : "TGS Fund"} (TGS Special Reserve Fund)</p>
             <p className="text-[11px] text-amber-800 mt-0.5">
-              সকল বিনিয়োগের লভ্যাংশ থেকে স্বয়ংক্রিয়ভাবে ৫% টিজিএস ফান্ডে যোগ হয়। এছাড়া যদি আলাদা কোনো টাকা আসে, তবে তা এখানে সরাসরি এন্ট্রি দিন।
+              {language === 'bn'
+                ? 'সকল বিনিয়োগের লভ্যাংশ থেকে স্বয়ংক্রিয়ভাবে ৫% টিজিএস ফান্ডে যোগ হয়। এছাড়া যদি আলাদা কোনো টাকা আসে, তবে তা এখানে সরাসরি এন্ট্রি দিন।'
+                : 'From every investment dividend, 5% is automatically added to the TGS Fund. If any other separate money comes in, enter it here directly.'}
             </p>
           </div>
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-stone-700 mb-1.5">
-            উৎস নির্বাচন করুন <span className="text-red-500">*</span>
+            {language === 'bn' ? 'উৎস নির্বাচন করুন' : 'Select Source'} <span className="text-red-500">*</span>
           </label>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {quickSources.map((qs) => (
@@ -3679,22 +3767,22 @@ export function AddFundIncomeModal({
             value={source}
             onChange={(e) => setSource(e.target.value)}
             className={inputCls}
-            placeholder="যেমন: সদস্য ফরম বিক্রি, অনুদান, ফি ইত্যাদি"
+            placeholder={language === 'bn' ? "যেমন: সদস্য ফরম বিক্রি, অনুদান, ফি ইত্যাদি" : "e.g. Member form sales, donations, fees, etc."}
             required
           />
         </div>
 
-        <Field label="সংক্ষিপ্ত বিবরণ">
+        <Field label={language === 'bn' ? "সংক্ষিপ্ত বিবরণ" : "Short Description"}>
           <input
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             className={inputCls}
-            placeholder="যেমন: নতুন সদস্য ফরম ফি বা বিশেষ অনুদান"
+            placeholder={language === 'bn' ? "যেমন: নতুন সদস্য ফরম ফি বা বিশেষ অনুদান" : "e.g. New member form fee or special donation"}
           />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="তারিখ" required>
+          <Field label={language === 'bn' ? "তারিখ" : "Date"} required>
             <input
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -3702,7 +3790,7 @@ export function AddFundIncomeModal({
               placeholder="dd/mm/yyyy"
             />
           </Field>
-          <Field label="পরিমাণ (৳)" required>
+          <Field label={language === 'bn' ? "পরিমাণ (৳)" : "Amount (৳)"} required>
             <input
               type="number"
               min="1"
@@ -3714,18 +3802,18 @@ export function AddFundIncomeModal({
           </Field>
         </div>
 
-        <Field label="মন্তব্য">
+        <Field label={language === 'bn' ? "মন্তব্য" : "Note"}>
           <input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className={inputCls}
-            placeholder="অতিরিক্ত তথ্য বা রশিদ সূত্র..."
+            placeholder={language === 'bn' ? "অতিরিক্ত তথ্য বা রশিদ সূত্র..." : "Additional info or receipt reference..."}
           />
         </Field>
 
         <AttachmentUpload
-          label="জমার প্রমাণ বা রশিদের ছবি (ঐচ্ছিক)"
-          hint="ফি জমার রশিদ, ক্যাশ স্লিপ বা প্রমাণক ছবি যুক্ত করুন"
+          label={language === 'bn' ? "জমার প্রমাণ বা রশিদের ছবি (ঐচ্ছিক)" : "Deposit Proof or Receipt Image (optional)"}
+          hint={language === 'bn' ? "ফি জমার রশিদ, ক্যাশ স্লিপ বা প্রমাণক ছবি যুক্ত করুন" : "Attach a fee deposit receipt, cash slip, or proof image"}
           value={attachment}
           fileName={attachmentName}
           onChange={(val, name) => {
@@ -3740,14 +3828,14 @@ export function AddFundIncomeModal({
             onClick={onClose}
             className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
           >
-            বাতিল
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
           </button>
           <button
             id="submit-fund-btn"
             type="submit"
             className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
-            <Check size={16} /> টিজিএস ফান্ডে জমা করুন
+            <Check size={16} /> {language === 'bn' ? 'টিজিএস ফান্ডে জমা করুন' : 'Deposit to TGS Fund'}
           </button>
         </div>
       </form>
@@ -3762,6 +3850,7 @@ export function AddExpenseModal({
   onClose: () => void;
   onSubmit: (expense: Omit<Expense, 'id'>) => void;
 }) {
+  const { language } = useLanguage();
   const [desc, setDesc] = useState("");
   const [amount, setAmount] = useState<number | string>(100);
   const [date, setDate] = useState(() => {
@@ -3791,20 +3880,20 @@ export function AddExpenseModal({
   };
 
   return (
-    <Modal id="add-expense-modal" title="নতুন খরচ এন্ট্রি" onClose={onClose}>
+    <Modal id="add-expense-modal" title={language === 'bn' ? "নতুন খরচ এন্ট্রি" : "New Expense Entry"} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3.5">
-        <Field label="খরচের বিবরণ / খাত" required>
+        <Field label={language === 'bn' ? "খরচের বিবরণ / খাত" : "Expense Description / Category"} required>
           <input
             value={desc}
             onChange={(e) => setDesc(e.target.value)}
             className={inputCls}
-            placeholder="যেমন: মিটিং নাস্তা, প্রিন্ট, স্টেশনারি..."
+            placeholder={language === 'bn' ? "যেমন: মিটিং নাস্তা, প্রিন্ট, স্টেশনারি..." : "e.g. Meeting snacks, printing, stationery..."}
             required
           />
         </Field>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="তারিখ" required>
+          <Field label={language === 'bn' ? "তারিখ" : "Date"} required>
             <input
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -3812,7 +3901,7 @@ export function AddExpenseModal({
               placeholder="dd/mm/yyyy"
             />
           </Field>
-          <Field label="পরিমাণ (৳)" required>
+          <Field label={language === 'bn' ? "পরিমাণ (৳)" : "Amount (৳)"} required>
             <input
               type="number"
               min="0"
@@ -3825,27 +3914,27 @@ export function AddExpenseModal({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="ভাউচার / ইনভয়েস নং">
+          <Field label={language === 'bn' ? "ভাউচার / ইনভয়েস নং" : "Voucher / Invoice No."}>
             <input
               value={invoice}
               onChange={(e) => setInvoice(e.target.value)}
               className={inputCls}
-              placeholder="যেমন: V-042"
+              placeholder={language === 'bn' ? "যেমন: V-042" : "e.g. V-042"}
             />
           </Field>
-          <Field label="মন্তব্য / পরিমাণ">
+          <Field label={language === 'bn' ? "মন্তব্য / পরিমাণ" : "Note / Quantity"}>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               className={inputCls}
-              placeholder="যেমন: ৩ পিস বা বিবরণ..."
+              placeholder={language === 'bn' ? "যেমন: ৩ পিস বা বিবরণ..." : "e.g. 3 pieces or description..."}
             />
           </Field>
         </div>
 
         <AttachmentUpload
-          label="খরচের বিল / ক্যাশ মেমো / ভাউচারের ছবি (ঐচ্ছিক)"
-          hint="দোকানের ক্যাশ মেমো, বিলের কপি বা রশিদ যুক্ত করুন"
+          label={language === 'bn' ? "খরচের বিল / ক্যাশ মেমো / ভাউচারের ছবি (ঐচ্ছিক)" : "Expense Bill / Cash Memo / Voucher Image (optional)"}
+          hint={language === 'bn' ? "দোকানের ক্যাশ মেমো, বিলের কপি বা রশিদ যুক্ত করুন" : "Attach a shop cash memo, bill copy, or receipt"}
           value={attachment}
           fileName={attachmentName}
           onChange={(val, name) => {
@@ -3860,14 +3949,14 @@ export function AddExpenseModal({
             onClick={onClose}
             className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
           >
-            বাতিল
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
           </button>
           <button
             id="submit-expense-btn"
             type="submit"
             className="px-5 py-2.5 rounded-lg bg-rose-800 hover:bg-rose-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
-            <Check size={16} /> খরচ সংরক্ষণ করুন
+            <Check size={16} /> {language === 'bn' ? 'খরচ সংরক্ষণ করুন' : 'Save Expense'}
           </button>
         </div>
       </form>

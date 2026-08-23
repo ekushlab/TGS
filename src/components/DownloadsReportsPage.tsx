@@ -51,6 +51,7 @@ import {
   numberToBnWords,
 } from "../utils/helpers";
 import { useLanguage } from "../utils/LanguageContext";
+import { nativePrint, nativeSaveFile, isNativeAndroidApp } from "../utils/nativeBridge";
 
 interface DownloadsReportsPageProps {
   members: Member[];
@@ -237,11 +238,16 @@ export function DownloadsReportsPage({
       .filter((m) => !paidMemberUids.has(m.uid))
       .map((m) => ({
         ...m,
-        expectedMonth: rangeMode === "single" ? fromMonth : `${fromMonth} হতে ${toMonth}`,
+        expectedMonth:
+          rangeMode === "single"
+            ? fromMonth
+            : language === 'bn'
+              ? `${fromMonth} হতে ${toMonth}`
+              : `${fromMonth} to ${toMonth}`,
         expectedSavings: 1000,
         dueFine: settings.defaultFine || 50,
       }));
-  }, [members, rangeDeposits, rangeMode, fromMonth, toMonth, settings]);
+  }, [members, rangeDeposits, rangeMode, fromMonth, toMonth, settings, language]);
 
   // TGS Inflow and Outflows combined
   const investDividendEntries = useMemo(() => {
@@ -252,7 +258,7 @@ export function DownloadsReportsPage({
     return [
       ...investDividendEntries.map((iv) => ({
         date: iv.date,
-        source: "বিনিয়োগ ৫% লভ্যাংশ",
+        source: language === 'bn' ? "বিনিয়োগ ৫% লভ্যাংশ" : "Investment 5% Dividend",
         desc: iv.desc + (iv.place ? ` [${iv.place}]` : ""),
         inflow: Math.round(Number(iv.dividend || 0) * 0.05),
         outflow: 0,
@@ -267,18 +273,18 @@ export function DownloadsReportsPage({
         voucher: `INC-${f.id}`,
       })),
     ];
-  }, [investDividendEntries, fundIncome]);
+  }, [investDividendEntries, fundIncome, language]);
 
   const tgsOutflows = useMemo(() => {
     return expenses.map((e) => ({
       date: e.date,
-      source: "পরিচালন ব্যয়",
+      source: language === 'bn' ? "পরিচালন ব্যয়" : "Operating Expense",
       desc: e.desc,
       inflow: 0,
       outflow: Number(e.amount || 0),
-      voucher: e.invoice ? `ভাউচার #${e.invoice}` : `EXP-${e.id}`,
+      voucher: e.invoice ? `${language === 'bn' ? "ভাউচার #" : "Voucher #"}${e.invoice}` : `EXP-${e.id}`,
     }));
-  }, [expenses]);
+  }, [expenses, language]);
 
   const allTgsCombined = useMemo(() => {
     return [...tgsInflows, ...tgsOutflows].sort((a, b) => (a.date || "").localeCompare(b.date || ""));
@@ -339,7 +345,7 @@ export function DownloadsReportsPage({
   const handleDownloadPdf = async () => {
     const element = document.getElementById("printable-report-area");
     if (!element) {
-      window.print();
+      nativePrint();
       return;
     }
 
@@ -391,22 +397,17 @@ export function DownloadsReportsPage({
 
       const fileName = `${getReportFilename()}.pdf`;
       const pdfBlob = pdf.output("blob");
-      const blobUrl = URL.createObjectURL(pdfBlob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 2500);
+      await nativeSaveFile(pdfBlob, fileName, "application/pdf");
 
-      setDownloadSuccessNotice(`✅ PDF ফাইল সফলভাবে ডাউনলোড হয়েছে: ${fileName}`);
+      setDownloadSuccessNotice(
+        language === 'bn'
+          ? `✅ PDF ফাইল সফলভাবে ডাউনলোড হয়েছে: ${fileName}`
+          : `✅ PDF file downloaded successfully: ${fileName}`
+      );
       setTimeout(() => setDownloadSuccessNotice(""), 6000);
     } catch (err) {
       console.error("PDF generation error:", err);
-      window.print();
+      nativePrint();
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -432,16 +433,13 @@ export function DownloadsReportsPage({
       });
 
       const fileName = `${getReportFilename()}.jpg`;
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        document.body.removeChild(link);
-      }, 2500);
+      await nativeSaveFile(dataUrl, fileName, "image/jpeg");
 
-      setDownloadSuccessNotice(`✅ হাই-রেজ্যুলেশন ছবি (JPG) সফলভাবে ডাউনলোড হয়েছে: ${fileName}`);
+      setDownloadSuccessNotice(
+        language === 'bn'
+          ? `✅ হাই-রেজ্যুলেশন ছবি (JPG) সফলভাবে ডাউনলোড হয়েছে: ${fileName}`
+          : `✅ High-resolution image (JPG) downloaded successfully: ${fileName}`
+      );
       setTimeout(() => setDownloadSuccessNotice(""), 6000);
     } catch (err) {
       console.error("Image generation failed:", err);
@@ -454,13 +452,13 @@ export function DownloadsReportsPage({
    * Trigger Browser Print window
    */
   const handlePrint = () => {
-    window.print();
+    nativePrint();
   };
 
   /**
    * Export to Excel (.XLSX) formatted for corporate category standards
    */
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     setIsDownloadingExcel(true);
     try {
       const wb = XLSX.utils.book_new();
@@ -591,8 +589,24 @@ export function DownloadsReportsPage({
         XLSX.utils.book_append_sheet(wb, ws, "ব্যাংক ও ক্যাশ বুক");
       }
 
-      XLSX.writeFile(wb, fileName);
-      setDownloadSuccessNotice(`✅ এক্সেল ফাইল সফলভাবে ডাউনলোড হয়েছে: ${fileName}`);
+      if (isNativeAndroidApp()) {
+        const arrayBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+        const excelBlob = new Blob([arrayBuffer], {
+          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+        await nativeSaveFile(
+          excelBlob,
+          fileName,
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        );
+      } else {
+        XLSX.writeFile(wb, fileName);
+      }
+      setDownloadSuccessNotice(
+        language === 'bn'
+          ? `✅ এক্সেল ফাইল সফলভাবে ডাউনলোড হয়েছে: ${fileName}`
+          : `✅ Excel file downloaded successfully: ${fileName}`
+      );
       setTimeout(() => setDownloadSuccessNotice(""), 6000);
     } catch (err) {
       console.error("Excel download failed:", err);
@@ -645,51 +659,67 @@ export function DownloadsReportsPage({
   const reportTabs = [
     {
       id: "monthly_range" as const,
-      label: "মাসিক ও মাস-রেঞ্জ কালেকশন শিট",
+      label: language === 'bn' ? "মাসিক ও মাস-রেঞ্জ কালেকশন শিট" : "Monthly & Month-Range Collection Sheet",
       icon: Calendar,
-      desc: "একক মাস বা নির্বাচিত সময়ের সঞ্চয় ও জরিমানার প্রাতিষ্ঠানিক অডিট শিট",
+      desc: language === 'bn'
+        ? "একক মাস বা নির্বাচিত সময়ের সঞ্চয় ও জরিমানার প্রাতিষ্ঠানিক অডিট শিট"
+        : "Institutional audit sheet of savings and fines for a single month or a selected period",
     },
     {
       id: "yearly_summary" as const,
-      label: "বাৎসরিক আর্থিক বিবরণী ও অডিট",
+      label: language === 'bn' ? "বাৎসরিক আর্থিক বিবরণী ও অডিট" : "Annual Financial Statement & Audit",
       icon: TrendingUp,
-      desc: "১২ মাসের আয়, ব্যয়, সঞ্চয় প্রবৃদ্ধি ও নেট স্থিতির এক্সিকিউটিভ সামারি",
+      desc: language === 'bn'
+        ? "১২ মাসের আয়, ব্যয়, সঞ্চয় প্রবৃদ্ধি ও নেট স্থিতির এক্সিকিউটিভ সামারি"
+        : "Executive summary of 12 months' income, expenses, savings growth and net balance",
     },
     {
       id: "member_profile" as const,
-      label: "সদস্য প্রোফাইল ও পূর্ণাঙ্গ লেজার",
+      label: language === 'bn' ? "সদস্য প্রোফাইল ও পূর্ণাঙ্গ লেজার" : "Member Profile & Full Ledger",
       icon: User,
-      desc: "একক সদস্যের প্রাতিষ্ঠানিক পরিচিতি, ছবি ও সকল কিস্তির রসিদ খতিয়ান",
+      desc: language === 'bn'
+        ? "একক সদস্যের প্রাতিষ্ঠানিক পরিচিতি, ছবি ও সকল কিস্তির রসিদ খতিয়ান"
+        : "Institutional identity, photo, and full installment receipt ledger of a single member",
     },
     {
       id: "all_members" as const,
-      label: "সকল সদস্যের মাস্টার ডিরেক্টরি",
+      label: language === 'bn' ? "সকল সদস্যের মাস্টার ডিরেক্টরি" : "All Members Master Directory",
       icon: Users,
-      desc: "সকল অংশীদারের অফিসিয়াল সদস্য রেজিস্টার ও মোট সঞ্চয় স্থিতি",
+      desc: language === 'bn'
+        ? "সকল অংশীদারের অফিসিয়াল সদস্য রেজিস্টার ও মোট সঞ্চয় স্থিতি"
+        : "Official member register and total savings balance for all partners",
     },
     {
       id: "tgs_fund" as const,
-      label: "টিজিএস ফান্ড আয়-ব্যয় খতিয়ান",
+      label: language === 'bn' ? "টিজিএস ফান্ড আয়-ব্যয় খতিয়ান" : "TGS Fund Income-Expense Ledger",
       icon: ShieldCheck,
-      desc: "বিনিয়োগের ৫% লভ্যাংশ, আলাদা আয় ও সকল ভাউচার ব্যয়ের অডিট",
+      desc: language === 'bn'
+        ? "বিনিয়োগের ৫% লভ্যাংশ, আলাদা আয় ও সকল ভাউচার ব্যয়ের অডিট"
+        : "Audit of 5% investment dividend, separate income, and all voucher expenses",
     },
     {
       id: "due_defaulters" as const,
-      label: "বকেয়া সঞ্চয় ও বিলম্বিত তালিকা",
+      label: language === 'bn' ? "বকেয়া সঞ্চয় ও বিলম্বিত তালিকা" : "Due Savings & Defaulters List",
       icon: AlertCircle,
-      desc: "নির্ধারিত মাসের বকেয়া সদস্য তালিকা ও জরিমানা রিকভারি স্টেটমেন্ট",
+      desc: language === 'bn'
+        ? "নির্ধারিত মাসের বকেয়া সদস্য তালিকা ও জরিমানা রিকভারি স্টেটমেন্ট"
+        : "List of due members for a selected month and the fine recovery statement",
     },
     {
       id: "investments" as const,
-      label: "বিনিয়োগ প্রকল্প ও লভ্যাংশ বিবরণী",
+      label: language === 'bn' ? "বিনিয়োগ প্রকল্প ও লভ্যাংশ বিবরণী" : "Investment Projects & Dividend Statement",
       icon: Building,
-      desc: "প্রকল্পের মূলধন, মোট লভ্যাংশ এবং ৫% টিজিএস প্রাতিষ্ঠানিক অংশ বণ্টন",
+      desc: language === 'bn'
+        ? "প্রকল্পের মূলধন, মোট লভ্যাংশ এবং ৫% টিজিএস প্রাতিষ্ঠানিক অংশ বণ্টন"
+        : "Project capital, total dividend, and the 5% TGS institutional share distribution",
     },
     {
       id: "bank_cash" as const,
-      label: "ব্যাংক হিসাব ও ক্যাশ বুক",
+      label: language === 'bn' ? "ব্যাংক হিসাব ও ক্যাশ বুক" : "Bank Account & Cash Book",
       icon: Landmark,
-      desc: "ব্যাংক অ্যাকাউন্টের ক্রেডিট-ডেবিট ও প্রাতিষ্ঠানিক ক্যাশ ব্যালেন্স",
+      desc: language === 'bn'
+        ? "ব্যাংক অ্যাকাউন্টের ক্রেডিট-ডেবিট ও প্রাতিষ্ঠানিক ক্যাশ ব্যালেন্স"
+        : "Bank account credit-debit and the institutional cash balance",
     },
   ];
 
@@ -706,7 +736,7 @@ export function DownloadsReportsPage({
             onClick={() => setDownloadSuccessNotice("")}
             className="text-xs text-emerald-200 hover:text-white underline font-semibold ml-3 cursor-pointer"
           >
-            বন্ধ করুন
+            {language === 'bn' ? "বন্ধ করুন" : "Close"}
           </button>
         </div>
       )}
@@ -721,15 +751,17 @@ export function DownloadsReportsPage({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  অফিসিয়াল রিপোর্ট ও স্টেটমেন্ট হাব
+                  {language === 'bn' ? "অফিসিয়াল রিপোর্ট ও স্টেটমেন্ট হাব" : "Official Report & Statement Hub"}
                 </span>
-                <span className="text-xs text-stone-500 font-medium">কর্পোরেট ফরম্যাটে PDF, JPG ও এক্সেল ফাইল ডাউনলোড</span>
+                <span className="text-xs text-stone-500 font-medium">{language === 'bn' ? "কর্পোরেট ফরম্যাটে PDF, JPG ও এক্সেল ফাইল ডাউনলোড" : "Download PDF, JPG and Excel files in corporate format"}</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-bold text-stone-900 mt-0.5">
-                অফিসিয়াল রিপোর্ট ও ডকুমেন্ট ডাউনলোড
+                {language === 'bn' ? "অফিসিয়াল রিপোর্ট ও ডকুমেন্ট ডাউনলোড" : "Official Reports & Document Downloads"}
               </h2>
               <p className="text-xs text-stone-500 mt-0.5">
-                ক্যাটাগরি অনুযায়ী প্রস্তুতকৃত পরিচ্ছন্ন ও পেশাদার প্রাতিষ্ঠানিক অডিট ফরম্যাট
+                {language === 'bn'
+                  ? "ক্যাটাগরি অনুযায়ী প্রস্তুতকৃত পরিচ্ছন্ন ও পেশাদার প্রাতিষ্ঠানিক অডিট ফরম্যাট"
+                  : "Clean and professional institutional audit format prepared by category"}
               </p>
             </div>
           </div>
@@ -742,17 +774,17 @@ export function DownloadsReportsPage({
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
               className="flex items-center gap-2 bg-emerald-800 hover:bg-emerald-900 active:scale-[0.98] text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md disabled:opacity-60 cursor-pointer"
-              title="সরাসরি PDF ফাইল ডাউনলোড করুন"
+              title={language === 'bn' ? "সরাসরি PDF ফাইল ডাউনলোড করুন" : "Download the PDF file directly"}
             >
               {isDownloadingPdf ? (
                 <>
                   <RefreshCw size={16} className="animate-spin text-amber-300" />
-                  <span>PDF প্রস্তুত হচ্ছে...</span>
+                  <span>{language === 'bn' ? "PDF প্রস্তুত হচ্ছে..." : "Preparing PDF..."}</span>
                 </>
               ) : (
                 <>
                   <FileText size={16} className="text-amber-300" />
-                  <span>PDF ডাউনলোড (.PDF)</span>
+                  <span>{language === 'bn' ? "PDF ডাউনলোড (.PDF)" : "Download PDF (.PDF)"}</span>
                 </>
               )}
             </button>
@@ -763,17 +795,17 @@ export function DownloadsReportsPage({
               onClick={handleDownloadImage}
               disabled={isDownloadingImage}
               className="flex items-center gap-2 bg-amber-400 hover:bg-amber-300 active:scale-[0.98] text-emerald-950 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-black transition-all shadow-md disabled:opacity-60 cursor-pointer"
-              title="এইচডি কোয়ালিটি ছবি হিসেবে ডাউনলোড করুন"
+              title={language === 'bn' ? "এইচডি কোয়ালিটি ছবি হিসেবে ডাউনলোড করুন" : "Download as an HD quality image"}
             >
               {isDownloadingImage ? (
                 <>
                   <RefreshCw size={16} className="animate-spin" />
-                  <span>ছবি তৈরি হচ্ছে...</span>
+                  <span>{language === 'bn' ? "ছবি তৈরি হচ্ছে..." : "Preparing image..."}</span>
                 </>
               ) : (
                 <>
                   <ImageDown size={16} />
-                  <span>ছবি ডাউনলোড (.JPG)</span>
+                  <span>{language === 'bn' ? "ছবি ডাউনলোড (.JPG)" : "Download Image (.JPG)"}</span>
                 </>
               )}
             </button>
@@ -784,10 +816,10 @@ export function DownloadsReportsPage({
               onClick={handleExportExcel}
               disabled={isDownloadingExcel}
               className="flex items-center gap-2 bg-emerald-950 hover:bg-stone-900 active:scale-[0.98] text-emerald-300 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold border border-emerald-800 transition-all shadow-xs disabled:opacity-60 cursor-pointer"
-              title="সম্পূর্ণ ডেটা এক্সেল শিটে ডাউনলোড করুন"
+              title={language === 'bn' ? "সম্পূর্ণ ডেটা এক্সেল শিটে ডাউনলোড করুন" : "Download the complete data as an Excel sheet"}
             >
               <FileSpreadsheet size={16} />
-              <span>এক্সেল (.XLSX)</span>
+              <span>{language === 'bn' ? "এক্সেল (.XLSX)" : "Excel (.XLSX)"}</span>
             </button>
 
             {/* Print */}
@@ -795,10 +827,10 @@ export function DownloadsReportsPage({
               id="print-report-btn"
               onClick={handlePrint}
               className="flex items-center gap-1.5 bg-stone-100 hover:bg-stone-200 text-stone-800 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-semibold border border-stone-300 transition-all cursor-pointer"
-              title="ব্রাউজারে প্রিন্ট বা প্রিভিউ করুন"
+              title={language === 'bn' ? "ব্রাউজারে প্রিন্ট বা প্রিভিউ করুন" : "Print or preview in the browser"}
             >
               <Printer size={15} className="text-stone-600" />
-              <span>প্রিন্ট</span>
+              <span>{language === 'bn' ? "প্রিন্ট" : "Print"}</span>
             </button>
 
             {/* WhatsApp Share */}
@@ -806,7 +838,7 @@ export function DownloadsReportsPage({
               id="share-whatsapp-btn"
               onClick={handleShareWhatsApp}
               className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white px-3 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all shadow-xs cursor-pointer"
-              title="WhatsApp এ সারাংশ পাঠান"
+              title={language === 'bn' ? "WhatsApp এ সারাংশ পাঠান" : "Send summary on WhatsApp"}
             >
               <Share2 size={15} />
               <span>WhatsApp</span>
@@ -860,7 +892,7 @@ export function DownloadsReportsPage({
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-stone-700 flex items-center gap-1.5">
-                <Filter size={14} className="text-emerald-700" /> ফিল্টার মোড:
+                <Filter size={14} className="text-emerald-700" /> {language === 'bn' ? "ফিল্টার মোড:" : "Filter mode:"}
               </span>
               <div className="flex items-center p-0.5 bg-stone-100 rounded-lg text-xs font-semibold">
                 <button
@@ -871,7 +903,7 @@ export function DownloadsReportsPage({
                       : "text-stone-600 hover:text-stone-900"
                   }`}
                 >
-                  একক মাস
+                  {language === 'bn' ? "একক মাস" : "Single Month"}
                 </button>
                 <button
                   onClick={() => setRangeMode("range")}
@@ -881,7 +913,7 @@ export function DownloadsReportsPage({
                       : "text-stone-600 hover:text-stone-900"
                   }`}
                 >
-                  মাস রেঞ্জ (কয়েক মাস)
+                  {language === 'bn' ? "মাস রেঞ্জ (কয়েক মাস)" : "Month Range (multiple months)"}
                 </button>
               </div>
             </div>
@@ -889,7 +921,9 @@ export function DownloadsReportsPage({
             <div className="flex items-center gap-2 flex-wrap text-xs">
               <div className="flex items-center gap-1.5">
                 <span className="text-stone-500 font-medium">
-                  {rangeMode === "single" ? "মাস নির্বাচন:" : "শুরুর মাস:"}
+                  {rangeMode === "single"
+                    ? (language === 'bn' ? "মাস নির্বাচন:" : "Select month:")
+                    : (language === 'bn' ? "শুরুর মাস:" : "From month:")}
                 </span>
                 <select
                   value={fromMonth}
@@ -906,7 +940,7 @@ export function DownloadsReportsPage({
 
               {rangeMode === "range" && (
                 <div className="flex items-center gap-1.5">
-                  <span className="text-stone-500 font-medium">শেষের মাস:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "শেষের মাস:" : "To month:"}</span>
                   <select
                     value={toMonth}
                     onChange={(e) => setToMonth(e.target.value)}
@@ -928,7 +962,7 @@ export function DownloadsReportsPage({
         {selectedReport === "yearly_summary" && (
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-stone-700">অর্থবছর নির্বাচন করুন:</span>
+              <span className="text-xs font-bold text-stone-700">{language === 'bn' ? "অর্থবছর নির্বাচন করুন:" : "Select fiscal year:"}</span>
               <div className="flex items-center gap-1.5">
                 {availableYears.map((yr) => (
                   <button
@@ -952,7 +986,7 @@ export function DownloadsReportsPage({
         {selectedReport === "member_profile" && (
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-[260px]">
-              <span className="text-xs font-bold text-stone-700 shrink-0">সদস্য নির্বাচন:</span>
+              <span className="text-xs font-bold text-stone-700 shrink-0">{language === 'bn' ? "সদস্য নির্বাচন:" : "Select member:"}</span>
               <select
                 value={selectedMemberUid}
                 onChange={(e) => setSelectedMemberUid(e.target.value)}
@@ -960,7 +994,7 @@ export function DownloadsReportsPage({
               >
                 {members.map((m) => (
                   <option key={m.uid} value={m.uid}>
-                    {m.name} ({m.uid}) - {m.mobile || "মোবাইল নেই"}
+                    {m.name} ({m.uid}) - {m.mobile || (language === 'bn' ? "মোবাইল নেই" : "No mobile")}
                   </option>
                 ))}
               </select>
@@ -972,7 +1006,7 @@ export function DownloadsReportsPage({
         {selectedReport === "due_defaulters" && (
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-stone-700">বকেয়া নিরীক্ষার মাস:</span>
+              <span className="text-xs font-bold text-stone-700">{language === 'bn' ? "বকেয়া নিরীক্ষার মাস:" : "Due audit month:"}</span>
               <select
                 value={fromMonth}
                 onChange={(e) => setFromMonth(e.target.value)}
@@ -993,7 +1027,7 @@ export function DownloadsReportsPage({
       <div className="bg-stone-50 rounded-2xl border border-stone-300 p-4 sm:p-6 shadow-inner">
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4 pb-3 border-b border-stone-200 text-xs">
           <span className="font-bold flex items-center gap-1.5 text-stone-800">
-            <Eye size={15} className="text-emerald-700" /> অফিসিয়াল প্রিন্ট ও ডকুমেন্ট প্রিভিউ (A4 Format)
+            <Eye size={15} className="text-emerald-700" /> {language === 'bn' ? "অফিসিয়াল প্রিন্ট ও ডকুমেন্ট প্রিভিউ (A4 Format)" : "Official Print & Document Preview (A4 Format)"}
           </span>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -1007,7 +1041,7 @@ export function DownloadsReportsPage({
               ) : (
                 <FileText size={13} className="text-amber-300" />
               )}
-              <span>{isDownloadingPdf ? "তৈরি হচ্ছে..." : "PDF ডাউনলোড"}</span>
+              <span>{isDownloadingPdf ? (language === 'bn' ? "তৈরি হচ্ছে..." : "Preparing...") : (language === 'bn' ? "PDF ডাউনলোড" : "Download PDF")}</span>
             </button>
 
             <button
@@ -1020,7 +1054,7 @@ export function DownloadsReportsPage({
               ) : (
                 <ImageDown size={13} />
               )}
-              <span>ছবি (JPG)</span>
+              <span>{language === 'bn' ? "ছবি (JPG)" : "Image (JPG)"}</span>
             </button>
 
             <button
@@ -1029,7 +1063,7 @@ export function DownloadsReportsPage({
               className="text-xs font-bold bg-emerald-950 hover:bg-stone-900 text-emerald-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1 border border-emerald-800 shadow-xs cursor-pointer"
             >
               <FileSpreadsheet size={13} />
-              <span>এক্সেল</span>
+              <span>{language === 'bn' ? "এক্সেল" : "Excel"}</span>
             </button>
 
             <button
@@ -1037,7 +1071,7 @@ export function DownloadsReportsPage({
               className="text-xs font-semibold bg-white hover:bg-stone-100 text-stone-700 border border-stone-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
             >
               <Printer size={13} />
-              <span>প্রিন্ট</span>
+              <span>{language === 'bn' ? "প্রিন্ট" : "Print"}</span>
             </button>
 
             {onOpenWatermarkSettings && (
@@ -1045,10 +1079,10 @@ export function DownloadsReportsPage({
                 type="button"
                 onClick={onOpenWatermarkSettings}
                 className="text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 px-2.5 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
-                title="রিপোর্ট ব্যাকগ্রাউন্ড জলছাপ (Watermark) সেটিংস"
+                title={language === 'bn' ? "রিপোর্ট ব্যাকগ্রাউন্ড জলছাপ (Watermark) সেটিংস" : "Report background watermark settings"}
               >
                 <Sparkles size={13} className="text-amber-700" />
-                <span>জলছাপ</span>
+                <span>{language === 'bn' ? "জলছাপ" : "Watermark"}</span>
               </button>
             )}
           </div>
@@ -1096,26 +1130,42 @@ export function DownloadsReportsPage({
             <div className="mt-3 pt-2.5 border-t border-dashed border-stone-300">
               <h2 className="text-sm sm:text-base font-bold text-stone-900 uppercase tracking-wide">
                 {selectedReport === "monthly_range" &&
-                  `মাসিক সঞ্চয় কালেকশন ও সামারি স্টেটমেন্ট (${rangeMode === "single" ? fromMonth : `${fromMonth} হতে ${toMonth}`})`}
+                  (language === 'bn'
+                    ? `মাসিক সঞ্চয় কালেকশন ও সামারি স্টেটমেন্ট (${rangeMode === "single" ? fromMonth : `${fromMonth} হতে ${toMonth}`})`
+                    : `Monthly Savings Collection & Summary Statement (${rangeMode === "single" ? fromMonth : `${fromMonth} to ${toMonth}`})`)}
                 {selectedReport === "yearly_summary" &&
-                  `বাৎসরিক সার্বিক আর্থিক অডিট ও কর্মক্ষমতা বিবরণী (${selectedYear} অর্থবছর)`}
+                  (language === 'bn'
+                    ? `বাৎসরিক সার্বিক আর্থিক অডিট ও কর্মক্ষমতা বিবরণী (${selectedYear} অর্থবছর)`
+                    : `Annual Overall Financial Audit & Performance Statement (FY ${selectedYear})`)}
                 {selectedReport === "member_profile" &&
-                  `সদস্য প্রোফাইল ও পূর্ণাঙ্গ সঞ্চয় খতিয়ান - ${selectedMember?.name || ""} (${selectedMember?.uid || ""})`}
+                  (language === 'bn'
+                    ? `সদস্য প্রোফাইল ও পূর্ণাঙ্গ সঞ্চয় খতিয়ান - ${selectedMember?.name || ""} (${selectedMember?.uid || ""})`
+                    : `Member Profile & Full Savings Ledger - ${selectedMember?.name || ""} (${selectedMember?.uid || ""})`)}
                 {selectedReport === "all_members" &&
-                  `সমিতির সকল নিবন্ধিত সদস্যের মাস্টার রেজিস্টার ও সঞ্চয় পোর্টফোলিও`}
+                  (language === 'bn'
+                    ? `সমিতির সকল নিবন্ধিত সদস্যের মাস্টার রেজিস্টার ও সঞ্চয় পোর্টফোলিও`
+                    : `Master Register & Savings Portfolio of All Registered Members`)}
                 {selectedReport === "tgs_fund" &&
-                  `টিজিএস ফান্ড (TGS Fund) জমা-খরচ ও রিজার্ভ অডিট স্টেটমেন্ট`}
+                  (language === 'bn'
+                    ? `টিজিএস ফান্ড (TGS Fund) জমা-খরচ ও রিজার্ভ অডিট স্টেটমেন্ট`
+                    : `TGS Fund Deposit-Expense & Reserve Audit Statement`)}
                 {selectedReport === "due_defaulters" &&
-                  `বকেয়া ও বিলম্বিত সঞ্চয় তাগিদ নোটিশ তালিকা (${fromMonth})`}
+                  (language === 'bn'
+                    ? `বকেয়া ও বিলম্বিত সঞ্চয় তাগিদ নোটিশ তালিকা (${fromMonth})`
+                    : `Due & Delayed Savings Reminder Notice List (${fromMonth})`)}
                 {selectedReport === "investments" &&
-                  `বিনিয়োগ প্রকল্প ও লভ্যাংশ বণ্টন বিবরণী (৫% টিজিএস প্রাতিষ্ঠানিক অংশ সহ)`}
+                  (language === 'bn'
+                    ? `বিনিয়োগ প্রকল্প ও লভ্যাংশ বণ্টন বিবরণী (৫% টিজিএস প্রাতিষ্ঠানিক অংশ সহ)`
+                    : `Investment Project & Dividend Distribution Statement (incl. 5% TGS institutional share)`)}
                 {selectedReport === "bank_cash" &&
-                  `ব্যাংক হিসাব ও নগদ ক্যাশ বুক স্টেটমেন্ট`}
+                  (language === 'bn'
+                    ? `ব্যাংক হিসাব ও নগদ ক্যাশ বুক স্টেটমেন্ট`
+                    : `Bank Account & Cash Book Statement`)}
               </h2>
               <div className="flex items-center justify-between text-[10px] text-stone-400 mt-1 flex-wrap">
-                <span>রিপোর্ট প্রস্তুতের তারিখ: {new Date().toLocaleDateString("bn-BD")}</span>
-                <span>স্ট্যাটাস: মূল কপি (Verified & Official)</span>
-                <span>সময়: {new Date().toLocaleTimeString("bn-BD")}</span>
+                <span>{language === 'bn' ? "রিপোর্ট প্রস্তুতের তারিখ:" : "Report prepared on:"} {new Date().toLocaleDateString(language === 'bn' ? "bn-BD" : "en-GB")}</span>
+                <span>{language === 'bn' ? "স্ট্যাটাস: মূল কপি (Verified & Official)" : "Status: Original Copy (Verified & Official)"}</span>
+                <span>{language === 'bn' ? "সময়:" : "Time:"} {new Date().toLocaleTimeString(language === 'bn' ? "bn-BD" : "en-GB")}</span>
               </div>
             </div>
           </div>
@@ -1126,32 +1176,32 @@ export function DownloadsReportsPage({
               {/* Executive Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
                 <div>
-                  <span className="text-stone-500 font-medium">মোট নিয়মিত সঞ্চয়:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "মোট নিয়মিত সঞ্চয়:" : "Total regular savings:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-950 mt-0.5">
                     {currency(rangeTotalSavings)}
                   </p>
-                  <span className="text-[10px] text-stone-400">মোট {rangeDeposits.length} টি জমা</span>
+                  <span className="text-[10px] text-stone-400">{language === 'bn' ? `মোট ${rangeDeposits.length} টি জমা` : `Total ${rangeDeposits.length} deposits`}</span>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">বিলম্ব জরিমানা আদায়:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "বিলম্ব জরিমানা আদায়:" : "Late fine collected:"}</span>
                   <p className="text-base font-bold font-mono text-amber-900 mt-0.5">
                     {currency(rangeTotalFines)}
                   </p>
-                  <span className="text-[10px] text-stone-400">১০ তারিখের পরের জরিমানা</span>
+                  <span className="text-[10px] text-stone-400">{language === 'bn' ? "১০ তারিখের পরের জরিমানা" : "Fine after the 10th"}</span>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">সর্বমোট ক্যাশ কালেকশন:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "সর্বমোট ক্যাশ কালেকশন:" : "Total cash collection:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">
                     {currency(rangeGrandTotal)}
                   </p>
-                  <span className="text-[10px] text-emerald-700 font-bold">সঞ্চয় + জরিমানা</span>
+                  <span className="text-[10px] text-emerald-700 font-bold">{language === 'bn' ? "সঞ্চয় + জরিমানা" : "Savings + Fine"}</span>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">কালেকশন হার:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "কালেকশন হার:" : "Collection rate:"}</span>
                   <p className="text-base font-bold font-mono text-stone-800 mt-0.5">
                     {members.length > 0 ? Math.round((rangeDeposits.length / members.length) * 100) : 0}%
                   </p>
-                  <span className="text-[10px] text-stone-400">{rangeDeposits.length}/{members.length} জন সদস্য</span>
+                  <span className="text-[10px] text-stone-400">{rangeDeposits.length}/{members.length} {language === 'bn' ? "জন সদস্য" : "members"}</span>
                 </div>
               </div>
 
@@ -1159,31 +1209,31 @@ export function DownloadsReportsPage({
               <div className="p-2.5 bg-emerald-50/70 rounded-lg border border-emerald-200 text-xs text-emerald-950 flex items-center gap-2">
                 <FileCheck size={15} className="text-emerald-800 shrink-0" />
                 <span>
-                  <strong className="text-emerald-900">কথায় (সর্বমোট আদায়):</strong> {numberToBnWords(rangeGrandTotal)}
+                  <strong className="text-emerald-900">{language === 'bn' ? "কথায় (সর্বমোট আদায়):" : "In words (total collection):"}</strong> {numberToBnWords(rangeGrandTotal)}
                 </span>
               </div>
 
               {/* Table of deposits */}
               <div>
                 <div className="flex items-center justify-between mb-2 text-xs font-bold text-stone-800">
-                  <span>সদস্যদের জমা বিবরণী তালিকা ({rangeDeposits.length} জন)</span>
-                  <span className="text-[11px] text-stone-500 font-normal">আদায়কৃত রসিদ তালিকা</span>
+                  <span>{language === 'bn' ? `সদস্যদের জমা বিবরণী তালিকা (${rangeDeposits.length} জন)` : `Members' Deposit Statement List (${rangeDeposits.length} members)`}</span>
+                  <span className="text-[11px] text-stone-500 font-normal">{language === 'bn' ? "আদায়কৃত রসিদ তালিকা" : "Collected receipt list"}</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs border border-stone-200">
                     <thead>
                       <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                        <th className="py-2 px-2.5 border-r border-stone-200">ক্র.</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">রসিদ নং</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">সদস্যের নাম ও আইডি</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">মোবাইল</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">জমার মাস</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">তারিখ</th>
-                        <th className="py-2 px-2.5 text-right border-r border-stone-200">সঞ্চয় (৳)</th>
-                        <th className="py-2 px-2.5 text-right border-r border-stone-200">জরিমানা (৳)</th>
-                        <th className="py-2 px-2.5 text-right border-r border-stone-200">মোট (৳)</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">মাধ্যম</th>
-                        <th className="py-2 px-2.5 text-center">স্ট্যাটাস</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "ক্র." : "No."}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "রসিদ নং" : "Receipt No."}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "সদস্যের নাম ও আইডি" : "Member Name & ID"}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "মোবাইল" : "Mobile"}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "জমার মাস" : "Deposit Month"}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "তারিখ" : "Date"}</th>
+                        <th className="py-2 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "সঞ্চয় (৳)" : "Savings (৳)"}</th>
+                        <th className="py-2 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "জরিমানা (৳)" : "Fine (৳)"}</th>
+                        <th className="py-2 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "মোট (৳)" : "Total (৳)"}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "মাধ্যম" : "Method"}</th>
+                        <th className="py-2 px-2.5 text-center">{language === 'bn' ? "স্ট্যাটাস" : "Status"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -1224,7 +1274,7 @@ export function DownloadsReportsPage({
                             </td>
                             <td className="py-1.5 px-2.5 text-center">
                               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-1.5 py-0.5 rounded">
-                                অনুমোদিত
+                                {language === 'bn' ? "অনুমোদিত" : "Approved"}
                               </span>
                             </td>
                           </tr>
@@ -1233,7 +1283,7 @@ export function DownloadsReportsPage({
                       {rangeDeposits.length === 0 && (
                         <tr>
                           <td colSpan={11} className="py-8 text-center text-stone-400">
-                            নির্বাচিত মাস বা রেঞ্জে কোনো জমার রেকর্ড পাওয়া যায়নি।
+                            {language === 'bn' ? "নির্বাচিত মাস বা রেঞ্জে কোনো জমার রেকর্ড পাওয়া যায়নি।" : "No deposit records found for the selected month or range."}
                           </td>
                         </tr>
                       )}
@@ -1241,7 +1291,7 @@ export function DownloadsReportsPage({
                     <tfoot>
                       <tr className="bg-stone-100 font-black border-t-2 border-stone-300">
                         <td colSpan={6} className="py-2.5 px-2.5 text-right border-r border-stone-200">
-                          সর্বমোট কালেকশন হিসাব:
+                          {language === 'bn' ? "সর্বমোট কালেকশন হিসাব:" : "Grand total collection:"}
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono border-r border-stone-200">
                           {currency(rangeTotalSavings)}
@@ -1253,7 +1303,7 @@ export function DownloadsReportsPage({
                           {currency(rangeGrandTotal)}
                         </td>
                         <td colSpan={2} className="text-center text-[10px] text-stone-500 font-medium">
-                          {rangeDeposits.length} টি রসিদ সমাপ্ত
+                          {language === 'bn' ? `${rangeDeposits.length} টি রসিদ সমাপ্ত` : `${rangeDeposits.length} receipts completed`}
                         </td>
                       </tr>
                     </tfoot>
@@ -1269,25 +1319,25 @@ export function DownloadsReportsPage({
               {/* Executive KPIs */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
                 <div>
-                  <span className="text-stone-500">বাৎসরিক মোট সঞ্চয়:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "বাৎসরিক মোট সঞ্চয়:" : "Annual total savings:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-950 mt-0.5">
                     {currency(yearlyTotals.depositAmount)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">বাৎসরিক মোট জরিমানা:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "বাৎসরিক মোট জরিমানা:" : "Annual total fine:"}</span>
                   <p className="text-base font-bold font-mono text-amber-900 mt-0.5">
                     {currency(yearlyTotals.fineAmount)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">বাৎসরিক মোট খরচ:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "বাৎসরিক মোট খরচ:" : "Annual total expense:"}</span>
                   <p className="text-base font-bold font-mono text-rose-900 mt-0.5">
                     {currency(yearlyTotals.expenseAmount)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">বাৎসরিক নেট উদ্বৃত্ত:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "বাৎসরিক নেট উদ্বৃত্ত:" : "Annual net surplus:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">
                     {currency(yearlyTotals.netSurplus)}
                   </p>
@@ -1298,7 +1348,7 @@ export function DownloadsReportsPage({
               <div className="p-2.5 bg-emerald-50/70 rounded-lg border border-emerald-200 text-xs text-emerald-950 flex items-center gap-2">
                 <FileCheck size={15} className="text-emerald-800 shrink-0" />
                 <span>
-                  <strong className="text-emerald-900">কথায় (বাৎসরিক নেট উদ্বৃত্ত):</strong> {numberToBnWords(yearlyTotals.netSurplus)}
+                  <strong className="text-emerald-900">{language === 'bn' ? "কথায় (বাৎসরিক নেট উদ্বৃত্ত):" : "In words (annual net surplus):"}</strong> {numberToBnWords(yearlyTotals.netSurplus)}
                 </span>
               </div>
 
@@ -1307,14 +1357,14 @@ export function DownloadsReportsPage({
                 <table className="w-full text-left border-collapse text-xs border border-stone-200">
                   <thead>
                     <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                      <th className="py-2.5 px-3 border-r border-stone-200">মাস</th>
-                      <th className="py-2.5 px-3 text-center border-r border-stone-200">জমার সংখ্যা</th>
-                      <th className="py-2.5 px-3 text-right border-r border-stone-200">সঞ্চয় জমা (৳)</th>
-                      <th className="py-2.5 px-3 text-right border-r border-stone-200">বিলম্ব জরিমানা (৳)</th>
-                      <th className="py-2.5 px-3 text-right border-r border-stone-200">মোট আদায় (৳)</th>
-                      <th className="py-2.5 px-3 text-right border-r border-stone-200">সমিতি ব্যয় (৳)</th>
-                      <th className="py-2.5 px-3 text-right border-r border-stone-200">নেট উদ্বৃত্ত (৳)</th>
-                      <th className="py-2.5 px-3 text-center">আদায় হার</th>
+                      <th className="py-2.5 px-3 border-r border-stone-200">{language === 'bn' ? "মাস" : "Month"}</th>
+                      <th className="py-2.5 px-3 text-center border-r border-stone-200">{language === 'bn' ? "জমার সংখ্যা" : "No. of Deposits"}</th>
+                      <th className="py-2.5 px-3 text-right border-r border-stone-200">{language === 'bn' ? "সঞ্চয় জমা (৳)" : "Savings Deposit (৳)"}</th>
+                      <th className="py-2.5 px-3 text-right border-r border-stone-200">{language === 'bn' ? "বিলম্ব জরিমানা (৳)" : "Late Fine (৳)"}</th>
+                      <th className="py-2.5 px-3 text-right border-r border-stone-200">{language === 'bn' ? "মোট আদায় (৳)" : "Total Collection (৳)"}</th>
+                      <th className="py-2.5 px-3 text-right border-r border-stone-200">{language === 'bn' ? "সমিতি ব্যয় (৳)" : "Society Expense (৳)"}</th>
+                      <th className="py-2.5 px-3 text-right border-r border-stone-200">{language === 'bn' ? "নেট উদ্বৃত্ত (৳)" : "Net Surplus (৳)"}</th>
+                      <th className="py-2.5 px-3 text-center">{language === 'bn' ? "আদায় হার" : "Collection Rate"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -1349,9 +1399,9 @@ export function DownloadsReportsPage({
                   </tbody>
                   <tfoot>
                     <tr className="bg-stone-100 font-black border-t-2 border-stone-300">
-                      <td className="py-2.5 px-3 border-r border-stone-200">সর্বমোট বাৎসরিক হিসাব:</td>
+                      <td className="py-2.5 px-3 border-r border-stone-200">{language === 'bn' ? "সর্বমোট বাৎসরিক হিসাব:" : "Grand total (annual):"}</td>
                       <td className="py-2.5 px-3 text-center font-mono border-r border-stone-200">
-                        {yearlyTotals.depositsCount} টি
+                        {language === 'bn' ? `${yearlyTotals.depositsCount} টি` : yearlyTotals.depositsCount}
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono border-r border-stone-200">
                         {currency(yearlyTotals.depositAmount)}
@@ -1369,7 +1419,7 @@ export function DownloadsReportsPage({
                         {currency(yearlyTotals.netSurplus)}
                       </td>
                       <td className="text-center font-bold text-[11px] text-emerald-800">
-                        অডিট সমাপ্ত
+                        {language === 'bn' ? "অডিট সমাপ্ত" : "Audit Complete"}
                       </td>
                     </tr>
                   </tfoot>
@@ -1379,11 +1429,12 @@ export function DownloadsReportsPage({
               {/* Auditor's Note Box */}
               <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs space-y-1 text-stone-700">
                 <p className="font-bold text-stone-900 flex items-center gap-1.5">
-                  <Info size={14} className="text-emerald-700" /> অডিট পর্যবেক্ষণ ও সারসংক্ষেপ:
+                  <Info size={14} className="text-emerald-700" /> {language === 'bn' ? "অডিট পর্যবেক্ষণ ও সারসংক্ষেপ:" : "Audit Observation & Summary:"}
                 </p>
                 <p className="text-[11px] leading-relaxed">
-                  {selectedYear} অর্থবছরে ট্রাস্ট গ্রোথ সোসাইটি মোট {yearlyTotals.depositsCount} টি মাসিক সঞ্চয় কিস্তি সফলভাবে সংগ্রহ করেছে।
-                  সমিতির সকল পরিচালন ব্যয় নির্বাহের পর নেট উদ্বৃত্ত সন্তোষজনক পর্যায়ে রয়েছে।
+                  {language === 'bn'
+                    ? `${selectedYear} অর্থবছরে ট্রাস্ট গ্রোথ সোসাইটি মোট ${yearlyTotals.depositsCount} টি মাসিক সঞ্চয় কিস্তি সফলভাবে সংগ্রহ করেছে। সমিতির সকল পরিচালন ব্যয় নির্বাহের পর নেট উদ্বৃত্ত সন্তোষজনক পর্যায়ে রয়েছে।`
+                    : `In fiscal year ${selectedYear}, Trust Growth Society successfully collected a total of ${yearlyTotals.depositsCount} monthly savings installments. After meeting all of the society's operating expenses, the net surplus remains at a satisfactory level.`}
                 </p>
               </div>
             </div>
@@ -1403,41 +1454,41 @@ export function DownloadsReportsPage({
                 ) : (
                   <div className="w-24 h-28 rounded-xl bg-stone-200 text-stone-600 flex flex-col items-center justify-center font-bold text-xs border border-stone-300 shrink-0">
                     <User size={30} className="mb-1" />
-                    <span>ছবি নেই</span>
+                    <span>{language === 'bn' ? "ছবি নেই" : "No photo"}</span>
                   </div>
                 )}
 
                 <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
                   <div>
-                    <span className="text-stone-400">সদস্যের নাম:</span>
+                    <span className="text-stone-400">{language === 'bn' ? "সদস্যের নাম:" : "Member name:"}</span>
                     <p className="font-bold text-stone-900 text-sm">{selectedMember.name}</p>
                     {selectedMember.nameEn && (
                       <p className="text-[11px] text-stone-500 font-mono">{selectedMember.nameEn}</p>
                     )}
                   </div>
                   <div>
-                    <span className="text-stone-400">সদস্য আইডি (UID):</span>
+                    <span className="text-stone-400">{language === 'bn' ? "সদস্য আইডি (UID):" : "Member ID (UID):"}</span>
                     <p className="font-black font-mono text-emerald-950 text-sm">{selectedMember.uid}</p>
                   </div>
                   <div>
-                    <span className="text-stone-400">মোবাইল নম্বর:</span>
-                    <p className="font-bold font-mono text-stone-800">{selectedMember.mobile || "প্রযোজ্য নয়"}</p>
+                    <span className="text-stone-400">{language === 'bn' ? "মোবাইল নম্বর:" : "Mobile number:"}</span>
+                    <p className="font-bold font-mono text-stone-800">{selectedMember.mobile || (language === 'bn' ? "প্রযোজ্য নয়" : "N/A")}</p>
                   </div>
                   <div>
-                    <span className="text-stone-400">পেশা / পিতার নাম:</span>
+                    <span className="text-stone-400">{language === 'bn' ? "পেশা / পিতার নাম:" : "Occupation / Father's name:"}</span>
                     <p className="font-semibold text-stone-800">{selectedMember.fatherName || "-"}</p>
                   </div>
                   <div>
-                    <span className="text-stone-400">রক্তের গ্রুপ:</span>
-                    <p className="font-bold text-rose-700 font-mono">{selectedMember.blood || "অজানা"}</p>
+                    <span className="text-stone-400">{language === 'bn' ? "রক্তের গ্রুপ:" : "Blood group:"}</span>
+                    <p className="font-bold text-rose-700 font-mono">{selectedMember.blood || (language === 'bn' ? "অজানা" : "Unknown")}</p>
                   </div>
                   <div>
-                    <span className="text-stone-400">যোগদানের তারিখ:</span>
-                    <p className="font-semibold text-stone-800 font-mono">{selectedMember.joined || "২৫-০৯-২০২৫"}</p>
+                    <span className="text-stone-400">{language === 'bn' ? "যোগদানের তারিখ:" : "Joining date:"}</span>
+                    <p className="font-semibold text-stone-800 font-mono">{selectedMember.joined || (language === 'bn' ? "২৫-০৯-২০২৫" : "25-09-2025")}</p>
                   </div>
                   <div className="col-span-2 sm:col-span-3">
-                    <span className="text-stone-400">স্থায়ী ঠিকানা:</span>
-                    <p className="font-semibold text-stone-800">{selectedMember.address || "উলানিয়া বাজার, গলাচিপা, পটুয়াখালী"}</p>
+                    <span className="text-stone-400">{language === 'bn' ? "স্থায়ী ঠিকানা:" : "Permanent address:"}</span>
+                    <p className="font-semibold text-stone-800">{selectedMember.address || (language === 'bn' ? "উলানিয়া বাজার, গলাচিপা, পটুয়াখালী" : "Ulania Bazar, Galachipa, Patuakhali")}</p>
                   </div>
                 </div>
               </div>
@@ -1445,19 +1496,19 @@ export function DownloadsReportsPage({
               {/* Member Accumulation Metrics */}
               <div className="grid grid-cols-3 gap-3 p-3.5 bg-emerald-50/80 rounded-xl border border-emerald-200 text-xs">
                 <div>
-                  <span className="text-emerald-800 font-medium">মোট সঞ্চয় মূলধন স্থিতি:</span>
+                  <span className="text-emerald-800 font-medium">{language === 'bn' ? "মোট সঞ্চয় মূলধন স্থিতি:" : "Total savings principal balance:"}</span>
                   <p className="text-lg font-black font-mono text-emerald-950 mt-0.5">
                     {currency(memberTotalSavings)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-emerald-800 font-medium">মোট পরিশোধিত কিস্তি:</span>
+                  <span className="text-emerald-800 font-medium">{language === 'bn' ? "মোট পরিশোধিত কিস্তি:" : "Total installments paid:"}</span>
                   <p className="text-lg font-bold font-mono text-emerald-900 mt-0.5">
-                    {memberDeposits.length} মাস
+                    {memberDeposits.length} {language === 'bn' ? "মাস" : "months"}
                   </p>
                 </div>
                 <div>
-                  <span className="text-emerald-800 font-medium">পরিশোধিত বিলম্ব জরিমানা:</span>
+                  <span className="text-emerald-800 font-medium">{language === 'bn' ? "পরিশোধিত বিলম্ব জরিমানা:" : "Late fine paid:"}</span>
                   <p className="text-lg font-bold font-mono text-amber-900 mt-0.5">
                     {currency(memberTotalFine)}
                   </p>
@@ -1468,28 +1519,28 @@ export function DownloadsReportsPage({
               <div className="p-2.5 bg-stone-100 rounded-lg border border-stone-300 text-xs text-stone-900 flex items-center gap-2">
                 <Award size={15} className="text-emerald-800 shrink-0" />
                 <span>
-                  <strong>কথায় (মোট সঞ্চয় স্থিতি):</strong> {numberToBnWords(memberTotalSavings)}
+                  <strong>{language === 'bn' ? "কথায় (মোট সঞ্চয় স্থিতি):" : "In words (total savings balance):"}</strong> {numberToBnWords(memberTotalSavings)}
                 </span>
               </div>
 
               {/* Table of all member deposits */}
               <div>
                 <h4 className="text-xs font-bold text-stone-800 mb-2">
-                  সম্পূর্ণ সঞ্চয় খতিয়ান ইতিহাস (All Payment Receipts)
+                  {language === 'bn' ? "সম্পূর্ণ সঞ্চয় খতিয়ান ইতিহাস (All Payment Receipts)" : "Complete Savings Ledger History (All Payment Receipts)"}
                 </h4>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse text-xs border border-stone-200">
                     <thead>
                       <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                        <th className="py-2 px-2.5 border-r border-stone-200">ক্র.</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">রসিদ নং</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">কিস্তির মাস</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">জমার তারিখ</th>
-                        <th className="py-2 px-2.5 text-right border-r border-stone-200">সঞ্চয় (৳)</th>
-                        <th className="py-2 px-2.5 text-right border-r border-stone-200">জরিমানা (৳)</th>
-                        <th className="py-2 px-2.5 text-right border-r border-stone-200">মোট গৃহীত (৳)</th>
-                        <th className="py-2 px-2.5 border-r border-stone-200">পেমেন্ট মাধ্যম</th>
-                        <th className="py-2 px-2.5 text-center">সত্যায়ন</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "ক্র." : "No."}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "রসিদ নং" : "Receipt No."}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "কিস্তির মাস" : "Installment Month"}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "জমার তারিখ" : "Deposit Date"}</th>
+                        <th className="py-2 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "সঞ্চয় (৳)" : "Savings (৳)"}</th>
+                        <th className="py-2 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "জরিমানা (৳)" : "Fine (৳)"}</th>
+                        <th className="py-2 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "মোট গৃহীত (৳)" : "Total Received (৳)"}</th>
+                        <th className="py-2 px-2.5 border-r border-stone-200">{language === 'bn' ? "পেমেন্ট মাধ্যম" : "Payment Method"}</th>
+                        <th className="py-2 px-2.5 text-center">{language === 'bn' ? "সত্যায়ন" : "Certified"}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100">
@@ -1521,7 +1572,7 @@ export function DownloadsReportsPage({
                           </td>
                           <td className="py-1.5 px-2.5 text-center">
                             <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-1.5 py-0.5 rounded">
-                              সত্যায়িত
+                              {language === 'bn' ? "সত্যায়িত" : "Certified"}
                             </span>
                           </td>
                         </tr>
@@ -1529,7 +1580,7 @@ export function DownloadsReportsPage({
                       {memberDeposits.length === 0 && (
                         <tr>
                           <td colSpan={9} className="py-8 text-center text-stone-400">
-                            এই সদস্যের কোনো জমার তথ্য এখনও সংরক্ষিত নেই।
+                            {language === 'bn' ? "এই সদস্যের কোনো জমার তথ্য এখনও সংরক্ষিত নেই।" : "No deposit record has been saved for this member yet."}
                           </td>
                         </tr>
                       )}
@@ -1537,7 +1588,7 @@ export function DownloadsReportsPage({
                     <tfoot>
                       <tr className="bg-stone-100 font-black border-t-2 border-stone-300">
                         <td colSpan={4} className="py-2.5 px-2.5 text-right border-r border-stone-200">
-                          সদস্যের সর্বমোট খতিয়ান স্থিতি:
+                          {language === 'bn' ? "সদস্যের সর্বমোট খতিয়ান স্থিতি:" : "Member's grand total ledger balance:"}
                         </td>
                         <td className="py-2.5 px-2.5 text-right font-mono border-r border-stone-200">
                           {currency(memberTotalSavings)}
@@ -1549,7 +1600,7 @@ export function DownloadsReportsPage({
                           {currency(memberTotalSavings + memberTotalFine)}
                         </td>
                         <td colSpan={2} className="text-center text-[10px] text-emerald-800">
-                          {memberDeposits.length} টি কিস্তি পরিশোধিত
+                          {language === 'bn' ? `${memberDeposits.length} টি কিস্তি পরিশোধিত` : `${memberDeposits.length} installments paid`}
                         </td>
                       </tr>
                     </tfoot>
@@ -1560,8 +1611,13 @@ export function DownloadsReportsPage({
               {/* Institutional Certification declaration */}
               <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-200 text-xs text-emerald-950">
                 <p className="font-semibold leading-relaxed">
-                  📜 <strong>প্রত্যয়ন:</strong> এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, জনাব {selectedMember.name} (আইডি: {selectedMember.uid})
-                  ট্রাস্ট গ্রোথ সোসাইটির একজন নিয়মিত নিবন্ধিত সদস্য এবং আজ পর্যন্ত তাঁর সর্বমোট পুঞ্জীভূত সঞ্চয় স্থিতি <strong>{currency(memberTotalSavings)}</strong> ({numberToBnWords(memberTotalSavings)})।
+                  {language === 'bn' ? (
+                    <>📜 <strong>প্রত্যয়ন:</strong> এই মর্মে প্রত্যয়ন করা যাচ্ছে যে, জনাব {selectedMember.name} (আইডি: {selectedMember.uid})
+                    ট্রাস্ট গ্রোথ সোসাইটির একজন নিয়মিত নিবন্ধিত সদস্য এবং আজ পর্যন্ত তাঁর সর্বমোট পুঞ্জীভূত সঞ্চয় স্থিতি <strong>{currency(memberTotalSavings)}</strong> ({numberToBnWords(memberTotalSavings)})।</>
+                  ) : (
+                    <>📜 <strong>Certification:</strong> This is to certify that Mr./Ms. {selectedMember.name} (ID: {selectedMember.uid})
+                    is a regular registered member of Trust Growth Society, and as of today their total accumulated savings balance is <strong>{currency(memberTotalSavings)}</strong> ({numberToBnWords(memberTotalSavings)}).</>
+                  )}
                 </p>
               </div>
             </div>
@@ -1573,15 +1629,15 @@ export function DownloadsReportsPage({
               {/* Summary KPIs */}
               <div className="grid grid-cols-3 gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs">
                 <div>
-                  <span className="text-stone-500 font-medium">নিবন্ধিত মোট সদস্য:</span>
-                  <p className="text-base font-bold font-mono text-stone-900 mt-0.5">{members.length} জন</p>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "নিবন্ধিত মোট সদস্য:" : "Total registered members:"}</span>
+                  <p className="text-base font-bold font-mono text-stone-900 mt-0.5">{members.length} {language === 'bn' ? "জন" : ""}</p>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">সক্রিয় সঞ্চয়ী সদস্য:</span>
-                  <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">{members.length} জন (১০০%)</p>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "সক্রিয় সঞ্চয়ী সদস্য:" : "Active saving members:"}</span>
+                  <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">{members.length} {language === 'bn' ? "জন (১০০%)" : "(100%)"}</p>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">সকল সদস্যের মোট সঞ্চয়:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "সকল সদস্যের মোট সঞ্চয়:" : "Total savings of all members:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-950 mt-0.5">
                     {currency(deposits.reduce((s, d) => s + Number(d.amount || 0), 0))}
                   </p>
@@ -1592,15 +1648,15 @@ export function DownloadsReportsPage({
                 <table className="w-full text-left border-collapse text-xs border border-stone-200">
                   <thead>
                     <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">ক্র.</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">আইডি</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">সদস্যের নাম (বাংলা ও ইংরেজি)</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">মোবাইল</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">পিতার নাম</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">রক্তের গ্রুপ</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">যোগদান</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">মোট সঞ্চয় (৳)</th>
-                      <th className="py-2.5 px-2.5 text-center">স্বাক্ষর / সিল</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "ক্র." : "No."}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "আইডি" : "ID"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "সদস্যের নাম (বাংলা ও ইংরেজি)" : "Member Name (Bengali & English)"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "মোবাইল" : "Mobile"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "পিতার নাম" : "Father's Name"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "রক্তের গ্রুপ" : "Blood Group"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "যোগদান" : "Joined"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "মোট সঞ্চয় (৳)" : "Total Savings (৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-center">{language === 'bn' ? "স্বাক্ষর / সিল" : "Signature / Seal"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -1630,13 +1686,13 @@ export function DownloadsReportsPage({
                             {m.blood || "-"}
                           </td>
                           <td className="py-2 px-2.5 font-mono text-stone-600 border-r border-stone-200">
-                            {m.joined || "২৫-০৯-২০২৫"}
+                            {m.joined || (language === 'bn' ? "২৫-০৯-২০২৫" : "25-09-2025")}
                           </td>
                           <td className="py-2 px-2.5 text-right font-mono font-black text-emerald-950 border-r border-stone-200">
                             {currency(total)}
                           </td>
                           <td className="py-2 px-2.5 text-center text-[10px] text-stone-400 italic">
-                            সক্রিয় সদস্য
+                            {language === 'bn' ? "সক্রিয় সদস্য" : "Active Member"}
                           </td>
                         </tr>
                       );
@@ -1645,13 +1701,13 @@ export function DownloadsReportsPage({
                   <tfoot>
                     <tr className="bg-stone-100 font-black border-t-2 border-stone-300">
                       <td colSpan={7} className="py-2.5 px-2.5 text-right border-r border-stone-200">
-                        সকল সদস্যের মোট সঞ্চয় পুঞ্জীভূত:
+                        {language === 'bn' ? "সকল সদস্যের মোট সঞ্চয় পুঞ্জীভূত:" : "Total accumulated savings of all members:"}
                       </td>
                       <td className="py-2.5 px-2.5 text-right font-mono text-emerald-950 border-r border-stone-200">
                         {currency(deposits.reduce((s, d) => s + Number(d.amount || 0), 0))}
                       </td>
                       <td className="text-center text-[10px] text-stone-600">
-                        {members.length} জন রেজিস্টার্ড
+                        {language === 'bn' ? `${members.length} জন রেজিস্টার্ড` : `${members.length} registered`}
                       </td>
                     </tr>
                   </tfoot>
@@ -1666,32 +1722,36 @@ export function DownloadsReportsPage({
               {/* Constitution Note */}
               <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200 text-xs text-amber-950">
                 <p className="leading-relaxed">
-                  🛡️ <strong>টিজিএস ফান্ড নীতি:</strong> বিনিয়োগ হতে অর্জিত মোট লভ্যাংশের ৫% স্বয়ংক্রিয়ভাবে এবং সমিতির নিজস্ব বিবিধ আয় নিয়ে এই ফান্ড পরিচালিত হয়। সমিতির সকল প্রাতিষ্ঠানিক পরিচালন ব্যয় এই ফান্ড থেকে নির্বাহ করা হয়। (সদস্যদের নিয়মিত সঞ্চয় এই ফান্ডের বাইরে সম্পূর্ণ আলাদা সংরক্ষিত)।
+                  {language === 'bn' ? (
+                    <>🛡️ <strong>টিজিএস ফান্ড নীতি:</strong> বিনিয়োগ হতে অর্জিত মোট লভ্যাংশের ৫% স্বয়ংক্রিয়ভাবে এবং সমিতির নিজস্ব বিবিধ আয় নিয়ে এই ফান্ড পরিচালিত হয়। সমিতির সকল প্রাতিষ্ঠানিক পরিচালন ব্যয় এই ফান্ড থেকে নির্বাহ করা হয়। (সদস্যদের নিয়মিত সঞ্চয় এই ফান্ডের বাইরে সম্পূর্ণ আলাদা সংরক্ষিত)।</>
+                  ) : (
+                    <>🛡️ <strong>TGS Fund Policy:</strong> This fund is operated automatically with 5% of the total dividend earned from investments, plus the society's own miscellaneous income. All institutional operating expenses of the society are met from this fund. (Members' regular savings are kept completely separate, outside this fund.)</>
+                  )}
                 </p>
               </div>
 
               {/* Fund Summary Cards */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
                 <div>
-                  <span className="text-stone-500">বিনিয়োগ লভ্যাংশ ৫% শেয়ার:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "বিনিয়োগ লভ্যাংশ ৫% শেয়ার:" : "Investment dividend 5% share:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">
                     {currency(fundsSummary.tgsFromInvestProfit)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">সরাসরি ফান্ড আয়:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "সরাসরি ফান্ড আয়:" : "Direct fund income:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">
                     {currency(fundsSummary.tgsDirectIncomes)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">মোট পরিচালন ব্যয়:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "মোট পরিচালন ব্যয়:" : "Total operating expense:"}</span>
                   <p className="text-base font-bold font-mono text-rose-900 mt-0.5">
                     {currency(fundsSummary.tgsExpensesTotal)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">বর্তমান নেট ফান্ড ব্যালেন্স:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "বর্তমান নেট ফান্ড ব্যালেন্স:" : "Current net fund balance:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-950 mt-0.5">
                     {currency(fundsSummary.tgsFundBalance)}
                   </p>
@@ -1703,13 +1763,13 @@ export function DownloadsReportsPage({
                 <table className="w-full text-left border-collapse text-xs border border-stone-200">
                   <thead>
                     <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">তারিখ</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">উৎস / খাত</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">বিবরণ</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">ভাউচার / আইডি</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">জমা (+ ৳)</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">খরচ (- ৳)</th>
-                      <th className="py-2.5 px-2.5 text-right">ফান্ড স্থিতি (৳)</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "তারিখ" : "Date"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "উৎস / খাত" : "Source / Category"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "বিবরণ" : "Description"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "ভাউচার / আইডি" : "Voucher / ID"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "জমা (+ ৳)" : "Credit (+ ৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "খরচ (- ৳)" : "Expense (- ৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right">{language === 'bn' ? "ফান্ড স্থিতি (৳)" : "Fund Balance (৳)"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -1765,11 +1825,15 @@ export function DownloadsReportsPage({
                 <span className="font-semibold flex items-center gap-1.5">
                   <AlertCircle size={15} className="text-amber-700" />
                   <span>
-                    <strong>{fromMonth}</strong> মাসে এখনো সঞ্চয় জমা দেননি: <span className="font-bold text-amber-950">{defaultersList.length} জন</span>
+                    {language === 'bn' ? (
+                      <><strong>{fromMonth}</strong> মাসে এখনো সঞ্চয় জমা দেননি: <span className="font-bold text-amber-950">{defaultersList.length} জন</span></>
+                    ) : (
+                      <>Have not yet deposited savings for <strong>{fromMonth}</strong>: <span className="font-bold text-amber-950">{defaultersList.length} members</span></>
+                    )}
                   </span>
                 </span>
                 <span className="font-mono font-bold text-amber-900">
-                  মোট প্রত্যাশিত বকেয়া দাবি: {currency(defaultersList.length * (1000 + (settings.defaultFine || 50)))}
+                  {language === 'bn' ? "মোট প্রত্যাশিত বকেয়া দাবি:" : "Total expected due claim:"} {currency(defaultersList.length * (1000 + (settings.defaultFine || 50)))}
                 </span>
               </div>
 
@@ -1777,14 +1841,14 @@ export function DownloadsReportsPage({
                 <table className="w-full text-left border-collapse text-xs border border-stone-200">
                   <thead>
                     <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">ক্র.</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">সদস্যের নাম ও আইডি</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">মোবাইল নম্বর</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">বকেয়া মাস</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">নিয়মিত সঞ্চয় (৳)</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">বিলম্ব জরিমানা (৳)</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">সর্বমোট প্রদেয় (৳)</th>
-                      <th className="py-2.5 px-2.5 text-center">তাগিদ নোটিশ</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "ক্র." : "No."}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "সদস্যের নাম ও আইডি" : "Member Name & ID"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "মোবাইল নম্বর" : "Mobile Number"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "বকেয়া মাস" : "Due Month"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "নিয়মিত সঞ্চয় (৳)" : "Regular Savings (৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "বিলম্ব জরিমানা (৳)" : "Late Fine (৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "সর্বমোট প্রদেয় (৳)" : "Total Payable (৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-center">{language === 'bn' ? "তাগিদ নোটিশ" : "Reminder Notice"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -1814,7 +1878,7 @@ export function DownloadsReportsPage({
                         </td>
                         <td className="py-2 px-2.5 text-center">
                           <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
-                            তাগিদ প্রেরিত
+                            {language === 'bn' ? "তাগিদ প্রেরিত" : "Reminder Sent"}
                           </span>
                         </td>
                       </tr>
@@ -1822,7 +1886,9 @@ export function DownloadsReportsPage({
                     {defaultersList.length === 0 && (
                       <tr>
                         <td colSpan={8} className="py-8 text-center text-emerald-800 font-bold">
-                          🎉 অভিনন্দন! এই মাসের জন্য সকল সদস্যের সঞ্চয় সম্পূর্ণ আদায় হয়েছে। কোনো বকেয়া নেই।
+                          {language === 'bn'
+                            ? "🎉 অভিনন্দন! এই মাসের জন্য সকল সদস্যের সঞ্চয় সম্পূর্ণ আদায় হয়েছে। কোনো বকেয়া নেই।"
+                            : "🎉 Congratulations! All members' savings have been fully collected for this month. No dues remain."}
                         </td>
                       </tr>
                     )}
@@ -1833,7 +1899,11 @@ export function DownloadsReportsPage({
               {/* Recovery Legal Note */}
               <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 text-xs text-stone-600">
                 <p>
-                  ⚠️ সমিতির সংবিধান অনুযায়ী প্রতি মাসের <strong>{settings.deadlineDay || 10} তারিখের</strong> মধ্যে সঞ্চয় জমা দেওয়া বাধ্যতামূলক। নির্ধারিত তারিখ উত্তীর্ণ হলে প্রতি কিস্তির জন্য <strong>৳{settings.defaultFine || 50}</strong> জরিমানা প্রযোজ্য হবে।
+                  {language === 'bn' ? (
+                    <>⚠️ সমিতির সংবিধান অনুযায়ী প্রতি মাসের <strong>{settings.deadlineDay || 10} তারিখের</strong> মধ্যে সঞ্চয় জমা দেওয়া বাধ্যতামূলক। নির্ধারিত তারিখ উত্তীর্ণ হলে প্রতি কিস্তির জন্য <strong>৳{settings.defaultFine || 50}</strong> জরিমানা প্রযোজ্য হবে।</>
+                  ) : (
+                    <>⚠️ As per the society's constitution, savings must be deposited by the <strong>{settings.deadlineDay || 10}th</strong> of every month. If the due date passes, a fine of <strong>৳{settings.defaultFine || 50}</strong> will apply per installment.</>
+                  )}
                 </p>
               </div>
             </div>
@@ -1845,25 +1915,25 @@ export function DownloadsReportsPage({
               {/* Investment Summary */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
                 <div>
-                  <span className="text-stone-500">মোট বিনিয়োগ মূলধন:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "মোট বিনিয়োগ মূলধন:" : "Total investment capital:"}</span>
                   <p className="text-base font-bold font-mono text-stone-900 mt-0.5">
                     {currency(investEntries.reduce((s, e) => s + Number(e.amount || 0), 0))}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">অর্জিত মোট লভ্যাংশ:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "অর্জিত মোট লভ্যাংশ:" : "Total dividend earned:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-900 mt-0.5">
                     {currency(fundsSummary.totalInvestDividends)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">৫% টিজিএস ফান্ড অংশ:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "৫% টিজিএস ফান্ড অংশ:" : "5% TGS fund share:"}</span>
                   <p className="text-base font-bold font-mono text-amber-900 mt-0.5">
                     {currency(fundsSummary.tgsFromInvestProfit)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500">৯৫% সাধারণ বণ্টন অংশ:</span>
+                  <span className="text-stone-500">{language === 'bn' ? "৯৫% সাধারণ বণ্টন অংশ:" : "95% general distribution share:"}</span>
                   <p className="text-base font-bold font-mono text-emerald-950 mt-0.5">
                     {currency(fundsSummary.generalInvestProfit)}
                   </p>
@@ -1874,13 +1944,13 @@ export function DownloadsReportsPage({
                 <table className="w-full text-left border-collapse text-xs border border-stone-200">
                   <thead>
                     <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">তারিখ</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">প্রকল্প / স্থান</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">বিবরণ</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">বিনিয়োগ মূলধন (৳)</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">অর্জিত লভ্যাংশ (৳)</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">৫% টিজিএস ফান্ড অংশ</th>
-                      <th className="py-2.5 px-2.5 text-right">৯৫% বণ্টন অংশ</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "তারিখ" : "Date"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "প্রকল্প / স্থান" : "Project / Location"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "বিবরণ" : "Description"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "বিনিয়োগ মূলধন (৳)" : "Investment Capital (৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "অর্জিত লভ্যাংশ (৳)" : "Dividend Earned (৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "৫% টিজিএস ফান্ড অংশ" : "5% TGS Fund Share"}</th>
+                      <th className="py-2.5 px-2.5 text-right">{language === 'bn' ? "৯৫% বণ্টন অংশ" : "95% Distribution Share"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -1894,7 +1964,7 @@ export function DownloadsReportsPage({
                             {iv.date}
                           </td>
                           <td className="py-2 px-2.5 font-bold text-stone-900 border-r border-stone-200">
-                            {iv.place || "স্থান নির্ধারিত নয়"}
+                            {iv.place || (language === 'bn' ? "স্থান নির্ধারিত নয়" : "Location not specified")}
                           </td>
                           <td className="py-2 px-2.5 font-medium text-stone-800 border-r border-stone-200">
                             {iv.desc}
@@ -1926,25 +1996,25 @@ export function DownloadsReportsPage({
               {/* Summary KPIs & Cash Reconciliation */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 p-3.5 bg-stone-50 rounded-xl border border-stone-200 text-xs">
                 <div>
-                  <span className="text-stone-500 font-medium">ব্যাংকে মোট জমা:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "ব্যাংকে মোট জমা:" : "Total bank deposit:"}</span>
                   <p className="text-sm sm:text-base font-bold font-mono text-emerald-900 mt-0.5">
                     +{currency(totalBankCredit)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">ব্যাংক থেকে উত্তোলন:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "ব্যাংক থেকে উত্তোলন:" : "Bank withdrawal:"}</span>
                   <p className="text-sm sm:text-base font-bold font-mono text-rose-900 mt-0.5">
                     -{currency(totalBankDebit)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">বর্তমান ব্যাংক স্থিতি:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "বর্তমান ব্যাংক স্থিতি:" : "Current bank balance:"}</span>
                   <p className="text-sm sm:text-base font-bold font-mono text-blue-950 mt-0.5">
                     {currency(currentBankBalance)}
                   </p>
                 </div>
                 <div>
-                  <span className="text-stone-500 font-medium">হাতে নগদ ক্যাশ:</span>
+                  <span className="text-stone-500 font-medium">{language === 'bn' ? "হাতে নগদ ক্যাশ:" : "Cash in hand:"}</span>
                   <p className="text-sm sm:text-base font-bold font-mono text-amber-950 mt-0.5">
                     {currency(fundsSummary.cashInHand)}
                   </p>
@@ -1955,11 +2025,11 @@ export function DownloadsReportsPage({
                 <table className="w-full text-left border-collapse text-xs border border-stone-200">
                   <thead>
                     <tr className="bg-stone-100 text-stone-800 font-bold border-b border-stone-200 text-[11px]">
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">তারিখ</th>
-                      <th className="py-2.5 px-2.5 border-r border-stone-200">লেনদেনের বিবরণ</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">জমা / ক্রেডিট (+ ৳)</th>
-                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">উত্তোলন / ডেবিট (- ৳)</th>
-                      <th className="py-2.5 px-2.5 text-right">হিসাব ব্যালেন্স (৳)</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "তারিখ" : "Date"}</th>
+                      <th className="py-2.5 px-2.5 border-r border-stone-200">{language === 'bn' ? "লেনদেনের বিবরণ" : "Transaction Description"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "জমা / ক্রেডিট (+ ৳)" : "Deposit / Credit (+ ৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right border-r border-stone-200">{language === 'bn' ? "উত্তোলন / ডেবিট (- ৳)" : "Withdrawal / Debit (- ৳)"}</th>
+                      <th className="py-2.5 px-2.5 text-right">{language === 'bn' ? "হিসাব ব্যালেন্স (৳)" : "Account Balance (৳)"}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -1995,7 +2065,7 @@ export function DownloadsReportsPage({
                 {settings.treasurerSignature ? (
                   <img
                     src={settings.treasurerSignature}
-                    alt="কোষাধ্যক্ষ স্বাক্ষর"
+                    alt={language === 'bn' ? "কোষাধ্যক্ষ স্বাক্ষর" : "Treasurer Signature"}
                     className="max-h-12 max-w-[140px] object-contain"
                   />
                 ) : (
@@ -2003,8 +2073,8 @@ export function DownloadsReportsPage({
                 )}
               </div>
               <div className="border-t border-stone-800 pt-1.5 inline-block min-w-[180px]">
-                <p className="font-bold text-stone-900">{settings.treasurerName || "কোষাধ্যক্ষ"}</p>
-                <p className="text-[10px] text-stone-500">কোষাধ্যক্ষ, ট্রাস্ট গ্রোথ সোসাইটি</p>
+                <p className="font-bold text-stone-900">{settings.treasurerName || (language === 'bn' ? "কোষাধ্যক্ষ" : "Treasurer")}</p>
+                <p className="text-[10px] text-stone-500">{language === 'bn' ? "কোষাধ্যক্ষ, ট্রাস্ট গ্রোথ সোসাইটি" : "Treasurer, Trust Growth Society"}</p>
               </div>
             </div>
 
@@ -2013,7 +2083,7 @@ export function DownloadsReportsPage({
                 {settings.presidentSignature ? (
                   <img
                     src={settings.presidentSignature}
-                    alt="সভাপতি / সাধারণ সম্পাদক স্বাক্ষর"
+                    alt={language === 'bn' ? "সভাপতি / সাধারণ সম্পাদক স্বাক্ষর" : "President / Secretary Signature"}
                     className="max-h-12 max-w-[140px] object-contain"
                   />
                 ) : (
@@ -2021,9 +2091,11 @@ export function DownloadsReportsPage({
                 )}
               </div>
               <div className="border-t border-stone-800 pt-1.5 inline-block min-w-[180px]">
-                <p className="font-bold text-stone-900">{settings.presidentName || "সভাপতি / সাধারণ সম্পাদক"}</p>
+                <p className="font-bold text-stone-900">{settings.presidentName || (language === 'bn' ? "সভাপতি / সাধারণ সম্পাদক" : "President / Secretary")}</p>
                 <p className="text-[10px] text-stone-500">
-                  {settings.presidentRole === "secretary" ? "সাধারণ সম্পাদক" : "সভাপতি"}, ট্রাস্ট গ্রোথ সোসাইটি
+                  {language === 'bn'
+                    ? `${settings.presidentRole === "secretary" ? "সাধারণ সম্পাদক" : "সভাপতি"}, ট্রাস্ট গ্রোথ সোসাইটি`
+                    : `${settings.presidentRole === "secretary" ? "Secretary" : "President"}, Trust Growth Society`}
                 </p>
               </div>
             </div>

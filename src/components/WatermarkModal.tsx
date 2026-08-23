@@ -23,6 +23,7 @@ import {
 import { AppSettings } from "../types";
 import { PageWatermark, TgsLogoSvg } from "./TgsLogoWatermark";
 import { STORAGE_MIME_TYPES } from "../utils/fileStorage";
+import { useLanguage } from "../utils/LanguageContext";
 
 interface WatermarkModalProps {
   settings: AppSettings;
@@ -36,6 +37,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
   onClose,
   onSaveWatermark,
 }) => {
+  const { language } = useLanguage();
   const [enabled, setEnabled] = useState<boolean>(settings.watermarkEnabled !== false);
   const [type, setType] = useState<'seal' | 'logo' | 'custom_image' | 'custom_text'>(
     settings.watermarkType || 'seal'
@@ -68,7 +70,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
   // Auto clean white background from uploaded image
   const processImageFile = (file: File) => {
     if (!file.type.startsWith("image/")) {
-      alert("অনুগ্রহ করে একটি সঠিক ছবি ফাইল (PNG, JPG, JPEG, SVG, WebP) নির্বাচন করুন।");
+      alert(language === 'bn' ? "অনুগ্রহ করে একটি সঠিক ছবি ফাইল (PNG, JPG, JPEG, SVG, WebP) নির্বাচন করুন।" : "Please select a valid image file (PNG, JPG, JPEG, SVG, WebP).");
       return;
     }
 
@@ -131,7 +133,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
     };
     reader.onerror = () => {
       setIsUploading(false);
-      alert("ছবি লোড করতে সমস্যা হয়েছে।");
+      alert(language === 'bn' ? "ছবি লোড করতে সমস্যা হয়েছে।" : "There was a problem loading the image.");
     };
     reader.readAsDataURL(file);
   };
@@ -243,14 +245,14 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30">
-                  ওয়াটারমার্ক কন্ট্রোল
+                  {language === 'bn' ? "ওয়াটারমার্ক কন্ট্রোল" : "WATERMARK CONTROL"}
                 </span>
                 <h3 className="text-base sm:text-lg font-black text-white">
-                  ডকুমেন্ট জলছাপ (Watermark) সেটিংস
+                  {language === 'bn' ? "ডকুমেন্ট জলছাপ (Watermark) সেটিংস" : "Document Watermark Settings"}
                 </h3>
               </div>
               <p className="text-xs text-emerald-300 mt-0.5">
-                রসিদ, অডিট স্টেটমেন্ট ও গঠনতন্ত্র ডকুমেন্টের ব্যাকগ্রাউন্ড সিল ও জলছাপ কাস্টমাইজ করুন
+                {language === 'bn' ? "রসিদ, অডিট স্টেটমেন্ট ও গঠনতন্ত্র ডকুমেন্টের ব্যাকগ্রাউন্ড সিল ও জলছাপ কাস্টমাইজ করুন" : "Customize the background seal and watermark for receipts, audit statements, and constitution documents"}
               </p>
             </div>
           </div>
@@ -288,12 +290,12 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-stone-900">
-                    ডকুমেন্টসমূহে জলছাপ (Watermark) প্রদর্শন
+                    {language === 'bn' ? "ডকুমেন্টসমূহে জলছাপ (Watermark) প্রদর্শন" : "Show Watermark on Documents"}
                   </h4>
                   <p className="text-xs text-stone-500">
                     {enabled
-                      ? 'জলছাপ বর্তমানে চালু রয়েছে'
-                      : 'জলছাপ বন্ধ রয়েছে'}
+                      ? (language === 'bn' ? 'জলছাপ বর্তমানে চালু রয়েছে' : 'Watermark is currently enabled')
+                      : (language === 'bn' ? 'জলছাপ বন্ধ রয়েছে' : 'Watermark is disabled')}
                   </p>
                 </div>
               </div>
@@ -314,7 +316,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
             {/* 2. WATERMARK TYPE SELECTOR (4 Options) */}
             <div className="space-y-2.5">
               <label className="text-xs font-black uppercase tracking-wider text-emerald-950 flex items-center gap-1.5">
-                <span>১. জলছাপের ধরন নির্বাচন করুন:</span>
+                <span>{language === 'bn' ? "১. জলছাপের ধরন নির্বাচন করুন:" : "1. Select Watermark Type:"}</span>
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -332,9 +334,9 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                     <TgsLogoSvg size={32} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold leading-tight">অফিসিয়াল সিল</p>
+                    <p className="text-xs font-bold leading-tight">{language === 'bn' ? "অফিসিয়াল সিল" : "Official Seal"}</p>
                     <p className={`text-[10px] mt-0.5 ${type === 'seal' ? 'text-amber-300' : 'text-stone-500'}`}>
-                      TGS গোল সিল
+                      {language === 'bn' ? "TGS গোল সিল" : "TGS Round Seal"}
                     </p>
                   </div>
                 </button>
@@ -357,9 +359,9 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                     )}
                   </div>
                   <div>
-                    <p className="text-xs font-bold leading-tight">মূল লোগো</p>
+                    <p className="text-xs font-bold leading-tight">{language === 'bn' ? "মূল লোগো" : "Main Logo"}</p>
                     <p className={`text-[10px] mt-0.5 ${type === 'logo' ? 'text-amber-300' : 'text-stone-500'}`}>
-                      সংগঠনের লোগো
+                      {language === 'bn' ? "সংগঠনের লোগো" : "Organization Logo"}
                     </p>
                   </div>
                 </button>
@@ -382,9 +384,9 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                     )}
                   </div>
                   <div>
-                    <p className="text-xs font-bold leading-tight">কাস্টম ছবি</p>
+                    <p className="text-xs font-bold leading-tight">{language === 'bn' ? "কাস্টম ছবি" : "Custom Image"}</p>
                     <p className={`text-[10px] mt-0.5 ${type === 'custom_image' ? 'text-amber-300' : 'text-stone-500'}`}>
-                      ফাইল আপলোড
+                      {language === 'bn' ? "ফাইল আপলোড" : "File Upload"}
                     </p>
                   </div>
                 </button>
@@ -403,9 +405,9 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                     <Type size={18} className="text-emerald-900" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold leading-tight">টেক্সট জলছাপ</p>
+                    <p className="text-xs font-bold leading-tight">{language === 'bn' ? "টেক্সট জলছাপ" : "Text Watermark"}</p>
                     <p className={`text-[10px] mt-0.5 ${type === 'custom_text' ? 'text-amber-300' : 'text-stone-500'}`}>
-                      কাস্টম লেখা
+                      {language === 'bn' ? "কাস্টম লেখা" : "Custom Text"}
                     </p>
                   </div>
                 </button>
@@ -417,7 +419,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               <div className="p-4 bg-emerald-50/50 border border-emerald-200 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black text-emerald-950">
-                    কাস্টম জলছাপ ছবি আপলোড ও প্রসেসিং
+                    {language === 'bn' ? "কাস্টম জলছাপ ছবি আপলোড ও প্রসেসিং" : "Upload & Process Custom Watermark Image"}
                   </h4>
                   {customUrl && (
                     <button
@@ -425,7 +427,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                       onClick={handleRemoveImage}
                       className="text-xs text-red-600 hover:text-red-800 font-bold flex items-center gap-1 cursor-pointer"
                     >
-                      <Trash2 size={12} /> মুছে ফেলুন
+                      <Trash2 size={12} /> {language === 'bn' ? "মুছে ফেলুন" : "Remove"}
                     </button>
                   )}
                 </div>
@@ -444,15 +446,15 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                       <img src={customUrl} alt="Custom" className="max-w-full max-h-full object-contain" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-stone-900 truncate">সংযুক্ত কাস্টম ছবি</p>
-                      <p className="text-[11px] text-stone-500">ব্যাকগ্রাউন্ড জলছাপ হিসেবে প্রস্তুত</p>
+                      <p className="text-xs font-bold text-stone-900 truncate">{language === 'bn' ? "সংযুক্ত কাস্টম ছবি" : "Attached Custom Image"}</p>
+                      <p className="text-[11px] text-stone-500">{language === 'bn' ? "ব্যাকগ্রাউন্ড জলছাপ হিসেবে প্রস্তুত" : "Ready as background watermark"}</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer"
                     >
-                      পরিবর্তন
+                      {language === 'bn' ? "পরিবর্তন" : "Change"}
                     </button>
                   </div>
                 ) : (
@@ -470,10 +472,10 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   >
                     <Upload size={22} className="mx-auto text-emerald-800 mb-1.5" />
                     <p className="text-xs font-bold text-stone-800">
-                      ডিভাইস, মেমোরি কার্ড বা এক্সটার্নাল স্টোরেজ থেকে ছবি বেছে নিন
+                      {language === 'bn' ? "ডিভাইস, মেমোরি কার্ড বা এক্সটার্নাল স্টোরেজ থেকে ছবি বেছে নিন" : "Choose an image from your device, memory card, or external storage"}
                     </p>
                     <p className="text-[10px] text-stone-500 mt-0.5">
-                      PNG, JPG, JPEG, SVG, WebP (SD Card, USB, Drive ও ড্রপ সাপোর্টেড)
+                      {language === 'bn' ? "PNG, JPG, JPEG, SVG, WebP (SD Card, USB, Drive ও ড্রপ সাপোর্টেড)" : "PNG, JPG, JPEG, SVG, WebP (SD Card, USB, Drive, and drag-and-drop supported)"}
                     </p>
                   </div>
                 )}
@@ -487,8 +489,8 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                     className="w-4 h-4 rounded text-emerald-800 focus:ring-emerald-700"
                   />
                   <div className="text-xs text-stone-800">
-                    <span className="font-bold">সাদা ব্যাকগ্রাউন্ড স্বয়ংক্রিয়ভাবে স্বচ্ছ (Transparent) করুন</span>
-                    <p className="text-[10px] text-stone-500">ছবির চারপাশের সাদা বা হালকা অংশ বাদ দিয়ে শুধু মূল লোগো রাখবে</p>
+                    <span className="font-bold">{language === 'bn' ? "সাদা ব্যাকগ্রাউন্ড স্বয়ংক্রিয়ভাবে স্বচ্ছ (Transparent) করুন" : "Automatically make white background transparent"}</span>
+                    <p className="text-[10px] text-stone-500">{language === 'bn' ? "ছবির চারপাশের সাদা বা হালকা অংশ বাদ দিয়ে শুধু মূল লোগো রাখবে" : "Removes the white or light areas around the image, keeping only the main logo"}</p>
                   </div>
                 </label>
               </div>
@@ -498,13 +500,13 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
             {type === 'custom_text' && (
               <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-2">
                 <label className="text-xs font-bold text-stone-800">
-                  জলছাপের লেখা (Watermark Text):
+                  {language === 'bn' ? "জলছাপের লেখা (Watermark Text):" : "Watermark Text:"}
                 </label>
                 <input
                   type="text"
                   value={customText}
                   onChange={(e) => setCustomText(e.target.value)}
-                  placeholder="যেমন: TRUST GROWTH SOCIETY"
+                  placeholder={language === 'bn' ? "যেমন: TRUST GROWTH SOCIETY" : "e.g. TRUST GROWTH SOCIETY"}
                   className="w-full px-3.5 py-2 text-sm bg-white border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-700 outline-hidden font-bold"
                 />
               </div>
@@ -514,10 +516,10 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
             <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-4">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-xs">
-                  ২
+                  {language === 'bn' ? "২" : "2"}
                 </div>
                 <h4 className="text-xs sm:text-sm font-bold text-stone-900">
-                  জলছাপের দৃশ্যমানতা ও আকার সমন্বয়
+                  {language === 'bn' ? "জলছাপের দৃশ্যমানতা ও আকার সমন্বয়" : "Adjust Watermark Visibility & Size"}
                 </h4>
               </div>
 
@@ -525,7 +527,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-bold text-stone-700">
                   <span className="flex items-center gap-1.5">
-                    <Eye size={14} className="text-emerald-700" /> অস্বচ্ছতা (Opacity / জলছাপের গাঢ়ত্ব):
+                    <Eye size={14} className="text-emerald-700" /> {language === 'bn' ? "অস্বচ্ছতা (Opacity / জলছাপের গাঢ়ত্ব):" : "Opacity (Watermark Darkness):"}
                   </span>
                   <span className="font-mono bg-white px-2 py-0.5 rounded border border-stone-300 text-emerald-950 font-black">
                     {Math.round(opacity * 100)}%
@@ -541,9 +543,9 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   className="w-full h-2 bg-stone-300 rounded-lg appearance-none cursor-pointer accent-emerald-800"
                 />
                 <div className="flex justify-between text-[10px] text-stone-500 font-medium">
-                  <span>হালকা (2%)</span>
-                  <span>সুপারিশকৃত (8-10%)</span>
-                  <span>গাঢ় (30%)</span>
+                  <span>{language === 'bn' ? "হালকা (2%)" : "Light (2%)"}</span>
+                  <span>{language === 'bn' ? "সুপারিশকৃত (8-10%)" : "Recommended (8-10%)"}</span>
+                  <span>{language === 'bn' ? "গাঢ় (30%)" : "Dark (30%)"}</span>
                 </div>
               </div>
 
@@ -551,7 +553,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-bold text-stone-700">
                   <span className="flex items-center gap-1.5">
-                    <Maximize2 size={14} className="text-emerald-700" /> আকার (Watermark Size):
+                    <Maximize2 size={14} className="text-emerald-700" /> {language === 'bn' ? "আকার (Watermark Size):" : "Size (Watermark Size):"}
                   </span>
                   <span className="font-mono bg-white px-2 py-0.5 rounded border border-stone-300 text-emerald-950 font-black">
                     {size}px
@@ -567,9 +569,9 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   className="w-full h-2 bg-stone-300 rounded-lg appearance-none cursor-pointer accent-emerald-800"
                 />
                 <div className="flex justify-between text-[10px] text-stone-500 font-medium">
-                  <span>ছোট (200px)</span>
-                  <span>মাঝারি (480px)</span>
-                  <span>বড় পেজ সাইজ (750px)</span>
+                  <span>{language === 'bn' ? "ছোট (200px)" : "Small (200px)"}</span>
+                  <span>{language === 'bn' ? "মাঝারি (480px)" : "Medium (480px)"}</span>
+                  <span>{language === 'bn' ? "বড় পেজ সাইজ (750px)" : "Large Page Size (750px)"}</span>
                 </div>
               </div>
 
@@ -577,7 +579,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-bold text-stone-700">
                   <span className="flex items-center gap-1.5">
-                    <RotateCw size={14} className="text-emerald-700" /> ঘূর্ণন কোণ (Rotation Angle):
+                    <RotateCw size={14} className="text-emerald-700" /> {language === 'bn' ? "ঘূর্ণন কোণ (Rotation Angle):" : "Rotation Angle:"}
                   </span>
                   <span className="font-mono bg-white px-2 py-0.5 rounded border border-stone-300 text-emerald-950 font-black">
                     {rotation}°
@@ -595,7 +597,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                           : 'bg-white hover:bg-stone-200 text-stone-800 border border-stone-300'
                       }`}
                     >
-                      {angle === 0 ? 'সরাসরি (0°)' : `${angle}° কোণ`}
+                      {angle === 0 ? (language === 'bn' ? 'সরাসরি (0°)' : 'Straight (0°)') : (language === 'bn' ? `${angle}° কোণ` : `${angle}° angle`)}
                     </button>
                   ))}
                 </div>
@@ -606,10 +608,10 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
             <div className="p-4 bg-stone-50 border border-stone-200 rounded-2xl space-y-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-emerald-800 text-amber-300 flex items-center justify-center font-bold text-xs">
-                  ৩
+                  {language === 'bn' ? "৩" : "3"}
                 </div>
                 <h4 className="text-xs sm:text-sm font-bold text-stone-900">
-                  যেসব ডকুমেন্টে জলছাপ প্রদর্শিত হবে:
+                  {language === 'bn' ? "যেসব ডকুমেন্টে জলছাপ প্রদর্শিত হবে:" : "Documents where the watermark will appear:"}
                 </h4>
               </div>
 
@@ -623,7 +625,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   />
                   <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
                     <FileCheck size={16} className="text-emerald-700" />
-                    <span>মানি রসিদ (Money Receipts & Invoices)</span>
+                    <span>{language === 'bn' ? "মানি রসিদ (Money Receipts & Invoices)" : "Money Receipts & Invoices"}</span>
                   </div>
                 </label>
 
@@ -636,7 +638,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   />
                   <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
                     <FileText size={16} className="text-emerald-700" />
-                    <span>অডিট রিপোর্ট ও স্টেটমেন্ট (Audit Reports & Ledger Sheets)</span>
+                    <span>{language === 'bn' ? "অডিট রিপোর্ট ও স্টেটমেন্ট (Audit Reports & Ledger Sheets)" : "Audit Reports & Ledger Sheets"}</span>
                   </div>
                 </label>
 
@@ -649,7 +651,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   />
                   <div className="flex items-center gap-2 text-xs font-bold text-stone-900">
                     <Layers size={16} className="text-emerald-700" />
-                    <span>গঠনতন্ত্র ও বিধিমালা (Constitution Document Pages)</span>
+                    <span>{language === 'bn' ? "গঠনতন্ত্র ও বিধিমালা (Constitution Document Pages)" : "Constitution & Bylaws (Constitution Document Pages)"}</span>
                   </div>
                 </label>
               </div>
@@ -662,7 +664,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               <div className="flex items-center gap-2">
                 <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-ping" />
                 <h4 className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-950">
-                  লাইভ প্রিভিউ (Live Preview)
+                  {language === 'bn' ? "লাইভ প্রিভিউ (Live Preview)" : "Live Preview"}
                 </h4>
               </div>
 
@@ -677,7 +679,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
-                  রসিদ
+                  {language === 'bn' ? "রসিদ" : "Receipt"}
                 </button>
                 <button
                   type="button"
@@ -688,7 +690,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                       : 'text-stone-600 hover:text-stone-900'
                   }`}
                 >
-                  রিপোর্ট
+                  {language === 'bn' ? "রিপোর্ট" : "Report"}
                 </button>
               </div>
             </div>
@@ -719,28 +721,28 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                     </h5>
                     <p className="text-[10px] text-stone-500">
                       {previewTab === 'receipt'
-                        ? 'টাকা প্রাপ্তি রসিদ (MONEY RECEIPT)'
-                        : 'মাসিক আর্থিক বিবরণী ও অডিট স্টেটমেন্ট'}
+                        ? (language === 'bn' ? 'টাকা প্রাপ্তি রসিদ (MONEY RECEIPT)' : 'MONEY RECEIPT')
+                        : (language === 'bn' ? 'মাসিক আর্থিক বিবরণী ও অডিট স্টেটমেন্ট' : 'Monthly Financial Statement & Audit Report')}
                     </p>
                   </div>
 
                   {/* Mock Rows */}
                   <div className="space-y-1.5 text-[11px]">
                     <div className="flex justify-between py-0.5 border-b border-stone-100">
-                      <span className="text-stone-500">রসিদ নং / ভাউচার:</span>
+                      <span className="text-stone-500">{language === 'bn' ? "রসিদ নং / ভাউচার:" : "Receipt No. / Voucher:"}</span>
                       <span className="font-mono font-bold text-emerald-950">#TGS-2025-089</span>
                     </div>
                     <div className="flex justify-between py-0.5 border-b border-stone-100">
-                      <span className="text-stone-500">সদস্যের নাম:</span>
-                      <span className="font-bold text-stone-900">মোঃ মোহিম খান</span>
+                      <span className="text-stone-500">{language === 'bn' ? "সদস্যের নাম:" : "Member Name:"}</span>
+                      <span className="font-bold text-stone-900">{language === 'bn' ? "মোঃ মোহিম খান" : "Md. Mohim Khan"}</span>
                     </div>
                     <div className="flex justify-between py-0.5 border-b border-stone-100">
-                      <span className="text-stone-500">মাস ও বছর:</span>
-                      <span className="font-bold text-stone-800">অক্টোবর ২০২৫</span>
+                      <span className="text-stone-500">{language === 'bn' ? "মাস ও বছর:" : "Month & Year:"}</span>
+                      <span className="font-bold text-stone-800">{language === 'bn' ? "অক্টোবর ২০২৫" : "October 2025"}</span>
                     </div>
                     <div className="flex justify-between py-0.5 border-b border-stone-100">
-                      <span className="text-stone-500">জমার পরিমাণ:</span>
-                      <span className="font-mono font-black text-emerald-900">৳ ৫,০০০.০০</span>
+                      <span className="text-stone-500">{language === 'bn' ? "জমার পরিমাণ:" : "Deposit Amount:"}</span>
+                      <span className="font-mono font-black text-emerald-900">{language === 'bn' ? "৳ ৫,০০০.০০" : "৳ 5,000.00"}</span>
                     </div>
                   </div>
 
@@ -748,11 +750,11 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
                   <div className="pt-4 flex justify-between items-end text-[9px] text-stone-500 border-t border-dashed border-stone-200">
                     <div className="text-center">
                       <div className="w-16 border-b border-stone-400 mb-0.5" />
-                      <span>আদায়কারী</span>
+                      <span>{language === 'bn' ? "আদায়কারী" : "Collector"}</span>
                     </div>
                     <div className="text-center">
                       <div className="w-16 border-b border-stone-400 mb-0.5" />
-                      <span>সভাপতি / ক্যাশিয়ার</span>
+                      <span>{language === 'bn' ? "সভাপতি / ক্যাশিয়ার" : "President / Cashier"}</span>
                     </div>
                   </div>
                 </div>
@@ -761,7 +763,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
 
             {/* Preview helper notice */}
             <p className="text-[11px] text-stone-500 text-center">
-              প্রিন্ট বা ডাউনলোডের সময় নির্বাচিত সিল বা ছবিটিই ডকুমেন্টের ব্যাকগ্রাউন্ডে জলছাপ হিসেবে রেন্ডার হবে।
+              {language === 'bn' ? "প্রিন্ট বা ডাউনলোডের সময় নির্বাচিত সিল বা ছবিটিই ডকুমেন্টের ব্যাকগ্রাউন্ডে জলছাপ হিসেবে রেন্ডার হবে।" : "The selected seal or image will render as the background watermark on the document during print or download."}
             </p>
           </div>
         </div>
@@ -774,7 +776,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
             className="px-3 py-2 text-stone-600 hover:text-stone-900 text-xs font-semibold hover:bg-stone-200 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
           >
             <RefreshCw size={13} />
-            <span>রিসেট করুন</span>
+            <span>{language === 'bn' ? "রিসেট করুন" : "Reset"}</span>
           </button>
 
           <div className="flex items-center gap-2">
@@ -783,7 +785,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               onClick={onClose}
               className="px-4 py-2 bg-white hover:bg-stone-200 text-stone-700 border border-stone-300 text-xs font-bold rounded-xl transition-colors cursor-pointer"
             >
-              বাতিল
+              {language === 'bn' ? "বাতিল" : "Cancel"}
             </button>
             <button
               type="button"
@@ -791,7 +793,7 @@ export const WatermarkModal: React.FC<WatermarkModalProps> = ({
               className="px-5 py-2 bg-emerald-800 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
             >
               <CheckCircle2 size={15} />
-              <span>সেটিংস ও জলছাপ সংরক্ষণ করুন</span>
+              {language === 'bn' ? "সেটিংস ও জলছাপ সংরক্ষণ করুন" : "Save Settings & Watermark"}
             </button>
           </div>
         </div>

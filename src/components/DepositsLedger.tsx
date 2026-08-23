@@ -8,7 +8,8 @@ import { ConfirmDeleteModal } from "./ConfirmDeleteModal";
 interface DepositsLedgerProps {
   deposits: Deposit[];
   members: Member[];
-  onAddDeposit: () => void;
+  /** Omit to hide the "Add Deposit" button — Super Admin and Treasurer/Secretary only. */
+  onAddDeposit?: () => void;
   onViewReceipt: (deposit: Deposit) => void;
   onDeleteDeposit?: (depositId: string) => void;
 }
@@ -67,13 +68,15 @@ export function DepositsLedger({
             />
           </div>
 
-          <button
-            id="ledger-add-deposit-btn"
-            onClick={onAddDeposit}
-            className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs cursor-pointer"
-          >
-            <PlusCircle size={16} /> {t.btn_add_deposit}
-          </button>
+          {onAddDeposit && (
+            <button
+              id="ledger-add-deposit-btn"
+              onClick={onAddDeposit}
+              className="flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-900 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors shadow-xs cursor-pointer"
+            >
+              <PlusCircle size={16} /> {t.btn_add_deposit}
+            </button>
+          )}
         </div>
 
         {/* Month Pills */}
@@ -171,7 +174,7 @@ export function DepositsLedger({
                 </div>
                 <button
                   onClick={() => onViewReceipt(d)}
-                  title={t.btn_view_receipt || "রসিদ দেখুন"}
+                  title={t.btn_view_receipt || (language === 'bn' ? "রসিদ দেখুন" : "View Receipt")}
                   className="p-1.5 text-stone-400 hover:text-emerald-800 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                 >
                   <Receipt size={16} />
@@ -202,7 +205,7 @@ export function DepositsLedger({
         <ConfirmDeleteModal
           isOpen={Boolean(deletingDeposit)}
           title={language === 'bn' ? "জমা কিস্তি মুছে ফেলুন" : "Delete Deposit Record"}
-          itemDescription={`${nameFor(deletingDeposit.memberUid)} (${formatUid(deletingDeposit.memberUid)}) · ${tMonth(deletingDeposit.month)} · ${formatMoney(deletingDeposit.amount)} (রসিদ #${deletingDeposit.id})`}
+          itemDescription={`${nameFor(deletingDeposit.memberUid)} (${formatUid(deletingDeposit.memberUid)}) · ${tMonth(deletingDeposit.month)} · ${formatMoney(deletingDeposit.amount)} (${language === 'bn' ? 'রসিদ' : 'Receipt'} #${deletingDeposit.id})`}
           warningMessage={language === 'bn' 
             ? "এই জমা কিস্তির রসিদ ও হিসাব স্থায়ীভাবে লেজার থেকে মুছে ফেলা হবে। সংশ্লিষ্ট সদস্যের মোট জমার পরিমাণ কমে যাবে।"
             : "This deposit receipt and entry will be permanently removed. The member's total savings balance will decrease accordingly."}

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Paperclip, FileImage, FileText, Trash2, Eye, X, Upload, ExternalLink, Download, HardDrive } from 'lucide-react';
 import { STORAGE_MIME_TYPES, openFilePickerWithStorage } from '../utils/fileStorage';
+import { useLanguage } from '../utils/LanguageContext';
 
 interface AttachmentUploadProps {
   label?: string;
@@ -11,20 +12,24 @@ interface AttachmentUploadProps {
 }
 
 export function AttachmentUpload({
-  label = "ডকুমেন্ট বা স্লিপ অ্যাটাচমেন্ট (সংযুক্তি)",
-  hint = "চেক, ব্যাংক জমা স্লিপ, বিনিয়োগের চুক্তিপত্র বা ভাউচারের ছবি",
+  label,
+  hint,
   value,
   fileName,
   onChange,
 }: AttachmentUploadProps) {
+  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [dragOver, setDragOver] = useState(false);
 
+  const resolvedLabel = label ?? (language === 'bn' ? "ডকুমেন্ট বা স্লিপ অ্যাটাচমেন্ট (সংযুক্তি)" : "Document or Slip Attachment");
+  const resolvedHint = hint ?? (language === 'bn' ? "চেক, ব্যাংক জমা স্লিপ, বিনিয়োগের চুক্তিপত্র বা ভাউচারের ছবি" : "Photo of a check, bank deposit slip, investment agreement, or voucher");
+
   const processFile = (file: File) => {
     // Check max size (up to 8MB)
     if (file.size > 8 * 1024 * 1024) {
-      alert("ফাইলের সাইজ সর্বোচ্চ ৮ মেগাবাইট (8MB) হতে পারবে।");
+      alert(language === 'bn' ? "ফাইলের সাইজ সর্বোচ্চ ৮ মেগাবাইট (8MB) হতে পারবে।" : "File size must not exceed 8 megabytes (8MB).");
       return;
     }
 
@@ -84,11 +89,11 @@ export function AttachmentUpload({
       <div className="flex items-center justify-between">
         <label className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
           <Paperclip size={14} className="text-emerald-800" />
-          <span>{label}</span>
+          <span>{resolvedLabel}</span>
         </label>
         {value && (
           <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-            ✓ সংযুক্ত করা হয়েছে
+            {language === 'bn' ? "✓ সংযুক্ত করা হয়েছে" : "✓ Attached"}
           </span>
         )}
       </div>
@@ -121,7 +126,7 @@ export function AttachmentUpload({
             )}
             <div className="min-w-0">
               <p className="text-xs font-bold text-emerald-950 truncate">
-                {fileName || "সংযুক্ত ডকুমেন্ট / স্লিপ"}
+                {fileName || (language === 'bn' ? "সংযুক্ত ডকুমেন্ট / স্লিপ" : "Attached Document / Slip")}
               </p>
               <div className="flex items-center gap-2 mt-0.5">
                 <button
@@ -129,14 +134,14 @@ export function AttachmentUpload({
                   onClick={() => setShowPreview(true)}
                   className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 underline cursor-pointer"
                 >
-                  <Eye size={12} /> প্রিভিউ দেখুন
+                  <Eye size={12} /> {language === 'bn' ? "প্রিভিউ দেখুন" : "View Preview"}
                 </button>
                 <button
                   type="button"
                   onClick={handleTriggerBrowse}
                   className="text-[11px] font-medium text-stone-600 hover:text-stone-900 underline cursor-pointer"
                 >
-                  পরিবর্তন / স্টোরেজ
+                  {language === 'bn' ? "পরিবর্তন / স্টোরেজ" : "Change / Storage"}
                 </button>
               </div>
             </div>
@@ -145,7 +150,7 @@ export function AttachmentUpload({
           <button
             type="button"
             onClick={handleRemove}
-            title="সংযুক্তি মুছুন"
+            title={language === 'bn' ? "সংযুক্তি মুছুন" : "Remove Attachment"}
             className="p-1.5 rounded-lg bg-white hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-300 hover:border-rose-300 transition-colors shrink-0 cursor-pointer"
           >
             <Trash2 size={15} />
@@ -171,10 +176,10 @@ export function AttachmentUpload({
           </div>
           <div>
             <p className="text-xs font-bold text-stone-800">
-              ডিভাইস, মেমোরি কার্ড (SD Card) বা ড্রাইভ থেকে ফাইল নির্বাচন করুন
+              {language === 'bn' ? "ডিভাইস, মেমোরি কার্ড (SD Card) বা ড্রাইভ থেকে ফাইল নির্বাচন করুন" : "Select a file from device, memory card (SD Card), or drive"}
             </p>
             <p className="text-[10px] text-stone-500 mt-0.5">
-              {hint} (JPG, PNG, PDF - এক্সটার্নাল স্টোরেজ ও ড্র্যাগ-ড্রপ সাপোর্টেড)
+              {hint} {language === 'bn' ? "(JPG, PNG, PDF - এক্সটার্নাল স্টোরেজ ও ড্র্যাগ-ড্রপ সাপোর্টেড)" : "(JPG, PNG, PDF - external storage & drag-and-drop supported)"}
             </p>
           </div>
         </div>
@@ -202,7 +207,7 @@ export function AttachmentUpload({
               <div className="flex items-center gap-2">
                 <Paperclip size={16} className="text-amber-300" />
                 <span className="font-bold text-sm truncate">
-                  {fileName || "সংযুক্ত ডকুমেন্ট / রসিদ প্রিভিউ"}
+                  {fileName || (language === 'bn' ? "সংযুক্ত ডকুমেন্ট / রসিদ প্রিভিউ" : "Attached Document / Receipt Preview")}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -210,7 +215,7 @@ export function AttachmentUpload({
                   href={value}
                   download={fileName || "attachment-document"}
                   className="p-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-amber-200 transition-colors"
-                  title="ডাউনলোড করুন"
+                  title={language === 'bn' ? "ডাউনলোড করুন" : "Download"}
                 >
                   <Download size={16} />
                 </a>
@@ -234,14 +239,14 @@ export function AttachmentUpload({
               ) : (
                 <div className="text-center p-8 bg-white rounded-xl shadow-xs border border-stone-300 max-w-md">
                   <FileText size={48} className="mx-auto text-emerald-800 mb-2" />
-                  <p className="font-bold text-stone-900 text-sm mb-1">{fileName || "ডকুমেন্ট ফাইল"}</p>
-                  <p className="text-xs text-stone-500 mb-4">এই ফাইলটি ডাউনলোড করে দেখতে পারেন</p>
+                  <p className="font-bold text-stone-900 text-sm mb-1">{fileName || (language === 'bn' ? "ডকুমেন্ট ফাইল" : "Document File")}</p>
+                  <p className="text-xs text-stone-500 mb-4">{language === 'bn' ? "এই ফাইলটি ডাউনলোড করে দেখতে পারেন" : "You can download this file to view it"}</p>
                   <a
                     href={value}
                     download={fileName || "attachment-document"}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors"
                   >
-                    <Download size={14} /> ফাইল ডাউনলোড করুন
+                    <Download size={14} /> {language === 'bn' ? "ফাইল ডাউনলোড করুন" : "Download File"}
                   </a>
                 </div>
               )}
@@ -253,7 +258,7 @@ export function AttachmentUpload({
                 onClick={() => setShowPreview(false)}
                 className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-lg transition-colors"
               >
-                বন্ধ করুন
+                {language === 'bn' ? "বন্ধ করুন" : "Close"}
               </button>
             </div>
           </div>
@@ -270,6 +275,7 @@ interface AttachmentBadgeProps {
 }
 
 export function AttachmentBadge({ attachment, attachmentName, compact = false }: AttachmentBadgeProps) {
+  const { language } = useLanguage();
   const [showPreview, setShowPreview] = useState(false);
 
   if (!attachment) return null;
@@ -284,7 +290,7 @@ export function AttachmentBadge({ attachment, attachmentName, compact = false }:
           e.stopPropagation();
           setShowPreview(true);
         }}
-        title="সংযুক্তি দেখুন / প্রিভিউ"
+        title={language === 'bn' ? "সংযুক্তি দেখুন / প্রিভিউ" : "View Attachment / Preview"}
         className={`inline-flex items-center gap-1 font-semibold rounded-md border transition-all cursor-pointer ${
           compact
             ? 'px-1.5 py-0.5 text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300 shadow-2xs'
@@ -293,7 +299,7 @@ export function AttachmentBadge({ attachment, attachmentName, compact = false }:
       >
         <Paperclip size={compact ? 11 : 13} className="text-emerald-700" />
         <span className="truncate max-w-[120px]">
-          {compact ? 'স্লিপ/ফাইল' : (attachmentName || 'সংযুক্তি')}
+          {compact ? (language === 'bn' ? 'স্লিপ/ফাইল' : 'Slip/File') : (attachmentName || (language === 'bn' ? 'সংযুক্তি' : 'Attachment'))}
         </span>
       </button>
 
@@ -319,7 +325,7 @@ export function AttachmentBadge({ attachment, attachmentName, compact = false }:
               <div className="flex items-center gap-2">
                 <Paperclip size={16} className="text-amber-300" />
                 <span className="font-bold text-sm truncate">
-                  {attachmentName || "সংযুক্ত ডকুমেন্ট / ভাউচার স্লিপ"}
+                  {attachmentName || (language === 'bn' ? "সংযুক্ত ডকুমেন্ট / ভাউচার স্লিপ" : "Attached Document / Voucher Slip")}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -327,7 +333,7 @@ export function AttachmentBadge({ attachment, attachmentName, compact = false }:
                   href={attachment}
                   download={attachmentName || "attachment-document"}
                   className="p-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-amber-200 transition-colors"
-                  title="ডাউনলোড করুন"
+                  title={language === 'bn' ? "ডাউনলোড করুন" : "Download"}
                 >
                   <Download size={16} />
                 </a>
@@ -351,13 +357,13 @@ export function AttachmentBadge({ attachment, attachmentName, compact = false }:
               ) : (
                 <div className="text-center p-8 bg-white rounded-xl shadow-xs border border-stone-300 max-w-md">
                   <FileText size={48} className="mx-auto text-emerald-800 mb-2" />
-                  <p className="font-bold text-stone-900 text-sm mb-1">{attachmentName || "ডকুমেন্ট ফাইল"}</p>
+                  <p className="font-bold text-stone-900 text-sm mb-1">{attachmentName || (language === 'bn' ? "ডকুমেন্ট ফাইল" : "Document File")}</p>
                   <a
                     href={attachment}
                     download={attachmentName || "attachment-document"}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors mt-3"
                   >
-                    <Download size={14} /> ফাইল ডাউনলোড করুন
+                    <Download size={14} /> {language === 'bn' ? "ফাইল ডাউনলোড করুন" : "Download File"}
                   </a>
                 </div>
               )}
@@ -369,7 +375,7 @@ export function AttachmentBadge({ attachment, attachmentName, compact = false }:
                 onClick={() => setShowPreview(false)}
                 className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-lg transition-colors"
               >
-                বন্ধ করুন
+                {language === 'bn' ? "বন্ধ করুন" : "Close"}
               </button>
             </div>
           </div>

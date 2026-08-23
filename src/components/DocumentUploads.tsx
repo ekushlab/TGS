@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { validateNidDocumentFile, validatePhotoFileSize, processMemberPhoto } from '../utils/helpers';
 import { STORAGE_MIME_TYPES, openFilePickerWithStorage } from '../utils/fileStorage';
+import { useLanguage } from '../utils/LanguageContext';
 
 /* =========================================================================
    NID DOCUMENT UPLOAD (PDF or JPG/JPEG/PNG) - Size: 100 KB to 1 MB
@@ -33,7 +34,7 @@ interface NidDocumentUploadProps {
 
 export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
   label,
-  hint = 'PDF অথবা JPG/PNG ফরম্যাটে এনআইডি আপলোড করুন (১০০ KB থেকে ১ MB)',
+  hint,
   value,
   fileName,
   fileType,
@@ -41,10 +42,17 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
   onChange,
   required = false,
 }) => {
+  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [dragOver, setDragOver] = useState(false);
+
+  const hintText =
+    hint ??
+    (language === 'bn'
+      ? 'PDF অথবা JPG/PNG ফরম্যাটে এনআইডি আপলোড করুন (১০০ KB থেকে ১ MB)'
+      : 'Upload NID in PDF or JPG/PNG format (100 KB to 1 MB)');
 
   const isPdf =
     fileType === 'pdf' ||
@@ -56,7 +64,12 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
     setErrorMsg('');
     const validation = validateNidDocumentFile(file);
     if (!validation.valid) {
-      setErrorMsg(validation.error || 'ফাইলের সাইজ ১০০ KB থেকে ১ MB এর মধ্যে হতে হবে।');
+      setErrorMsg(
+        validation.error ||
+          (language === 'bn'
+            ? 'ফাইলের সাইজ ১০০ KB থেকে ১ MB এর মধ্যে হতে হবে।'
+            : 'File size must be between 100 KB and 1 MB.')
+      );
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -73,7 +86,11 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
       }
     };
     reader.onerror = () => {
-      setErrorMsg('ফাইল লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন।');
+      setErrorMsg(
+        language === 'bn'
+          ? 'ফাইল লোড করতে সমস্যা হয়েছে। অনুগ্রহ করে পুনরায় চেষ্টা করুন।'
+          : 'Failed to load the file. Please try again.'
+      );
     };
     reader.readAsDataURL(file);
   };
@@ -127,7 +144,7 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
           {required && <span className="text-red-500">*</span>}
         </label>
         <span className="text-[10px] text-stone-500 font-semibold bg-stone-100 px-2 py-0.5 rounded">
-          ১০০ KB – ১ MB
+          {language === 'bn' ? '১০০ KB – ১ MB' : '100 KB – 1 MB'}
         </span>
       </div>
 
@@ -162,7 +179,7 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-xs font-bold text-emerald-950 truncate max-w-[200px]">
-                  {fileName || 'জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট'}
+                  {fileName || (language === 'bn' ? 'জাতীয় পরিচয়পত্র (NID) ডকুমেন্ট' : 'National ID (NID) Document')}
                 </p>
                 {formattedSize && (
                   <span className="text-[10px] bg-emerald-200/80 text-emerald-900 font-mono font-bold px-1.5 py-0.2 rounded">
@@ -176,14 +193,14 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
                   onClick={() => setShowPreview(true)}
                   className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 underline cursor-pointer"
                 >
-                  <Eye size={12} /> প্রিভিউ দেখুন
+                  <Eye size={12} /> {language === 'bn' ? 'প্রিভিউ দেখুন' : 'View Preview'}
                 </button>
                 <button
                   type="button"
                   onClick={handleTriggerBrowse}
                   className="text-[11px] font-medium text-stone-600 hover:text-stone-900 underline cursor-pointer"
                 >
-                  ফাইল পরিবর্তন / স্টোরেজ
+                  {language === 'bn' ? 'ফাইল পরিবর্তন / স্টোরেজ' : 'Change File / Storage'}
                 </button>
               </div>
             </div>
@@ -192,7 +209,7 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
           <button
             type="button"
             onClick={handleRemove}
-            title="মুছুন"
+            title={language === 'bn' ? 'মুছুন' : 'Delete'}
             className="p-1.5 rounded-lg bg-white hover:bg-rose-50 text-stone-500 hover:text-rose-700 border border-stone-300 hover:border-rose-300 transition-colors shrink-0 cursor-pointer"
           >
             <Trash2 size={15} />
@@ -218,10 +235,14 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
           </div>
           <div>
             <p className="text-xs font-bold text-stone-800">
-              ডিভাইস, মেমোরি কার্ড (SD Card) বা ড্রাইভ থেকে NID ফাইল নির্বাচন করুন
+              {language === 'bn'
+                ? 'ডিভাইস, মেমোরি কার্ড (SD Card) বা ড্রাইভ থেকে NID ফাইল নির্বাচন করুন'
+                : 'Select NID file from device, memory card (SD Card), or drive'}
             </p>
             <p className="text-[10px] text-stone-500 mt-0.5">
-              {hint} (PDF, JPG, PNG - এক্সটার্নাল স্টোরেজ ও ড্রপ সাপোর্টেড)
+              {language === 'bn'
+                ? `${hintText} (PDF, JPG, PNG - এক্সটার্নাল স্টোরেজ ও ড্রপ সাপোর্টেড)`
+                : `${hintText} (PDF, JPG, PNG - external storage & drag-drop supported)`}
             </p>
           </div>
         </div>
@@ -256,7 +277,7 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
               <div className="flex items-center gap-2">
                 <CreditCard size={16} className="text-amber-300" />
                 <span className="font-bold text-sm truncate">
-                  {fileName || 'জাতীয় পরিচয়পত্র (NID)'}
+                  {fileName || (language === 'bn' ? 'জাতীয় পরিচয়পত্র (NID)' : 'National ID (NID)')}
                 </span>
                 {formattedSize && (
                   <span className="text-[10px] bg-emerald-800 text-emerald-200 font-mono px-1.5 py-0.5 rounded">
@@ -269,7 +290,7 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
                   href={value}
                   download={fileName || 'nid-card-document'}
                   className="p-1.5 rounded-lg bg-emerald-900 hover:bg-emerald-800 text-amber-200 transition-colors"
-                  title="ডাউনলোড করুন"
+                  title={language === 'bn' ? 'ডাউনলোড করুন' : 'Download'}
                 >
                   <Download size={16} />
                 </a>
@@ -296,13 +317,17 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
                     <FileText size={32} />
                   </div>
                   <p className="font-bold text-stone-900 text-sm mb-1">{fileName || 'NID Document (PDF)'}</p>
-                  <p className="text-xs text-stone-500 mb-4">এই পিডিএফ ফাইলটি ডাউনলোড করে পূর্ণাঙ্গ দেখতে পারেন</p>
+                  <p className="text-xs text-stone-500 mb-4">
+                    {language === 'bn'
+                      ? 'এই পিডিএফ ফাইলটি ডাউনলোড করে পূর্ণাঙ্গ দেখতে পারেন'
+                      : 'Download this PDF file to view it in full'}
+                  </p>
                   <a
                     href={value}
                     download={fileName || 'nid-document.pdf'}
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors"
                   >
-                    <Download size={14} /> পিডিএফ ফাইল ডাউনলোড করুন
+                    <Download size={14} /> {language === 'bn' ? 'পিডিএফ ফাইল ডাউনলোড করুন' : 'Download PDF File'}
                   </a>
                 </div>
               )}
@@ -314,7 +339,7 @@ export const NidDocumentUpload: React.FC<NidDocumentUploadProps> = ({
                 onClick={() => setShowPreview(false)}
                 className="px-4 py-1.5 bg-stone-200 hover:bg-stone-300 text-stone-800 text-xs font-bold rounded-lg transition-colors cursor-pointer"
               >
-                বন্ধ করুন
+                {language === 'bn' ? 'বন্ধ করুন' : 'Close'}
               </button>
             </div>
           </div>
@@ -340,6 +365,7 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
   photoSize,
   onChange,
 }) => {
+  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -348,7 +374,12 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
     setErrorMsg('');
     const validation = validatePhotoFileSize(file, 30, 300);
     if (!validation.valid) {
-      setErrorMsg(validation.error || 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।');
+      setErrorMsg(
+        validation.error ||
+          (language === 'bn'
+            ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।'
+            : 'Photo size must be between 30 KB and 300 KB.')
+      );
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -360,7 +391,9 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
       onChange(processedBase64, safeFormat, file.size);
     } catch (err) {
       console.error('Failed to process nominee photo', err);
-      setErrorMsg('ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।');
+      setErrorMsg(
+        language === 'bn' ? 'ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।' : 'Failed to process the photo.'
+      );
     } finally {
       setIsProcessing(false);
     }
@@ -413,17 +446,27 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
     <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-2.5">
       <div className="flex items-center justify-between">
         <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
-          <Camera size={14} className="text-emerald-800" /> নমিনীর ছবি (৩০ KB – ৩০০ KB)
+          <Camera size={14} className="text-emerald-800" />{' '}
+          {language === 'bn' ? 'নমিনীর ছবি (৩০ KB – ৩০০ KB)' : "Nominee's Photo (30 KB – 300 KB)"}
         </span>
         {photo && (
           <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-            {photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০ × ৩০০'} {formattedSize && `(${formattedSize})`}
+            {language === 'bn'
+              ? photoFormat === 'passport'
+                ? 'পাসপোর্ট সাইজ'
+                : '৩০০ × ৩০০'
+              : photoFormat === 'passport'
+              ? 'Passport Size'
+              : '300 × 300'}{' '}
+            {formattedSize && `(${formattedSize})`}
           </span>
         )}
       </div>
 
       <div className="flex items-center gap-2">
-        <span className="text-[11px] font-medium text-stone-600">ছবির সাইজ:</span>
+        <span className="text-[11px] font-medium text-stone-600">
+          {language === 'bn' ? 'ছবির সাইজ:' : 'Photo size:'}
+        </span>
         <button
           type="button"
           onClick={() => handleFormatChange('passport')}
@@ -433,7 +476,7 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
               : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
           }`}
         >
-          পাসপোর্ট সাইজ (Passport)
+          {language === 'bn' ? 'পাসপোর্ট সাইজ (Passport)' : 'Passport Size'}
         </button>
         <button
           type="button"
@@ -444,7 +487,7 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
               : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
           }`}
         >
-          ৩০০ × ৩০০ (Square)
+          {language === 'bn' ? '৩০০ × ৩০০ (Square)' : '300 × 300 (Square)'}
         </button>
       </div>
 
@@ -462,7 +505,7 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
               type="button"
               onClick={clearPhoto}
               className="absolute -top-2 -right-2 bg-rose-600 text-white p-1 rounded-full shadow-xs hover:bg-rose-700 transition-colors cursor-pointer"
-              title="ছবি মুছুন"
+              title={language === 'bn' ? 'ছবি মুছুন' : 'Delete Photo'}
             >
               <Trash2 size={12} />
             </button>
@@ -473,7 +516,7 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
             className="w-20 h-20 rounded-xl border-2 border-dashed border-stone-300 bg-white hover:border-emerald-700 hover:bg-emerald-50/40 cursor-pointer flex flex-col items-center justify-center text-stone-400 hover:text-emerald-800 transition-all p-2 text-center"
           >
             <Camera size={22} />
-            <span className="text-[9px] font-semibold mt-1">ছবি যোগ</span>
+            <span className="text-[9px] font-semibold mt-1">{language === 'bn' ? 'ছবি যোগ' : 'Add Photo'}</span>
           </div>
         )}
 
@@ -491,10 +534,20 @@ export const NomineePhotoUpload: React.FC<NomineePhotoUploadProps> = ({
             className="px-3 py-1 rounded-lg bg-white border border-stone-300 hover:bg-stone-100 text-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
           >
             <Upload size={12} className="text-emerald-800" />
-            <span>{photo ? 'ছবি পরিবর্তন' : 'নমিনীর ছবি নির্বাচন (স্টোরেজ / SD Card)'}</span>
+            <span>
+              {language === 'bn'
+                ? photo
+                  ? 'ছবি পরিবর্তন'
+                  : 'নমিনীর ছবি নির্বাচন (স্টোরেজ / SD Card)'
+                : photo
+                ? 'Change Photo'
+                : "Select Nominee's Photo (Storage / SD Card)"}
+            </span>
           </button>
           <p className="text-[10px] text-stone-500 leading-tight">
-            ফাইলের আকার ৩০ KB থেকে ৩০০ KB হতে হবে (ইন্টারনাল, মেমোরি কার্ড বা ড্রাইভ থেকে নির্বাচনযোগ্য)।
+            {language === 'bn'
+              ? 'ফাইলের আকার ৩০ KB থেকে ৩০০ KB হতে হবে (ইন্টারনাল, মেমোরি কার্ড বা ড্রাইভ থেকে নির্বাচনযোগ্য)।'
+              : 'File size must be between 30 KB and 300 KB (selectable from internal storage, memory card, or drive).'}
           </p>
         </div>
       </div>

@@ -144,7 +144,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
       id: 'profit_center' as const,
       label: language === 'bn' ? 'বিনিয়োগ প্রফিট সেন্টার' : 'Investment Profit Center',
       icon: Percent,
-      badge: '৫% + ৯৫%',
+      badge: language === 'bn' ? '৫% + ৯৫%' : '5% + 95%',
       badgeColor: 'bg-amber-400/20 text-amber-300 border-amber-400/40',
       desc: language === 'bn' ? 'জমার অনুপাতে ৯৫% প্রফিট বণ্টন হিসাব' : 'Pro-rata 95% member profit calculation',
     },
