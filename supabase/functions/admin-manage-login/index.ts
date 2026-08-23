@@ -102,7 +102,7 @@ Deno.serve(async (req: Request) => {
         id: created.user.id,
         mobile,
         name: name || "",
-        role: role === "admin" ? "admin" : "member",
+        role: role === "admin" || role === "treasurer" ? role : "member",
         member_uid: member_uid || null,
       });
       if (profileErr) {
@@ -136,7 +136,10 @@ Deno.serve(async (req: Request) => {
 
     if (action === "set_role") {
       const { targetUserId, role } = body;
-      if (!targetUserId || (role !== "admin" && role !== "member")) {
+      if (
+        !targetUserId ||
+        (role !== "admin" && role !== "treasurer" && role !== "member")
+      ) {
         return json(
           { error: "targetUserId and a valid role are required." },
           400
