@@ -11,11 +11,24 @@ import { supabase, isSupabaseConfigured } from "../utils/supabaseClient";
 import { mobileToEmail, normalizeMobile } from "../utils/mobileAuth";
 import { registerDeviceTokenForUser } from "../utils/pushNotifications";
 
+// Three access tiers:
+//   "admin"     — Super Admin: full access to everything, incl. Constitution &
+//                 Bylaws editing, Members, Settings, and all financial ledgers.
+//   "treasurer" — Treasurer / General Secretary: can ADD new entries in the
+//                 deposits, bank, investment, and fund/expenses ledgers, and
+//                 create new polls in the Voting & Notify Center — but has
+//                 no access to editing Members, Settings, or the
+//                 Constitution & Bylaws, and cannot create notices.
+//   "member"    — Everyone else: can view reports on every tab, but cannot
+//                 add, edit, or delete anything (except casting their own
+//                 vote, which is handled separately from this role system).
+export type UserRole = "admin" | "treasurer" | "member";
+
 export interface Profile {
   id: string;
   mobile: string;
   name: string;
-  role: "admin" | "member";
+  role: UserRole;
   member_uid: string | null;
 }
 
@@ -26,7 +39,17 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  /** Super Admin — full access to everything. */
   isAdmin: boolean;
+  /** Treasurer / General Secretary — limited entry-only access (see UserRole above). */
+  isTreasurer: boolean;
+  /**
+   * True for Super Admin OR Treasurer/Secretary — the set of people allowed
+   * to add new deposits, bank entries, investment entries, fund income,
+   * expenses, and polls. Use this (not isAdmin) to gate those "Add ..."
+   * buttons so Treasurer/Secretary logins see them too.
+   */
+  canManageEntries: boolean;
   /** The Member.uid linked to the logged-in person, if any. */
   currentMemberUid: string | null;
   signIn: (
@@ -119,13 +142,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (session?.user) await loadProfile(session.user.id);
   }, [session, loadProfile]);
 
+  // When Supabase isn't configured, the app runs fully unlocked (legacy
+  // local-only behavior) — treat that case as Super Admin everywhere.
+  const isAdmin = !isSupabaseConfigured || profile?.role === "admin";
+  const isTreasurer = isSupabaseConfigured && profile?.role === "treasurer";
+
   const value: AuthContextValue = {
     authEnabled: isSupabaseConfigured,
     loading,
     session,
     user: session?.user ?? null,
     profile,
-    isAdmin: !isSupabaseConfigured || profile?.role === "admin",
+    isAdmin,
+    isTreasurer,
+    canManageEntries: isAdmin || isTreasurer,
     currentMemberUid: profile?.member_uid ?? null,
     signIn,
     signOut,
