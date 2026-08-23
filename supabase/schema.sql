@@ -92,7 +92,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   mobile text not null unique,
   name text not null default '',
-  role text not null default 'member' check (role in ('admin', 'member')),
+  role text not null default 'member' check (role in ('admin', 'treasurer', 'member')),
   member_uid text references public.members (uid) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -159,6 +159,31 @@ as $$
   select member_uid from public.profiles where id = auth.uid();
 $$;
 
+create or replace function public.is_treasurer()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles where id = auth.uid() and role = 'treasurer'
+  );
+$$;
+
+-- Migration: widen the role check constraint on an already-existing
+-- `profiles` table to allow 'treasurer' (the `create table if not exists`
+-- above only applies on a brand-new table, so existing installs need this
+-- explicit ALTER). Safe to re-run.
+do $$
+begin
+  alter table public.profiles drop constraint if exists profiles_role_check;
+  alter table public.profiles add constraint profiles_role_check
+    check (role in ('admin', 'treasurer', 'member'));
+exception when others then
+  null;
+end $$;
+
 -- ---------------------------------------------------------------------------
 -- 5. Row Level Security
 -- ---------------------------------------------------------------------------
@@ -190,14 +215,15 @@ create policy "profiles_write" on public.profiles
 -- admin-manage-login edge function, which uses the service role key and
 -- therefore bypasses RLS entirely — so this policy only governs the
 -- browser client.)
+-- NOTE: 'deposits', 'bank_entries', 'invest_entries', 'fund_income',
+-- 'expenses' and 'polls' are handled separately below (treasurer/general
+-- secretary can INSERT into those, but update/delete stays admin-only).
 do $$
 declare
   t text;
 begin
   foreach t in array array[
-    'members', 'deposits', 'bank_entries', 'invest_entries',
-    'fund_income', 'expenses', 'notifications', 'polls',
-    'profit_distributions', 'app_settings'
+    'members', 'notifications', 'profit_distributions', 'app_settings'
   ]
   loop
     execute format('drop policy if exists "%s_select" on public.%I', t, t);
@@ -208,6 +234,44 @@ begin
     execute format('drop policy if exists "%s_write" on public.%I', t, t);
     execute format(
       'create policy "%s_write" on public.%I for all using (public.is_admin()) with check (public.is_admin())',
+      t, t
+    );
+  end loop;
+end $$;
+
+-- Treasurer/General Secretary tables: Super Admin has full access; the
+-- Treasurer/General Secretary role may only INSERT new entries (matching
+-- the "Add Deposit" / "New Bank Entry" / "New Investment Entry" /
+-- Organization Fund & Expenses / "New Vote Entry" buttons the app exposes
+-- to that role) — updating or deleting existing records stays admin-only,
+-- same as the app's own UI (delete buttons are admin-gated everywhere).
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'deposits', 'bank_entries', 'invest_entries', 'fund_income', 'expenses', 'polls'
+  ]
+  loop
+    execute format('drop policy if exists "%s_select" on public.%I', t, t);
+    execute format(
+      'create policy "%s_select" on public.%I for select using (auth.role() = ''authenticated'')',
+      t, t
+    );
+    execute format('drop policy if exists "%s_write" on public.%I', t, t);
+    execute format('drop policy if exists "%s_insert" on public.%I', t, t);
+    execute format(
+      'create policy "%s_insert" on public.%I for insert with check (public.is_admin() or public.is_treasurer())',
+      t, t
+    );
+    execute format('drop policy if exists "%s_update" on public.%I', t, t);
+    execute format(
+      'create policy "%s_update" on public.%I for update using (public.is_admin()) with check (public.is_admin())',
+      t, t
+    );
+    execute format('drop policy if exists "%s_delete" on public.%I', t, t);
+    execute format(
+      'create policy "%s_delete" on public.%I for delete using (public.is_admin())',
       t, t
     );
   end loop;
