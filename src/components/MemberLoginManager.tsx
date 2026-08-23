@@ -11,6 +11,7 @@ import {
   AlertCircle,
   UserCog,
 } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Member, AppSettings } from "../types";
 import { useLanguage } from "../utils/LanguageContext";
 import { supabase } from "../utils/supabaseClient";
@@ -57,6 +58,13 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
   const [copied, setCopied] = useState(false);
   const [existingProfiles, setExistingProfiles] = useState<ProfileRow[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
+
+  // Inline "reset password" row state — only one row open at a time.
+  const [resetOpenId, setResetOpenId] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetError, setResetError] = useState("");
+  const [resetSuccessId, setResetSuccessId] = useState<string | null>(null);
 
   const loadProfiles = async () => {
     if (!supabase) return;
@@ -135,6 +143,74 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
     setPassword(randomPassword());
     loadProfiles();
   };
+
+  const handleToggleReset = (profileId: string) => {
+    setResetSuccessId(null);
+    setResetError("");
+    if (resetOpenId === profileId) {
+      setResetOpenId(null);
+      return;
+    }
+    setResetOpenId(profileId);
+    setResetPassword(randomPassword());
+  };
+
+  const handleResetPassword = async (profile: ProfileRow) => {
+    setResetError("");
+    if (!supabase) {
+      setResetError(
+        language === "bn" ? "Supabase কনফিগার করা হয়নি।" : "Supabase is not configured."
+      );
+      return;
+    }
+    if (!resetPassword || resetPassword.length < 6) {
+      setResetError(
+        language === "bn"
+          ? "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।"
+          : "Password must be at least 6 characters."
+      );
+      return;
+    }
+
+    setResetBusy(true);
+    const { data, error: fnError } = await supabase.functions.invoke(
+      "admin-manage-login",
+      {
+        body: {
+          action: "reset_password",
+          targetUserId: profile.id,
+          newPassword: resetPassword,
+        },
+      }
+    );
+    setResetBusy(false);
+
+    if (fnError || data?.error) {
+      setResetError(data?.error || fnError?.message || "Failed to reset password.");
+      return;
+    }
+
+    setResetSuccessId(profile.id);
+  };
+
+  const resetSlipText = (profile: ProfileRow) =>
+    language === "bn"
+      ? `🏢 ${settings.societyName || "TRUST GROWTH SOCIETY"}
+🔐 নতুন পাসওয়ার্ড (রিসেট)
+------------------------------------
+📱 মোবাইল নম্বর: ${profile.mobile}
+🔑 নতুন পাসওয়ার্ড: ${resetPassword}
+------------------------------------
+🌐 লিঙ্ক: ${window.location.origin}
+⚠️ এই তথ্য গোপন রাখুন, কারো সাথে শেয়ার করবেন না (অ্যাডমিন ছাড়া)।`
+      : `🏢 ${settings.societyName || "TRUST GROWTH SOCIETY"}
+🔐 New Password (Reset)
+------------------------------------
+📱 Mobile Number: ${profile.mobile}
+🔑 New Password: ${resetPassword}
+------------------------------------
+🌐 Link: ${window.location.origin}
+⚠️ Keep this information private, do not share it with anyone (except admin).`;
 
   const slipText = result
     ? language === "bn"
@@ -355,25 +431,111 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
               {language === "bn" ? "এখনো কোনো লগইন তৈরি হয়নি।" : "No logins created yet."}
             </p>
           ) : (
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            <div className="space-y-1.5 max-h-80 overflow-y-auto">
               {existingProfiles.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between text-xs bg-stone-50 border border-stone-200 rounded-lg px-3 py-2"
-                >
-                  <span className="font-mono">{p.mobile}</span>
-                  <span className="text-stone-500">{p.name}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full font-bold ${
-                      p.role === "admin"
-                        ? "bg-amber-100 text-amber-900"
-                        : p.role === "treasurer"
-                        ? "bg-sky-100 text-sky-900"
-                        : "bg-emerald-100 text-emerald-900"
-                    }`}
-                  >
-                    {p.role}
-                  </span>
+                <div key={p.id} className="bg-stone-50 border border-stone-200 rounded-lg overflow-hidden">
+                  <div className="flex items-center justify-between gap-2 text-xs px-3 py-2">
+                    <span className="font-mono shrink-0">{p.mobile}</span>
+                    <span className="text-stone-500 truncate flex-1">{p.name}</span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full font-bold shrink-0 ${
+                        p.role === "admin"
+                          ? "bg-amber-100 text-amber-900"
+                          : p.role === "treasurer"
+                          ? "bg-sky-100 text-sky-900"
+                          : "bg-emerald-100 text-emerald-900"
+                      }`}
+                    >
+                      {p.role}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleReset(p.id)}
+                      title={language === "bn" ? "পাসওয়ার্ড রিসেট করুন" : "Reset password"}
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold cursor-pointer"
+                    >
+                      <KeyRound size={11} />
+                      {resetOpenId === p.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                    </button>
+                  </div>
+
+                  {resetOpenId === p.id && (
+                    <div className="border-t border-stone-200 bg-white p-3 space-y-2.5">
+                      {resetSuccessId === p.id ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-emerald-800 font-bold">
+                            <ShieldCheck size={14} />
+                            {language === "bn" ? "পাসওয়ার্ড রিসেট সফল হয়েছে!" : "Password reset successful!"}
+                          </div>
+                          <pre className="whitespace-pre-wrap text-[11px] bg-emerald-50 border border-emerald-200 rounded-lg p-2.5 font-mono text-stone-800">
+                            {resetSlipText(p)}
+                          </pre>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(resetSlipText(p));
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-700 text-amber-300 text-[11px] font-bold cursor-pointer"
+                            >
+                              <Copy size={12} />
+                              {language === "bn" ? "কপি করুন" : "Copy"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                window.open(
+                                  `https://wa.me/?text=${encodeURIComponent(resetSlipText(p))}`,
+                                  "_blank"
+                                )
+                              }
+                              className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-[11px] font-bold cursor-pointer"
+                            >
+                              <Share2 size={12} />
+                              WhatsApp
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <label className="text-[11px] font-bold text-stone-600 block">
+                            {language === "bn" ? "নতুন পাসওয়ার্ড" : "New Password"}
+                          </label>
+                          <div className="flex gap-1.5">
+                            <input
+                              type="text"
+                              value={resetPassword}
+                              onChange={(e) => setResetPassword(e.target.value)}
+                              className="w-full px-2.5 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-lg focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-700/40 font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setResetPassword(randomPassword())}
+                              title={language === "bn" ? "নতুন পাসওয়ার্ড" : "Regenerate"}
+                              className="shrink-0 w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 cursor-pointer"
+                            >
+                              <RefreshCw size={13} />
+                            </button>
+                          </div>
+                          {resetError && (
+                            <div className="flex items-start gap-1.5 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+                              <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                              {resetError}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleResetPassword(p)}
+                            disabled={resetBusy}
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-emerald-950 font-bold text-xs cursor-pointer"
+                          >
+                            {resetBusy ? <Loader2 size={14} className="animate-spin" /> : <KeyRound size={14} />}
+                            {language === "bn" ? "পাসওয়ার্ড রিসেট করুন" : "Reset Password"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

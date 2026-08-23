@@ -35,7 +35,8 @@ interface DashboardProps {
   maxMonthly: number;
   recentDeposits: Deposit[];
   members: Member[];
-  onAddDeposit: () => void;
+  /** Omit to hide the "Add Deposit" quick button — general members can view but not add entries. */
+  onAddDeposit?: () => void;
   bankBalance: number;
   investBalance: number;
   totalProfit: number;
@@ -578,6 +579,7 @@ export function Dashboard({
             <Receipt size={16} className="text-emerald-800" />
             <h3 className="font-bold text-stone-800 text-sm sm:text-base">{t.sec_recent_activities}</h3>
           </div>
+          {onAddDeposit && (
           <button
             id="dashboard-add-deposit-btn"
             onClick={onAddDeposit}
@@ -585,6 +587,7 @@ export function Dashboard({
           >
             <PlusCircle size={14} /> {t.btn_add_deposit}
           </button>
+          )}
         </div>
 
         <div className="divide-y divide-stone-100">

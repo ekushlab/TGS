@@ -36,6 +36,7 @@ import {
   AppSettings,
 } from "../types";
 import { useLanguage } from "../utils/LanguageContext";
+import { toEnDigits } from "../utils/translations";
 import { TgsLogoSvg, PageWatermark } from "./TgsLogoWatermark";
 
 interface ProfitCenterProps {
@@ -82,8 +83,22 @@ export function ProfitCenter({
   profitDistributions,
   settings,
   onSaveDistribution,
+  onDeleteDistribution,
 }: ProfitCenterProps) {
   const { language, t, formatNumber, formatMoney, formatUid } = useLanguage();
+
+  // Only a Super Admin can save a new distribution run — reuse that same
+  // signal to also gate the entire live calculator/entry form and its
+  // export buttons, since they all operate on ad-hoc, unsaved input values
+  // (not the real, persisted distribution history). General members only
+  // ever see the "Saved Distribution History" section below, built from
+  // profitDistributions — actual finalized records with real percentages.
+  const canEnterDistribution = !!onSaveDistribution;
+
+  // Which saved distribution run (by id) is currently expanded to show its
+  // full member-by-member percentage/profit breakdown.
+  const [expandedDistId, setExpandedDistId] = useState<string | null>(null);
+  const [historySearch, setHistorySearch] = useState<string>("");
 
   // Investment Selection / Input State
   const [selectedInvestId, setSelectedInvestId] = useState<string>("custom");
@@ -350,6 +365,7 @@ export function ProfitCenter({
             </div>
           </div>
 
+          {canEnterDistribution && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowStatementModal(true)}
@@ -367,9 +383,16 @@ export function ProfitCenter({
               Excel
             </button>
           </div>
+          )}
         </div>
       </div>
 
+      {/* Live Calculator, Metric Cards & Ad-Hoc Preview Table — Super Admin
+          only. This is an unsaved "what-if" simulator, not real distribution
+          data, so general members never see it; they see the real, saved
+          history in the section below instead. */}
+      {canEnterDistribution && (
+      <>
       {savedSuccessMsg && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3 rounded-xl flex items-center gap-2 animate-fade-in font-medium">
           <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
@@ -645,6 +668,155 @@ export function ProfitCenter({
             </tfoot>
           </table>
         </div>
+      </div>
+      </>
+      )}
+
+      {/* Saved Distribution History — real, finalized distribution runs.
+          Visible to every role (members, treasurer, admin) since this is
+          actual persisted data, not a live simulation. */}
+      <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-stone-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-stone-900 text-sm sm:text-base flex items-center gap-2">
+              <Layers size={16} className="text-emerald-800" />
+              {language === "bn" ? "সংরক্ষিত বিনিয়োগ প্রফিট বণ্টন তালিকা" : "Saved Investment Profit Distribution History"}
+            </h3>
+            <p className="text-xs text-stone-500 mt-0.5">
+              {language === "bn"
+                ? "পূর্বে সংরক্ষিত সকল বণ্টন বিবরণী — সদস্যভিত্তিক শতাংশ ও মুনাফা অংশসহ"
+                : "All previously saved distribution runs — with each member's percentage share and profit amount"}
+            </p>
+          </div>
+          {profitDistributions.length > 0 && (
+            <div className="relative w-full sm:w-64">
+              <Search size={14} className="absolute left-3 top-2.5 text-stone-400" />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder={language === "bn" ? "সদস্যের নাম বা আইডি খুঁজুন..." : "Search member name or ID..."}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-emerald-700"
+              />
+            </div>
+          )}
+        </div>
+
+        {profitDistributions.length === 0 ? (
+          <div className="p-8 text-center">
+            <Layers size={32} className="mx-auto text-stone-300 mb-2" />
+            <p className="text-stone-600 font-medium text-sm">
+              {language === "bn" ? "এখনো কোনো বণ্টন বিবরণী সংরক্ষণ করা হয়নি।" : "No distribution run has been saved yet."}
+            </p>
+            {canEnterDistribution && (
+              <p className="text-xs text-stone-400 mt-1">
+                {language === "bn"
+                  ? "উপরের ক্যালকুলেটর দিয়ে হিসাব করে \"হিসাবটি ডাটাবেজে সংরক্ষণ করুন\" চাপুন।"
+                  : 'Calculate above and click "Save Distribution Run" to create the first one.'}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="divide-y divide-stone-100">
+            {profitDistributions
+              .slice()
+              .reverse()
+              .map((dist) => {
+                const isExpanded = expandedDistId === dist.id;
+                const q = historySearch.trim().toLowerCase();
+                const qEn = q ? toEnDigits(q).toLowerCase() : "";
+                const shares = !q
+                  ? dist.shares
+                  : dist.shares.filter(
+                      (s) =>
+                        s.memberName.toLowerCase().includes(q) ||
+                        s.memberUid.toLowerCase().includes(q) ||
+                        s.memberUid.toLowerCase().includes(qEn) ||
+                        (s.memberMobile || "").includes(q) ||
+                        (s.memberMobile || "").includes(qEn)
+                    );
+                return (
+                  <div key={dist.id}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedDistId(isExpanded ? null : dist.id)}
+                      className="w-full text-left p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-stone-50/80 transition-colors cursor-pointer"
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-stone-900 text-sm truncate">{dist.investmentTitle || dist.title}</p>
+                          <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                            {formatNumber(dist.investmentDate)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-500 mt-1">
+                          {language === "bn"
+                            ? `বিনিয়োগ: ${formatMoney(dist.investmentAmount)} · মুনাফা: ${formatMoney(dist.profitAmount)} · ৯৫% পুল: ${formatMoney(dist.membersPoolAmount)} · ${formatNumber(dist.eligibleMembersCount)} জন সদস্য`
+                            : `Investment: ${formatMoney(dist.investmentAmount)} · Profit: ${formatMoney(dist.profitAmount)} · 95% Pool: ${formatMoney(dist.membersPoolAmount)} · ${formatNumber(dist.eligibleMembersCount)} Members`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {onDeleteDistribution && (
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteDistribution(dist.id);
+                            }}
+                            title={language === "bn" ? "মুছে ফেলুন" : "Delete"}
+                            className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 flex items-center justify-center cursor-pointer"
+                          >
+                            <X size={14} />
+                          </span>
+                        )}
+                        <ArrowRight
+                          size={16}
+                          className={`text-stone-400 transition-transform shrink-0 ${isExpanded ? "rotate-90" : ""}`}
+                        />
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="px-4 sm:px-5 pb-5 overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-stone-50 text-stone-700 font-bold border-b border-stone-200">
+                              <th className="p-2.5 text-center w-10">{language === "bn" ? "ক্র:" : "SL:"}</th>
+                              <th className="p-2.5 text-center">{language === "bn" ? "সদস্য আইডি" : "Member ID"}</th>
+                              <th className="p-2.5">{language === "bn" ? "সদস্যের নাম" : "Member Name"}</th>
+                              <th className="p-2.5 text-right">{language === "bn" ? "জমা" : "Deposit"}</th>
+                              <th className="p-2.5 text-center">{language === "bn" ? "শতাংশ (%)" : "Percentage (%)"}</th>
+                              <th className="p-2.5 text-right font-bold text-emerald-950">{language === "bn" ? "মুনাফা অংশ" : "Profit Share"}</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-stone-100">
+                            {shares.map((s, idx) => (
+                              <tr key={s.memberUid} className="hover:bg-stone-50/80 transition-colors">
+                                <td className="p-2.5 text-center font-mono text-stone-400">{formatNumber(idx + 1)}</td>
+                                <td className="p-2.5 text-center font-mono text-stone-600 font-semibold">{formatUid(s.memberUid)}</td>
+                                <td className="p-2.5 font-bold text-stone-900">{s.memberName}</td>
+                                <td className="p-2.5 text-right font-mono text-stone-700">{formatMoney(s.depositAtInvestDate)}</td>
+                                <td className="p-2.5 text-center font-mono font-bold text-amber-900">{(s.ratio * 100).toFixed(2)}%</td>
+                                <td className="p-2.5 text-right font-mono font-bold text-emerald-800">{formatMoney(s.profitShare)}</td>
+                              </tr>
+                            ))}
+                            {shares.length === 0 && (
+                              <tr>
+                                <td colSpan={6} className="p-4 text-center text-stone-400">
+                                  {language === "bn" ? "কোনো সদস্য পাওয়া যায়নি।" : "No members found."}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       {/* MODAL: OFFICIAL PROFIT DISTRIBUTION STATEMENT (PDF & JPG) */}

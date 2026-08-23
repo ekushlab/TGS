@@ -28,6 +28,7 @@ import {
   Bell,
   Percent,
   Smartphone,
+  KeyRound,
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useLanguage } from '../utils/LanguageContext';
@@ -56,6 +57,12 @@ interface SidebarDrawerProps {
   /** Only provided when Supabase login is active — shows a real "log out" entry. */
   onSignOut?: () => void;
   currentUserLabel?: string;
+  /** Super Admin — shows software settings, logo/watermark editing & cloud backup. */
+  isAdmin?: boolean;
+  /** Super Admin OR Treasurer/Secretary — shows the "Add Deposit" quick action. */
+  canManageEntries?: boolean;
+  /** Shows the "Change My Password" entry — any logged-in Supabase user. */
+  onOpenChangePassword?: () => void;
 }
 
 export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
@@ -78,6 +85,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   onOpenExitModal,
   onSignOut,
   currentUserLabel,
+  isAdmin = false,
+  canManageEntries = false,
+  onOpenChangePassword,
 }) => {
   const { language, t, formatNumber } = useLanguage();
 
@@ -174,6 +184,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
     },
   ];
 
+  const visibleNavItems = navItems.filter((item) => item.id !== 'admin' || isAdmin);
+
   return (
     <div
       className="fixed inset-0 z-50 flex animate-in fade-in duration-200 overscroll-contain select-none"
@@ -222,6 +234,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                     <Landmark size={20} />
                   )}
                 </div>
+                {isAdmin && (
                 <button
                   type="button"
                   onClick={() => {
@@ -233,6 +246,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 >
                   <Camera size={15} />
                 </button>
+                )}
               </div>
 
               <div className="min-w-0">
@@ -258,7 +272,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </button>
           </div>
 
-          {/* Quick Change Logo & Watermark separate button banner */}
+          {/* Quick Change Logo & Watermark separate button banner — Super Admin only */}
+          {isAdmin && (
           <div className="grid grid-cols-2 gap-2 mt-3">
             <button
               id="sidebar-logo-btn"
@@ -292,6 +307,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <ChevronRight size={11} className="text-amber-400 shrink-0" />
             </button>
           </div>
+          )}
 
           {/* Language Switcher in Drawer */}
           <div className="mt-2.5">
@@ -305,7 +321,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             {t.nav_menu_title}
           </div>
 
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
             return (
@@ -364,6 +380,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-1.5 px-1">
+            {isAdmin && (
             <button
               onClick={() => {
                 onClose();
@@ -377,7 +394,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <p className="text-[11px] font-bold text-white leading-tight">{t.btn_add_member}</p>
               <p className="text-[9px] text-emerald-300">{language === 'bn' ? 'ফরম এন্ট্রি' : 'New Form'}</p>
             </button>
+            )}
 
+            {canManageEntries && (
             <button
               onClick={() => {
                 onClose();
@@ -391,7 +410,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <p className="text-[11px] font-bold text-white leading-tight">{t.btn_add_deposit}</p>
               <p className="text-[9px] text-emerald-300">{language === 'bn' ? 'রসিদ জেনারেট' : 'Get Receipt'}</p>
             </button>
+            )}
 
+            {isAdmin && (
             <button
               onClick={() => {
                 onClose();
@@ -405,7 +426,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <p className="text-[11px] font-bold text-white leading-tight">{t.btn_cloud_backup}</p>
               <p className="text-[9px] text-emerald-300">JSON / Excel</p>
             </button>
+            )}
 
+            {isAdmin && (
             <button
               onClick={() => {
                 onClose();
@@ -419,12 +442,14 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <p className="text-[11px] font-bold text-white leading-tight">{t.btn_settings}</p>
               <p className="text-[9px] text-emerald-300">{language === 'bn' ? 'জরিমানা ও স্বাক্ষর' : 'Fines & Signs'}</p>
             </button>
+            )}
           </div>
         </div>
 
         {/* Drawer Footer - Consolidated Settings & About Us */}
         <div className="p-3 border-t border-emerald-900/90 bg-emerald-950 space-y-2">
-          {/* Prominent Comprehensive Settings Button at Bottom of Sidebar */}
+          {/* Prominent Comprehensive Settings Button at Bottom of Sidebar — Super Admin only */}
+          {isAdmin && (
           <button
             id="sidebar-settings-btn"
             type="button"
@@ -449,6 +474,33 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </div>
             <ChevronRight size={16} className="text-emerald-950 group-hover:translate-x-1 transition-transform" />
           </button>
+          )}
+
+          {/* Change My Password — any logged-in Supabase user, including general members */}
+          {onOpenChangePassword && (
+          <button
+            id="sidebar-change-password-btn"
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenChangePassword();
+            }}
+            className="w-full p-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-900 text-amber-100 border border-emerald-800/70 flex items-center justify-between transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-amber-400/20 text-amber-300 flex items-center justify-center font-bold shrink-0">
+                <KeyRound size={14} />
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-bold text-amber-200 leading-tight">
+                  {language === 'bn' ? 'আমার পাসওয়ার্ড পরিবর্তন করুন' : 'Change My Password'}
+                </p>
+                <p className="text-[9px] text-emerald-300">{language === 'bn' ? 'লগইন পাসওয়ার্ড আপডেট করুন' : 'Update your login password'}</p>
+              </div>
+            </div>
+            <ChevronRight size={13} className="text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+          )}
 
           <button
             id="sidebar-about-us-btn"

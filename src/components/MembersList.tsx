@@ -2,6 +2,8 @@ import { Search, PlusCircle, Phone, Droplet, ChevronRight, Mail, Calendar, UserC
 import { Member } from "../types";
 import { useLanguage } from "../utils/LanguageContext";
 
+const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
+
 interface MembersListProps {
   members: Member[];
   query: string;
@@ -10,6 +12,8 @@ interface MembersListProps {
   memberTotal: (uid: string) => number;
   /** Omit to hide the "New Member" button — only a Super Admin manages members. */
   onAddMember?: () => void;
+  bloodFilter?: string;
+  setBloodFilter?: (b: string) => void;
 }
 
 export function MembersList({
@@ -19,6 +23,8 @@ export function MembersList({
   onSelect,
   memberTotal,
   onAddMember,
+  bloodFilter = "",
+  setBloodFilter,
 }: MembersListProps) {
   const { language, t, formatNumber, formatMoney, formatUid } = useLanguage();
 
@@ -51,6 +57,43 @@ export function MembersList({
           )}
         </div>
       </div>
+
+      {/* Blood Group Filter */}
+      {setBloodFilter && (
+        <div className="flex items-center gap-2 flex-wrap bg-white p-3 rounded-xl border border-stone-200 shadow-xs">
+          <span className="flex items-center gap-1.5 text-xs font-bold text-stone-600 shrink-0">
+            <Droplet size={14} className="text-red-600" />
+            {language === 'bn' ? 'রক্তের গ্রুপ:' : 'Blood Group:'}
+          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setBloodFilter("")}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                bloodFilter === ""
+                  ? "bg-emerald-800 text-white border-emerald-800"
+                  : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
+              }`}
+            >
+              {language === 'bn' ? 'সব' : 'All'}
+            </button>
+            {BLOOD_GROUPS.map((bg) => (
+              <button
+                key={bg}
+                type="button"
+                onClick={() => setBloodFilter(bloodFilter === bg ? "" : bg)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
+                  bloodFilter === bg
+                    ? "bg-red-700 text-white border-red-700"
+                    : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                }`}
+              >
+                {bg}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grid of members */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

@@ -48,11 +48,30 @@ export function LoginScreen({ settings }: LoginScreenProps) {
     setSubmitting(false);
 
     if (signInError) {
-      setError(
-        language === "bn"
-          ? "মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়। অনুগ্রহ করে আবার চেষ্টা করুন অথবা অ্যাডমিনের সাথে যোগাযোগ করুন।"
-          : "Incorrect mobile number or password. Please try again or contact your admin."
-      );
+      // TIMEOUT / NETWORK_ERROR come from AuthContext.signIn's timeout
+      // guard — seen mainly on some older/uncommon Android WebView builds
+      // (e.g. Poco/MIUI devices with a stale "Android System WebView")
+      // where the login request can hang instead of failing fast. Without
+      // this guard the button spins forever with no feedback at all.
+      if (signInError === "TIMEOUT") {
+        setError(
+          language === "bn"
+            ? "লগইন করতে অনেক সময় লাগছে। ইন্টারনেট সংযোগ পরীক্ষা করুন, অথবা Play Store থেকে \"Android System WebView\" আপডেট করে আবার চেষ্টা করুন।"
+            : "Login is taking too long. Check your internet connection, or update \"Android System WebView\" from the Play Store and try again."
+        );
+      } else if (signInError === "NETWORK_ERROR" || /network|fetch/i.test(signInError)) {
+        setError(
+          language === "bn"
+            ? "নেটওয়ার্ক সমস্যা হয়েছে। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।"
+            : "A network problem occurred. Check your internet connection and try again."
+        );
+      } else {
+        setError(
+          language === "bn"
+            ? "মোবাইল নম্বর বা পাসওয়ার্ড সঠিক নয়। অনুগ্রহ করে আবার চেষ্টা করুন অথবা অ্যাডমিনের সাথে যোগাযোগ করুন।"
+            : "Incorrect mobile number or password. Please try again or contact your admin."
+        );
+      }
     }
   };
 
