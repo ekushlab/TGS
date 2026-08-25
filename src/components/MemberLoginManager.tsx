@@ -10,6 +10,7 @@ import {
   Loader2,
   AlertCircle,
   UserCog,
+  Shield,
 } from "lucide-react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { Member, AppSettings } from "../types";
@@ -65,6 +66,14 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
   const [resetBusy, setResetBusy] = useState(false);
   const [resetError, setResetError] = useState("");
   const [resetSuccessId, setResetSuccessId] = useState<string | null>(null);
+
+  // Inline "change access level" row state — lets an admin promote/demote
+  // an existing login (e.g. member -> treasurer/secretary, or -> admin).
+  const [roleOpenId, setRoleOpenId] = useState<string | null>(null);
+  const [pendingRole, setPendingRole] = useState<"member" | "treasurer" | "admin">("member");
+  const [roleBusy, setRoleBusy] = useState(false);
+  const [roleError, setRoleError] = useState("");
+  const [roleSuccessId, setRoleSuccessId] = useState<string | null>(null);
 
   const loadProfiles = async () => {
     if (!supabase) return;
@@ -191,6 +200,56 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
     }
 
     setResetSuccessId(profile.id);
+  };
+
+  const handleToggleRole = (profile: ProfileRow) => {
+    setRoleSuccessId(null);
+    setRoleError("");
+    if (roleOpenId === profile.id) {
+      setRoleOpenId(null);
+      return;
+    }
+    setRoleOpenId(profile.id);
+    setPendingRole(profile.role);
+  };
+
+  const handleChangeRole = async (profile: ProfileRow) => {
+    setRoleError("");
+    if (!supabase) {
+      setRoleError(
+        language === "bn" ? "Supabase কনফিগার করা হয়নি।" : "Supabase is not configured."
+      );
+      return;
+    }
+    if (pendingRole === profile.role) {
+      setRoleError(
+        language === "bn"
+          ? "এটি ইতিমধ্যে তার বর্তমান একসেস লেভেল।"
+          : "That's already this login's current access level."
+      );
+      return;
+    }
+
+    setRoleBusy(true);
+    const { data, error: fnError } = await supabase.functions.invoke(
+      "admin-manage-login",
+      {
+        body: {
+          action: "set_role",
+          targetUserId: profile.id,
+          role: pendingRole,
+        },
+      }
+    );
+    setRoleBusy(false);
+
+    if (fnError || data?.error) {
+      setRoleError(data?.error || fnError?.message || "Failed to update access level.");
+      return;
+    }
+
+    setRoleSuccessId(profile.id);
+    loadProfiles();
   };
 
   const resetSlipText = (profile: ProfileRow) =>
@@ -450,6 +509,15 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
                     </span>
                     <button
                       type="button"
+                      onClick={() => handleToggleRole(p)}
+                      title={language === "bn" ? "একসেস লেভেল পরিবর্তন করুন" : "Change access level"}
+                      className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold cursor-pointer"
+                    >
+                      <Shield size={11} />
+                      {roleOpenId === p.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => handleToggleReset(p.id)}
                       title={language === "bn" ? "পাসওয়ার্ড রিসেট করুন" : "Reset password"}
                       className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold cursor-pointer"
@@ -458,6 +526,73 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
                       {resetOpenId === p.id ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                     </button>
                   </div>
+
+                  {roleOpenId === p.id && (
+                    <div className="border-t border-stone-200 bg-white p-3 space-y-2.5">
+                      {roleSuccessId === p.id ? (
+                        <div className="flex items-center gap-1.5 text-emerald-800 font-bold text-xs">
+                          <ShieldCheck size={14} />
+                          {language === "bn" ? "একসেস লেভেল সফলভাবে পরিবর্তন হয়েছে!" : "Access level updated successfully!"}
+                        </div>
+                      ) : (
+                        <>
+                          <label className="text-[11px] font-bold text-stone-600 block">
+                            {language === "bn" ? "নতুন একসেস লেভেল" : "New Access Level"}
+                          </label>
+                          <div className="flex flex-col sm:flex-row gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setPendingRole("member")}
+                              className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors ${
+                                pendingRole === "member"
+                                  ? "bg-emerald-800 text-amber-300 border-emerald-800"
+                                  : "bg-white text-stone-600 border-stone-200"
+                              }`}
+                            >
+                              {language === "bn" ? "সাধারণ সদস্য" : "Member"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingRole("treasurer")}
+                              className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors ${
+                                pendingRole === "treasurer"
+                                  ? "bg-sky-700 text-white border-sky-700"
+                                  : "bg-white text-stone-600 border-stone-200"
+                              }`}
+                            >
+                              {language === "bn" ? "কোষাধ্যক্ষ/সম্পাদক" : "Treasurer/Secretary"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingRole("admin")}
+                              className={`flex-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer transition-colors ${
+                                pendingRole === "admin"
+                                  ? "bg-amber-400 text-emerald-950 border-amber-400"
+                                  : "bg-white text-stone-600 border-stone-200"
+                              }`}
+                            >
+                              {language === "bn" ? "অ্যাডমিন" : "Admin"}
+                            </button>
+                          </div>
+                          {roleError && (
+                            <div className="flex items-start gap-1.5 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-2">
+                              <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                              {roleError}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleChangeRole(p)}
+                            disabled={roleBusy}
+                            className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-400 hover:bg-amber-300 disabled:opacity-60 text-emerald-950 font-bold text-xs cursor-pointer"
+                          >
+                            {roleBusy ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                            {language === "bn" ? "একসেস লেভেল পরিবর্তন করুন" : "Change Access Level"}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
 
                   {resetOpenId === p.id && (
                     <div className="border-t border-stone-200 bg-white p-3 space-y-2.5">

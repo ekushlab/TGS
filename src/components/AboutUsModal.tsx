@@ -8,6 +8,8 @@ interface AboutUsModalProps {
   onClose: () => void;
   onSaveAboutUs: (updatedAboutUs: string) => void;
   onUploadLogoClick?: () => void;
+  /** Omit (or pass false) to hide the "Edit" control on the admin message — only admins may edit it. */
+  canEdit?: boolean;
 }
 
 export const AboutUsModal: React.FC<AboutUsModalProps> = ({
@@ -15,6 +17,7 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
   onClose,
   onSaveAboutUs,
   onUploadLogoClick,
+  canEdit = false,
 }) => {
   const { language, formatNumber } = useLanguage();
   const [isEditing, setIsEditing] = useState(false);
@@ -78,8 +81,10 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
                   onUploadLogoClick();
                 }
               }}
-              title={language === 'bn' ? "লোগো ক্রপ বা পরিবর্তন করুন" : "Change or crop logo"}
-              className="w-10 h-10 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center font-black shadow-sm shrink-0 overflow-hidden relative group cursor-pointer hover:ring-2 hover:ring-amber-300 transition-all"
+              title={onUploadLogoClick ? (language === 'bn' ? "লোগো ক্রপ বা পরিবর্তন করুন" : "Change or crop logo") : undefined}
+              className={`w-10 h-10 rounded-xl bg-amber-400 text-emerald-950 flex items-center justify-center font-black shadow-sm shrink-0 overflow-hidden relative group transition-all ${
+                onUploadLogoClick ? "cursor-pointer hover:ring-2 hover:ring-amber-300" : ""
+              }`}
             >
               {settings.logoUrl ? (
                 <img
@@ -142,7 +147,7 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
                 <Award size={16} className="text-amber-600" />
                 <span>{language === 'bn' ? "অ্যাডমিন প্যানেলের বার্তা ও সমিতি পরিচিতি" : "Admin Panel Message & Society Introduction"}</span>
               </label>
-              {!isEditing ? (
+              {canEdit && (!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
                   className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-200 transition-colors"
@@ -167,7 +172,7 @@ export const AboutUsModal: React.FC<AboutUsModalProps> = ({
                     <Check size={14} /> {language === 'bn' ? "সংরক্ষণ" : "Save"}
                   </button>
                 </div>
-              )}
+              ))}
             </div>
 
             {isEditing ? (
