@@ -15,6 +15,9 @@ import {
   Camera,
   Info,
   ShieldCheck,
+  KeyRound,
+  LogOut,
+  CircleUserRound,
 } from "lucide-react";
 import { Member, Deposit, AccountEntry, FundIncome, Expense, AppSettings, AppData, Poll, PollVote, AppNotification, ProfitDistribution } from "./types";
 import {
@@ -169,6 +172,7 @@ function AppContent() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<"profile" | "logo" | "watermark" | "language" | "signatures" | "fines">("profile");
   const [showCloudBackup, setShowCloudBackup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [viewingReceiptDeposit, setViewingReceiptDeposit] = useState<Deposit | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
   const [isExited, setIsExited] = useState(false);
@@ -264,6 +268,7 @@ function AppContent() {
     showFineSettings,
     showCloudBackup,
     showChangePassword,
+    showProfileMenu,
     showSidebar,
     selectedUid,
     tab,
@@ -287,6 +292,7 @@ function AppContent() {
       showFineSettings,
       showCloudBackup,
       showChangePassword,
+      showProfileMenu,
       showSidebar,
       selectedUid,
       tab,
@@ -342,6 +348,10 @@ function AppContent() {
     }
     if (s.showChangePassword) {
       setShowChangePassword(false);
+      return;
+    }
+    if (s.showProfileMenu) {
+      setShowProfileMenu(false);
       return;
     }
     if (s.showFineSettings) {
@@ -489,8 +499,8 @@ function AppContent() {
   ) => {
     // Treasurer / General Secretary logins may only ADD new entries in
     // these specific areas (deposits, bank, investment, fund/expenses,
-    // and polls) — never touch members, notifications, profit
-    // distributions, or settings (which covers the Constitution & Bylaws
+    // polls, and profit distribution statements) — never touch members,
+    // notifications, or settings (which covers the Constitution & Bylaws
     // text too, so this also enforces "no Constitution edit access").
     const TREASURER_ALLOWED_KEYS = [
       "deposits",
@@ -499,6 +509,7 @@ function AppContent() {
       "fundIncome",
       "expenses",
       "polls",
+      "profitDistributions",
     ] as const;
     const isWithinTreasurerScope =
       auth.isTreasurer &&
@@ -850,6 +861,13 @@ function AppContent() {
 
   const selectedMember = members.find((m) => m.uid === selectedUid);
 
+  // The logged-in person's profile picture, if their login is linked to a
+  // Member record with a photo — otherwise the header falls back to a
+  // default avatar icon (e.g. Admin/Treasurer logins with no linked member).
+  const currentUserPhoto = auth.currentMemberUid
+    ? members.find((m) => m.uid === auth.currentMemberUid)?.photo || null
+    : null;
+
   const currentAppData: AppData = {
     members,
     deposits,
@@ -982,9 +1000,6 @@ function AppContent() {
                     TGS
                   </span>
                 </div>
-                <p className="text-emerald-300 text-xs sm:text-sm mt-0.5">
-                  {(language === 'en' && settings.societySubtitleEn) ? settings.societySubtitleEn : settings.societySubtitle} · {language === 'en' ? (settings.establishedDateEn ? `Est: ${settings.establishedDateEn}` : 'Est: 25-09-2025') : (settings.establishedDate ? `স্থাপিত ${settings.establishedDate}` : 'স্থাপিত ২৫-০৯-২০২৫')}
-                </p>
               </div>
             </div>
 
@@ -1058,6 +1073,71 @@ function AppContent() {
                   </p>
                 </div>
               </button>
+              )}
+
+              {/* Logged-in User Profile Picture — click for Change Password / Logout */}
+              {auth.authEnabled && auth.user && (
+                <div className="relative shrink-0">
+                  <button
+                    id="header-profile-menu-btn"
+                    type="button"
+                    onClick={() => setShowProfileMenu((prev) => !prev)}
+                    title={auth.profile?.name || (language === 'bn' ? "প্রোফাইল মেনু" : "Profile menu")}
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-emerald-900/90 hover:bg-emerald-800 border-2 border-emerald-700/90 hover:border-amber-400/60 flex items-center justify-center shadow-xs cursor-pointer active:scale-95 transition-all"
+                  >
+                    {currentUserPhoto ? (
+                      <img
+                        src={currentUserPhoto}
+                        alt={auth.profile?.name || "Profile"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <CircleUserRound size={24} className="text-amber-300" />
+                    )}
+                  </button>
+
+                  {showProfileMenu && (
+                    <>
+                      {/* Invisible backdrop — click outside the menu to close it */}
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setShowProfileMenu(false)}
+                      />
+                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-stone-200 z-50 overflow-hidden animate-in fade-in duration-150">
+                        <div className="px-4 py-3 border-b border-stone-100 bg-stone-50">
+                          <p className="text-xs font-bold text-stone-900 truncate">
+                            {auth.profile?.name || (language === 'bn' ? 'অতিথি' : 'Guest')}
+                          </p>
+                          <p className="text-[11px] text-stone-500 font-mono mt-0.5">
+                            {auth.profile?.mobile}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowChangePassword(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer transition-colors"
+                        >
+                          <KeyRound size={15} className="text-emerald-700 shrink-0" />
+                          {language === 'bn' ? 'নিজের পাসওয়ার্ড পরিবর্তন করুন' : 'Change Own Password'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            auth.signOut();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-red-700 hover:bg-red-50 cursor-pointer transition-colors border-t border-stone-100"
+                        >
+                          <LogOut size={15} className="shrink-0" />
+                          {language === 'bn' ? 'লগ-আউট' : 'Logout'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -1265,7 +1345,7 @@ function AppContent() {
             investEntries={investEntries}
             settings={settings}
             profitDistributions={profitDistributions}
-            onSaveDistribution={auth.isAdmin ? saveProfitDistribution : undefined}
+            onSaveDistribution={auth.canManageEntries ? saveProfitDistribution : undefined}
             onDeleteDistribution={auth.isAdmin ? deleteProfitDistribution : undefined}
           />
         )}
@@ -1490,7 +1570,13 @@ function AppContent() {
         onSignOut={auth.authEnabled ? () => auth.signOut() : undefined}
         currentUserLabel={
           auth.profile
-            ? `${auth.profile.mobile}${auth.profile.name ? " · " + auth.profile.name : ""} (${auth.isAdmin ? "Admin" : "Member"})`
+            ? `${auth.profile.mobile}${auth.profile.name ? " · " + auth.profile.name : ""} (${
+                auth.isAdmin
+                  ? "Admin"
+                  : auth.isTreasurer
+                  ? (language === "bn" ? "কোষাধ্যক্ষ/সম্পাদক" : "Treasurer/Secretary")
+                  : "Member"
+              })`
             : undefined
         }
         isAdmin={auth.isAdmin}
@@ -1531,6 +1617,7 @@ function AppContent() {
         <AboutUsModal
           settings={settings}
           onClose={() => setShowAboutUs(false)}
+          canEdit={auth.isAdmin}
           onSaveAboutUs={(updatedAboutUs) => {
             updateSettings({ ...settings, aboutUs: updatedAboutUs });
             flashToast(
@@ -1539,11 +1626,15 @@ function AppContent() {
                 : "About Us information saved successfully!"
             );
           }}
-          onUploadLogoClick={() => {
-            setShowAboutUs(false);
-            setSettingsInitialTab("logo");
-            setShowSettingsModal(true);
-          }}
+          onUploadLogoClick={
+            auth.isAdmin
+              ? () => {
+                  setShowAboutUs(false);
+                  setSettingsInitialTab("logo");
+                  setShowSettingsModal(true);
+                }
+              : undefined
+          }
         />
       )}
 
