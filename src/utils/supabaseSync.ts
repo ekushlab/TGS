@@ -28,6 +28,28 @@ const TABLE_MAP: Record<string, { table: string; idKey: string }> = {
 
 type SyncableKey = keyof typeof TABLE_MAP;
 
+/**
+ * Races a promise against a timeout so a hung/offline network call never
+ * blocks the caller forever — the same problem AuthContext.tsx guards
+ * against for login, needed here too since fetchAllFromSupabase() and
+ * syncAppDataToSupabase() both call supabase.auth.getSession() directly.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number, timeoutMessage: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(timeoutMessage)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 /** Last snapshot we know Supabase agrees with — used to diff on every save. */
 let lastSynced: AppData | null = null;
 
@@ -114,9 +136,19 @@ async function fetchSettings() {
 export async function fetchAllFromSupabase(): Promise<AppData | null> {
   if (!isSupabaseConfigured || !supabase) return null;
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+  let session;
+  try {
+    const result = await withTimeout(
+      supabase.auth.getSession(),
+      10000,
+      "Session check timed out."
+    );
+    session = result.data.session;
+  } catch {
+    // Offline / hung network — fall back to the local cache like any other
+    // failure below, rather than hanging the whole app data load.
+    return null;
+  }
   if (!session) return null;
 
   try {
@@ -184,12 +216,20 @@ function rowsEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+/**
+ * Pushes one table's diff to Supabase and returns the snapshot that should
+ * be recorded as "last known synced" for it. On success that's simply the
+ * new data; on failure (most commonly: offline) it's the OLD (prev) data,
+ * so the next sync pass still sees a difference and retries the same push
+ * instead of silently marking a failed/offline write as done — which is
+ * what let offline edits get lost for good once connectivity returned.
+ */
 async function syncGenericTable<T extends Record<string, any>>(
   key: SyncableKey,
   next: T[],
   prev: T[]
-) {
-  if (!supabase) return;
+): Promise<T[]> {
+  if (!supabase) return prev;
   const { table, idKey } = TABLE_MAP[key];
 
   const prevById = new Map(prev.map((item) => [item[idKey], item]));
@@ -207,47 +247,85 @@ async function syncGenericTable<T extends Record<string, any>>(
     if (!nextById.has(id)) toDeleteIds.push(id);
   }
 
+  let failed = false;
   if (toUpsert.length) {
     const { error } = await supabase.from(table).upsert(toUpsert);
-    if (error) console.error(`Supabase upsert failed for ${table}:`, error.message);
+    if (error) {
+      console.error(`Supabase upsert failed for ${table}:`, error.message);
+      failed = true;
+    }
   }
   if (toDeleteIds.length) {
     const { error } = await supabase.from(table).delete().in(idKey, toDeleteIds);
-    if (error) console.error(`Supabase delete failed for ${table}:`, error.message);
+    if (error) {
+      console.error(`Supabase delete failed for ${table}:`, error.message);
+      failed = true;
+    }
   }
+
+  return failed ? prev : next;
 }
 
-async function syncPolls(next: Poll[], prev: Poll[]) {
-  if (!supabase) return;
+async function syncPolls(next: Poll[], prev: Poll[]): Promise<Poll[]> {
+  if (!supabase) return prev;
   // Strip `votes` before storing — votes live in their own table so member
   // vote-casting (RLS-restricted) never needs write access to the poll row.
   const strip = (p: Poll) => {
     const { votes, ...rest } = p;
     return rest;
   };
-  await syncGenericTable("polls", next.map(strip) as any, prev.map(strip) as any);
+  const strippedNext = next.map(strip) as any;
+  const strippedPrev = prev.map(strip) as any;
+  const result = await syncGenericTable("polls", strippedNext, strippedPrev);
+  // syncGenericTable hands back one of its two input params by reference —
+  // use that to tell success (stripped-next) from failure (stripped-prev)
+  // and return the corresponding *full* (with-votes) array.
+  return result === strippedNext ? next : prev;
 }
 
-async function syncSettings(next: AppData["settings"], prev: AppData["settings"]) {
-  if (!supabase || !next) return;
-  if (rowsEqual(next, prev)) return;
+async function syncSettings(
+  next: AppData["settings"],
+  prev: AppData["settings"]
+): Promise<AppData["settings"]> {
+  if (!supabase || !next) return prev;
+  if (rowsEqual(next, prev)) return next;
   const { error } = await supabase
     .from("app_settings")
     .upsert({ id: "singleton", data: next, updated_at: new Date().toISOString() });
-  if (error) console.error("Supabase upsert failed for app_settings:", error.message);
+  if (error) {
+    console.error("Supabase upsert failed for app_settings:", error.message);
+    return prev;
+  }
+  return next;
 }
 
 /**
  * Called every time the app saves data locally. Diffs against the last
  * known-synced snapshot and pushes only what changed, per table. Silently
  * no-ops if Supabase isn't configured or there's no session yet (e.g. the
- * very first local-only load before login).
+ * very first local-only load before login) — and, critically, only advances
+ * "last known synced" for the parts of the push that actually succeeded, so
+ * a write made while offline (or during any other transient failure) stays
+ * flagged as unsynced and gets retried automatically on the next call —
+ * e.g. the reconnect-triggered retry in App.tsx's "online" handler — instead
+ * of being silently dropped.
  */
 export async function syncAppDataToSupabase(data: AppData): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+
+  let session;
+  try {
+    const result = await withTimeout(
+      supabase.auth.getSession(),
+      10000,
+      "Session check timed out."
+    );
+    session = result.data.session;
+  } catch {
+    // Offline / hung network — nothing to push right now; the next call
+    // (e.g. on reconnect) will retry against the unchanged lastSynced.
+    return;
+  }
   if (!session) return;
 
   const prev = lastSynced || {
@@ -263,7 +341,18 @@ export async function syncAppDataToSupabase(data: AppData): Promise<void> {
     settings: undefined,
   };
 
-  await Promise.all([
+  const [
+    members,
+    deposits,
+    bankEntries,
+    investEntries,
+    fundIncome,
+    expenses,
+    notifications,
+    polls,
+    profitDistributions,
+    settings,
+  ] = await Promise.all([
     syncGenericTable("members", data.members, prev.members),
     syncGenericTable("deposits", data.deposits, prev.deposits),
     syncGenericTable("bankEntries", data.bankEntries, prev.bankEntries),
@@ -284,7 +373,18 @@ export async function syncAppDataToSupabase(data: AppData): Promise<void> {
     syncSettings(data.settings, prev.settings),
   ]);
 
-  lastSynced = data;
+  lastSynced = {
+    members,
+    deposits,
+    bankEntries,
+    investEntries,
+    fundIncome,
+    expenses,
+    notifications,
+    polls,
+    profitDistributions,
+    settings,
+  };
 }
 
 /**
