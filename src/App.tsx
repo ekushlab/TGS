@@ -18,6 +18,7 @@ import {
   KeyRound,
   LogOut,
   CircleUserRound,
+  UserRound,
 } from "lucide-react";
 import { Member, Deposit, AccountEntry, FundIncome, Expense, AppSettings, AppData, Poll, PollVote, AppNotification, ProfitDistribution } from "./types";
 import {
@@ -35,6 +36,7 @@ import { STORAGE_KEY as APP_STORAGE_KEY } from "./utils/helpers";
 import {
   subscribeToRealtimeChanges,
   syncPollVoteToSupabase,
+  syncOwnMemberProfileToSupabase,
 } from "./utils/supabaseSync";
 import { Dashboard } from "./components/Dashboard";
 import { MembersList } from "./components/MembersList";
@@ -57,6 +59,7 @@ import {
   ReceiptModal,
   FineSettingsModal,
   CloudBackupModal,
+  MyProfileModal,
 } from "./components/Modals";
 import { TgsLogoSvg } from "./components/TgsLogoWatermark";
 import { SidebarDrawer } from "./components/SidebarDrawer";
@@ -172,7 +175,15 @@ function AppContent() {
   const [settingsInitialTab, setSettingsInitialTab] = useState<"profile" | "logo" | "watermark" | "language" | "signatures" | "fines">("profile");
   const [showCloudBackup, setShowCloudBackup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showMyProfile, setShowMyProfile] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  // The profile menu is positioned via fixed coordinates computed from the
+  // button's actual on-screen location (rather than CSS `absolute right-0`)
+  // because the header's icon group can wrap onto its own line on narrow
+  // screens, which left-shifts the button — an `absolute` dropdown anchored
+  // to it would then render off to the left, overlapping the nav tabs.
+  const profileMenuBtnRef = useRef<HTMLButtonElement>(null);
+  const [profileMenuPos, setProfileMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [viewingReceiptDeposit, setViewingReceiptDeposit] = useState<Deposit | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
   const [isExited, setIsExited] = useState(false);
@@ -228,6 +239,7 @@ function AppContent() {
     showSettingsModal ||
     showCloudBackup ||
     showChangePassword ||
+    showMyProfile ||
     viewingReceiptDeposit ||
     showExitModal
   );
@@ -268,6 +280,7 @@ function AppContent() {
     showFineSettings,
     showCloudBackup,
     showChangePassword,
+    showMyProfile,
     showProfileMenu,
     showSidebar,
     selectedUid,
@@ -348,6 +361,10 @@ function AppContent() {
     }
     if (s.showChangePassword) {
       setShowChangePassword(false);
+      return;
+    }
+    if (s.showMyProfile) {
+      setShowMyProfile(false);
       return;
     }
     if (s.showProfileMenu) {
@@ -586,6 +603,44 @@ function AppContent() {
       }
     }
     flashToast(language === "bn" ? "আপনার ভোট সফলভাবে গৃহীত হয়েছে! ধন্যবাদ।" : "Vote cast successfully! Thank you.");
+  };
+
+  // Self-service "My Profile" save — every logged-in member may update only
+  // their OWN linked member record, and only this safe field whitelist
+  // (photo, mobile, email, address, blood group & bio). Name, NID and
+  // nominee data stay admin-only (via Edit Member). Mirrors castVote's use
+  // of allowMemberWrite for the local/offline path, and additionally writes
+  // through a dedicated RPC (see syncOwnMemberProfileToSupabase) when
+  // Supabase is on, since the generic members-table sync is admin-only.
+  const saveMyProfile = async (patch: {
+    photo?: string;
+    photoFormat?: "passport" | "300x300";
+    photoSize?: number;
+    mobile?: string;
+    email?: string;
+    address?: string;
+    blood?: string;
+    bio?: string;
+  }) => {
+    if (!currentMember) return;
+    const nextMembers = members.map((m) =>
+      m.uid === currentMember.uid ? { ...m, ...patch } : m
+    );
+    setMembers(nextMembers);
+    persist({ members: nextMembers }, { allowMemberWrite: true });
+    if (auth.authEnabled) {
+      const { error } = await syncOwnMemberProfileToSupabase(patch);
+      if (error) {
+        flashToast(
+          language === "bn"
+            ? `প্রোফাইল ক্লাউডে সংরক্ষণ করা যায়নি: ${error}`
+            : `Could not save the profile to the cloud: ${error}`
+        );
+        return;
+      }
+    }
+    flashToast(language === "bn" ? "আপনার প্রোফাইল সংরক্ষিত হয়েছে!" : "Your profile has been saved!");
+    setShowMyProfile(false);
   };
 
   // Notification Handlers
@@ -868,6 +923,13 @@ function AppContent() {
     ? members.find((m) => m.uid === auth.currentMemberUid)?.photo || null
     : null;
 
+  // The Member record linked to the logged-in person, if any — used by the
+  // self-service "My Profile" screen. Some logins (e.g. certain Admin /
+  // Treasurer accounts) have no linked member record.
+  const currentMember = auth.currentMemberUid
+    ? members.find((m) => m.uid === auth.currentMemberUid) || null
+    : null;
+
   const currentAppData: AppData = {
     members,
     deposits,
@@ -1003,7 +1065,7 @@ function AppContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap justify-end">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap justify-end ml-auto">
               {/* Notification Header Icon - Badge disappears once seen */}
               <button
                 id="header-notification-btn"
@@ -1080,8 +1142,18 @@ function AppContent() {
                 <div className="relative shrink-0">
                   <button
                     id="header-profile-menu-btn"
+                    ref={profileMenuBtnRef}
                     type="button"
-                    onClick={() => setShowProfileMenu((prev) => !prev)}
+                    onClick={() => {
+                      if (!showProfileMenu && profileMenuBtnRef.current) {
+                        const rect = profileMenuBtnRef.current.getBoundingClientRect();
+                        setProfileMenuPos({
+                          top: rect.bottom + 8,
+                          right: Math.max(8, window.innerWidth - rect.right),
+                        });
+                      }
+                      setShowProfileMenu((prev) => !prev);
+                    }}
                     title={auth.profile?.name || (language === 'bn' ? "প্রোফাইল মেনু" : "Profile menu")}
                     className="w-10 h-10 sm:w-11 sm:h-11 rounded-full overflow-hidden bg-emerald-900/90 hover:bg-emerald-800 border-2 border-emerald-700/90 hover:border-amber-400/60 flex items-center justify-center shadow-xs cursor-pointer active:scale-95 transition-all"
                   >
@@ -1096,14 +1168,17 @@ function AppContent() {
                     )}
                   </button>
 
-                  {showProfileMenu && (
+                  {showProfileMenu && profileMenuPos && (
                     <>
                       {/* Invisible backdrop — click outside the menu to close it */}
                       <div
                         className="fixed inset-0 z-40"
                         onClick={() => setShowProfileMenu(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-stone-200 z-50 overflow-hidden animate-in fade-in duration-150">
+                      <div
+                        className="fixed w-56 bg-white rounded-xl shadow-2xl border border-stone-200 z-50 overflow-hidden animate-in fade-in duration-150"
+                        style={{ top: profileMenuPos.top, right: profileMenuPos.right }}
+                      >
                         <div className="px-4 py-3 border-b border-stone-100 bg-stone-50">
                           <p className="text-xs font-bold text-stone-900 truncate">
                             {auth.profile?.name || (language === 'bn' ? 'অতিথি' : 'Guest')}
@@ -1112,6 +1187,17 @@ function AppContent() {
                             {auth.profile?.mobile}
                           </p>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowMyProfile(true);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 cursor-pointer transition-colors"
+                        >
+                          <UserRound size={15} className="text-emerald-700 shrink-0" />
+                          {language === 'bn' ? 'আমার প্রোফাইল' : 'My Profile'}
+                        </button>
                         <button
                           type="button"
                           onClick={() => {
@@ -1312,7 +1398,7 @@ function AppContent() {
           <ConstitutionPage
             settings={settings}
             onUpdateSettings={(patch) => updateSettings(patch)}
-            onOpenWatermarkSettings={() => setShowWatermarkModal(true)}
+            onOpenWatermarkSettings={auth.canManageEntries ? () => setShowWatermarkModal(true) : undefined}
             isAdmin={auth.isAdmin}
           />
         )}
@@ -1387,7 +1473,7 @@ function AppContent() {
             fundIncome={fundIncome}
             expenses={expenses}
             settings={settings}
-            onOpenWatermarkSettings={() => setShowWatermarkModal(true)}
+            onOpenWatermarkSettings={auth.canManageEntries ? () => setShowWatermarkModal(true) : undefined}
           />
         )}
       </main>
@@ -1487,6 +1573,19 @@ function AppContent() {
         <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
 
+      {showMyProfile && (
+        <MyProfileModal
+          member={currentMember}
+          displayLabel={auth.profile?.name}
+          onClose={() => setShowMyProfile(false)}
+          onUpdate={saveMyProfile}
+          onOpenChangePassword={() => {
+            setShowMyProfile(false);
+            setShowChangePassword(true);
+          }}
+        />
+      )}
+
       {showAddBank && (
         <AddBankModal
           onClose={() => setShowAddBank(false)}
@@ -1582,6 +1681,8 @@ function AppContent() {
         isAdmin={auth.isAdmin}
         canManageEntries={auth.canManageEntries}
         onOpenChangePassword={auth.authEnabled && auth.user ? () => setShowChangePassword(true) : undefined}
+        onOpenMyProfile={auth.authEnabled && auth.user ? () => setShowMyProfile(true) : undefined}
+        currentUserPhoto={currentUserPhoto}
       />
 
       {/* Exit Application Confirmation Modal */}

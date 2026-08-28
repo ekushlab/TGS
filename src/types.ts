@@ -32,6 +32,8 @@ export interface Member {
   nomineeNidDocName?: string;
   nomineeNidDocType?: 'pdf' | 'image';
   nomineeNidDocSize?: number;
+  // Self-service "My Profile" personal message/bio, editable by the member themself
+  bio?: string;
 }
 
 export interface Deposit {
