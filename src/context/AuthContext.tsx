@@ -39,6 +39,24 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  /**
+   * True when the person is using the app on the strength of a previously
+   * cached login rather than a live-verified Supabase session — i.e. they
+   * opened (or re-opened) the app with no internet connection. `session`
+   * stays null in this state (there's no real, verifiable token), but
+   * `profile` is populated from the last successful login on this device so
+   * the app can still be used and viewed. Cleared automatically the moment
+   * a real session can be (re-)established, e.g. once connectivity returns.
+   */
+  isOfflineSession: boolean;
+  /**
+   * True whenever the person should be treated as logged in — either a real
+   * session, or a cached offline one. Prefer this (over checking `session`
+   * or `user` directly) for "is someone logged in" UI gating, since a plain
+   * `session`/`user` check would incorrectly hide content and controls
+   * during a cached offline session.
+   */
+  isAuthenticated: boolean;
   /** Super Admin — full access to everything. */
   isAdmin: boolean;
   /** Treasurer / General Secretary — limited entry-only access (see UserRole above). */
@@ -61,6 +79,73 @@ interface AuthContextValue {
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+/**
+ * Lets someone stay logged in (and see their cached content) when the app is
+ * opened with no internet connection — e.g. a treasurer out in the field
+ * with no signal. A Supabase access token normally lasts about an hour; past
+ * that, refreshing it requires a live network call, so getSession() would
+ * otherwise cleanly resolve to "no session" and bounce the person to the
+ * login screen even though nothing about THEIR login actually changed.
+ *
+ * We keep a small, non-sensitive snapshot of the last successfully loaded
+ * profile in localStorage (never a password or token — Supabase's own SDK
+ * already persists the real session/tokens separately). It's only ever used
+ * as a fallback, and only when the device appears offline, never to paper
+ * over an actual sign-out or access change while online.
+ */
+const OFFLINE_PROFILE_CACHE_KEY = "tgs_offline_profile_cache";
+
+interface CachedProfileEntry {
+  userId: string;
+  profile: Profile;
+  cachedAt: number;
+}
+
+function cacheProfile(userId: string, profile: Profile) {
+  try {
+    const entry: CachedProfileEntry = { userId, profile, cachedAt: Date.now() };
+    localStorage.setItem(OFFLINE_PROFILE_CACHE_KEY, JSON.stringify(entry));
+  } catch {
+    // localStorage unavailable/full — offline fallback just won't work this
+    // time, but nothing else about the app breaks.
+  }
+}
+
+function readCachedProfileEntry(): CachedProfileEntry | null {
+  try {
+    const raw = localStorage.getItem(OFFLINE_PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    if (entry && typeof entry === "object" && entry.profile && entry.userId) {
+      return entry as CachedProfileEntry;
+    }
+  } catch {
+    // ignore — treat as no cache
+  }
+  return null;
+}
+
+function clearCachedProfile() {
+  try {
+    localStorage.removeItem(OFFLINE_PROFILE_CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Heuristic for "this failure looks like a connectivity problem, not a real
+ * logout/permission change" — navigator.onLine is false when the device has
+ * no network interface up at all (airplane mode, no SIM data, no Wi-Fi),
+ * which reliably covers the field-collector scenario this exists for. It
+ * can still read `true` on a Wi-Fi connection with no real internet behind
+ * it; in that case the Supabase call will simply keep failing/timing out on
+ * its own and the offline fallback below still applies via the timeout path.
+ */
+function looksOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
 
 /**
  * Races a promise against a timeout so a hung network call never leaves the
@@ -92,20 +177,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(isSupabaseConfigured);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isOfflineSession, setIsOfflineSession] = useState(false);
 
-  const loadProfile = useCallback(async (userId: string) => {
-    if (!supabase) return;
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, mobile, name, role, member_uid")
-      .eq("id", userId)
-      .single();
-    if (!error && data) {
-      setProfile(data as Profile);
-    } else {
-      setProfile(null);
-    }
+  /**
+   * Falls back to whatever profile was cached from the last successful
+   * login on this device. `force` skips the navigator.onLine check — used
+   * when the caller already has a stronger signal of a connectivity problem
+   * (a timed-out network call), since navigator.onLine can still read
+   * `true` on a Wi-Fi connection with no real internet behind it.
+   */
+  const tryOfflineFallback = useCallback((force = false) => {
+    if (!force && !looksOffline()) return false;
+    const cached = readCachedProfileEntry();
+    if (!cached) return false;
+    setProfile(cached.profile);
+    setIsOfflineSession(true);
+    return true;
   }, []);
+
+  const loadProfile = useCallback(
+    async (userId: string) => {
+      if (!supabase) return;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, mobile, name, role, member_uid")
+        .eq("id", userId)
+        .single();
+      if (!error && data) {
+        setProfile(data as Profile);
+        setIsOfflineSession(false);
+        cacheProfile(userId, data as Profile);
+      } else {
+        // The live profile fetch failed — most commonly because we're
+        // offline. Don't demote/lock out someone who is simply out of
+        // signal; fall back to their cached profile from this device's
+        // last successful login instead of wiping their role/permissions.
+        const cached = readCachedProfileEntry();
+        if (cached && cached.userId === userId) {
+          setProfile(cached.profile);
+          setIsOfflineSession(true);
+        } else {
+          setProfile(null);
+          setIsOfflineSession(false);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -115,27 +233,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let isMounted = true;
 
-    withTimeout(
-      supabase.auth.getSession(),
-      SESSION_TIMEOUT_MS,
-      "Session check timed out."
-    )
-      .then(async ({ data }) => {
-        if (!isMounted) return;
-        setSession(data.session);
-        registerDeviceTokenForUser(data.session?.user?.id ?? null);
-        if (data.session?.user) {
-          await loadProfile(data.session.user.id);
-        }
-      })
-      .catch(() => {
-        // A hung/failed initial session check should never trap the app on
-        // a permanent loading screen — fall through to the login screen
-        // (or local-only mode) and let the user retry from there.
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
+    // Shared by the initial mount check and by the "online" reconnect
+    // handler below — re-verifies the real Supabase session and, if one
+    // exists, loads the real profile (which itself clears offline mode on
+    // success). Falls back to the cached identity when the device appears
+    // offline instead of bouncing the person to the login screen.
+    const checkSession = () => {
+      withTimeout(
+        supabase.auth.getSession(),
+        SESSION_TIMEOUT_MS,
+        "Session check timed out."
+      )
+        .then(async ({ data }) => {
+          if (!isMounted) return;
+          setSession(data.session);
+          registerDeviceTokenForUser(data.session?.user?.id ?? null);
+          if (data.session?.user) {
+            await loadProfile(data.session.user.id);
+          } else if (!tryOfflineFallback()) {
+            setProfile(null);
+            setIsOfflineSession(false);
+          }
+        })
+        .catch(() => {
+          // A hung/failed session check (e.g. no network at all) should
+          // never trap the app on a permanent loading screen, and — when we
+          // have a previous login cached on this device — shouldn't force a
+          // login screen the person has no way to complete without a
+          // network connection either. `force: true` here because a timed
+          // out call is itself strong evidence of a connectivity problem.
+          if (!isMounted) return;
+          if (!tryOfflineFallback(true)) {
+            setProfile(null);
+            setIsOfflineSession(false);
+          }
+        })
+        .finally(() => {
+          if (isMounted) setLoading(false);
+        });
+    };
+
+    checkSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
@@ -145,16 +283,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (newSession?.user) {
           await loadProfile(newSession.user.id);
         } else {
+          // A real SIGNED_OUT (or similar) event from the SDK — respect it
+          // as-is; the offline fallback only ever applies to the initial
+          // bootstrap check above, never here, so an explicit logout always
+          // sticks regardless of connectivity.
           setProfile(null);
+          setIsOfflineSession(false);
         }
       }
     );
 
+    // The moment connectivity returns, try to replace the cached/offline
+    // identity with a real, freshly-verified session and profile.
+    const handleOnline = () => {
+      checkSession();
+    };
+    window.addEventListener("online", handleOnline);
+
     return () => {
       isMounted = false;
       listener.subscription.unsubscribe();
+      window.removeEventListener("online", handleOnline);
     };
-  }, [loadProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadProfile, tryOfflineFallback]);
 
   const signIn = useCallback(
     async (mobile: string, password: string) => {
@@ -184,9 +336,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    if (!supabase) return;
-    await supabase.auth.signOut();
+    // Always clear local state first so an explicit "log out" tap works
+    // instantly even offline (e.g. a hung network call to Supabase's
+    // /logout endpoint should never trap someone who wants to hand the
+    // device to someone else) — the cached-login fallback must not survive
+    // a deliberate sign-out regardless of connectivity.
+    clearCachedProfile();
+    setIsOfflineSession(false);
     setProfile(null);
+    if (!supabase) return;
+    try {
+      await withTimeout(supabase.auth.signOut(), 10000, "Sign out timed out.");
+    } catch {
+      // Offline/hung network — local state is already cleared above; the
+      // server-side session will simply expire on its own.
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -204,6 +368,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user: session?.user ?? null,
     profile,
+    isOfflineSession,
+    isAuthenticated: Boolean(session) || isOfflineSession,
     isAdmin,
     isTreasurer,
     canManageEntries: isAdmin || isTreasurer,
