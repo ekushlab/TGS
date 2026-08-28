@@ -1114,9 +1114,9 @@ export function DownloadsReportsPage({
               {language === 'en' && settings.societyNameEn ? settings.societyNameEn : (settings.societyName || "Trust Growth Society")}
             </h1>
             <p className="text-xs font-semibold text-stone-600">
-              {language === 'en' && (settings.societySubtitleEn || settings.societyAddressEn)
-                ? (settings.societySubtitleEn || settings.societyAddressEn)
-                : (settings.societySubtitle || settings.societyAddress || "উলানিয়া বাজার, উলানিয়া, গলাচিপা, পটুয়াখালী")}
+              {language === 'en' && (settings.societyAddressEn || settings.societySubtitleEn)
+                ? (settings.societyAddressEn || settings.societySubtitleEn)
+                : (settings.societyAddress || settings.societySubtitle || "উলানিয়া বাজার, উলানিয়া, গলাচিপা, পটুয়াখালী")}
             </p>
             <div className="flex items-center justify-center gap-3 text-[11px] text-stone-500 flex-wrap">
               <span>{language === 'en' ? (settings.establishedDateEn ? `Est: ${settings.establishedDateEn}` : 'Est: 25-09-2025') : (settings.establishedDate ? `স্থাপিত: ${settings.establishedDate}` : 'স্থাপিত: ২৫-০৯-২০২৫')}</span>

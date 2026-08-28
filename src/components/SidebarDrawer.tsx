@@ -29,6 +29,7 @@ import {
   Percent,
   Smartphone,
   KeyRound,
+  CircleUserRound,
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useLanguage } from '../utils/LanguageContext';
@@ -63,6 +64,10 @@ interface SidebarDrawerProps {
   canManageEntries?: boolean;
   /** Shows the "Change My Password" entry — any logged-in Supabase user. */
   onOpenChangePassword?: () => void;
+  /** Shows the "My Profile" entry (photo, own data, password, bio) — any logged-in Supabase user. */
+  onOpenMyProfile?: () => void;
+  /** The logged-in user's own profile photo, if any — shown on the "My Profile" button. */
+  currentUserPhoto?: string | null;
 }
 
 export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
@@ -88,6 +93,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   isAdmin = false,
   canManageEntries = false,
   onOpenChangePassword,
+  onOpenMyProfile,
+  currentUserPhoto,
 }) => {
   const { language, t, formatNumber } = useLanguage();
 
@@ -257,8 +264,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                 </div>
                 <p className="text-[10px] sm:text-[11px] text-emerald-300 truncate">
                   {language === 'en'
-                    ? (settings.societySubtitleEn || settings.societyAddressEn || 'Ulania Bazar, Galachipa, Patuakhali')
-                    : (settings.societySubtitle || settings.societyAddress || 'উলানিয়া বাজার, গলাচিপা, পটুয়াখালী')}
+                    ? (settings.societySubtitleEn || settings.societyAddressEn || 'From Trust to Prosperity')
+                    : (settings.societySubtitle || settings.societyAddress || 'আস্থার সাথে অগ্রগতির যাত্রা')}
                 </p>
               </div>
             </div>
@@ -313,6 +320,31 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           <div className="mt-2.5">
             <LanguageSwitcher variant="sidebar" />
           </div>
+
+          {/* My Profile Button — below Language Selection, any logged-in Supabase user */}
+          {onOpenMyProfile && (
+            <button
+              id="sidebar-my-profile-btn"
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenMyProfile();
+              }}
+              className="w-full mt-2.5 p-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-900 text-amber-100 border border-emerald-800/70 flex items-center gap-2.5 transition-all group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full overflow-hidden bg-emerald-950 border border-emerald-700/80 flex items-center justify-center shrink-0">
+                {currentUserPhoto ? (
+                  <img src={currentUserPhoto} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <CircleUserRound size={18} className="text-amber-300" />
+                )}
+              </div>
+              <span className="text-xs font-bold text-amber-200 flex-1 text-left">
+                {language === 'bn' ? 'আমার প্রোফাইল' : 'My Profile'}
+              </span>
+              <ChevronRight size={13} className="text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
         </div>
 
         {/* Navigation List */}

@@ -1864,6 +1864,320 @@ export function EditMemberModal({
 }
 
 /* =========================================================================
+   MY PROFILE MODAL — self-service profile editing for the logged-in user
+   (own photo, own contact info & bio; name/NID/nominee stay admin-only)
+   ========================================================================= */
+export function MyProfileModal({
+  member,
+  displayLabel,
+  onClose,
+  onUpdate,
+  onOpenChangePassword,
+}: {
+  /** The Member record linked to the logged-in user; null if no member is linked (e.g. some admin/treasurer logins). */
+  member: Member | null;
+  /** Fallback name/mobile to show in the header when there's no linked member record. */
+  displayLabel?: string;
+  onClose: () => void;
+  onUpdate: (patch: {
+    photo?: string;
+    photoFormat?: 'passport' | '300x300';
+    photoSize?: number;
+    mobile?: string;
+    email?: string;
+    address?: string;
+    blood?: string;
+    bio?: string;
+  }) => void;
+  onOpenChangePassword: () => void;
+}) {
+  const { language } = useLanguage();
+
+  const [mobile, setMobile] = useState(member?.mobile || "");
+  const [blood, setBlood] = useState(member?.blood || "");
+  const [email, setEmail] = useState(member?.email || "");
+  const [address, setAddress] = useState(member?.address || "");
+  const [bio, setBio] = useState(member?.bio || "");
+
+  const [photo, setPhoto] = useState<string | undefined>(member?.photo);
+  const [photoFormat, setPhotoFormat] = useState<'passport' | '300x300'>(member?.photoFormat || '300x300');
+  const [photoSize, setPhotoSize] = useState<number | undefined>(member?.photoSize);
+  const [photoError, setPhotoError] = useState<string>('');
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoError('');
+
+    const validation = validatePhotoFileSize(file, 30, 300);
+    if (!validation.valid) {
+      setPhotoError(validation.error || (language === 'bn' ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।' : 'Photo size must be between 30 KB and 300 KB.'));
+      if (photoInputRef.current) photoInputRef.current.value = '';
+      return;
+    }
+
+    try {
+      setIsProcessingPhoto(true);
+      const processedBase64 = await processMemberPhoto(file, photoFormat);
+      setPhoto(processedBase64);
+      setPhotoSize(file.size);
+    } catch (err) {
+      console.error("Failed to process profile photo", err);
+      setPhotoError(language === 'bn' ? "ছবি প্রক্রিয়াকরণে সমস্যা হয়েছে।" : "There was a problem processing the photo.");
+    } finally {
+      setIsProcessingPhoto(false);
+    }
+  };
+
+  const handleFormatChange = async (newFormat: 'passport' | '300x300') => {
+    setPhotoFormat(newFormat);
+    if (photoInputRef.current?.files?.[0]) {
+      try {
+        setIsProcessingPhoto(true);
+        const processed = await processMemberPhoto(photoInputRef.current.files[0], newFormat);
+        setPhoto(processed);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsProcessingPhoto(false);
+      }
+    }
+  };
+
+  const clearPhoto = () => {
+    setPhoto(undefined);
+    setPhotoSize(undefined);
+    setPhotoError('');
+    if (photoInputRef.current) {
+      photoInputRef.current.value = "";
+    }
+  };
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdate({
+      photo,
+      photoFormat,
+      photoSize,
+      mobile: mobile.trim(),
+      email: email.trim(),
+      address: address.trim(),
+      blood: blood.trim(),
+      bio: bio.trim(),
+    });
+  };
+
+  const name = member ? (language === 'en' && member.nameEn ? member.nameEn : member.name) : (displayLabel || (language === 'bn' ? 'আমার প্রোফাইল' : 'My Profile'));
+
+  return (
+    <Modal
+      id="my-profile-modal"
+      title={language === 'bn' ? 'আমার প্রোফাইল' : 'My Profile'}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+    >
+      <form onSubmit={submit} className="space-y-4">
+        {!member && (
+          <div className="flex items-center gap-1.5 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            <Info size={14} className="shrink-0" />
+            <span>
+              {language === 'bn'
+                ? 'এই লগইনের সাথে কোনো সদস্য প্রোফাইল যুক্ত নেই, তাই ছবি ও অন্যান্য তথ্য সম্পাদনা করা যাবে না। শুধু পাসওয়ার্ড পরিবর্তন করা যাবে।'
+                : 'No member profile is linked to this login, so photo & other details cannot be edited. You can still change your password.'}
+            </span>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 pb-3 border-b border-stone-200">
+          <span className="font-bold text-stone-900 text-base">{name}</span>
+        </div>
+
+        {member && (
+          <>
+            {/* Photo Section */}
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+                  <Camera size={15} className="text-emerald-800" /> {language === 'bn' ? 'আমার প্রোফাইল ছবি (৩০ KB – ৩০০ KB)' : 'My Profile Photo (30 KB – 300 KB)'}
+                </span>
+                {photo && (
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                    {language === 'bn' ? (photoFormat === 'passport' ? 'পাসপোর্ট সাইজ' : '৩০০ × ৩০০ সাইজ') : (photoFormat === 'passport' ? 'Passport Size' : '300×300 Size')}
+                    {photoSize ? ` (${Math.round(photoSize / 1024)} KB)` : ''}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-stone-600">{language === 'bn' ? 'ছবির সাইজ:' : 'Photo size:'}</span>
+                <button
+                  type="button"
+                  onClick={() => handleFormatChange('passport')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                    photoFormat === 'passport'
+                      ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                      : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                  }`}
+                >
+                  {language === 'bn' ? 'পাসপোর্ট সাইজ' : 'Passport Size'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleFormatChange('300x300')}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all cursor-pointer ${
+                    photoFormat === '300x300'
+                      ? 'bg-emerald-800 text-white border-emerald-800 shadow-xs'
+                      : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-100'
+                  }`}
+                >
+                  {language === 'bn' ? '৩০০ × ৩০০ সাইজ' : '300×300 Size'}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-4 pt-1">
+                {photo ? (
+                  <div className="relative group">
+                    <div
+                      className={`overflow-hidden rounded-xl border-2 border-emerald-800 shadow-xs bg-white ${
+                        photoFormat === 'passport' ? 'w-24 h-30' : 'w-24 h-24'
+                      }`}
+                    >
+                      <img src={photo} alt={name} className="w-full h-full object-cover" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={clearPhoto}
+                      className="absolute -top-2 -right-2 bg-rose-600 text-white p-1 rounded-full shadow-xs hover:bg-rose-700 transition-colors cursor-pointer"
+                      title={language === 'bn' ? 'ছবি মুছুন' : 'Remove photo'}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => photoInputRef.current?.click()}
+                    className="w-24 h-24 rounded-xl border-2 border-dashed border-stone-300 bg-white hover:border-emerald-700 hover:bg-emerald-50/40 cursor-pointer flex flex-col items-center justify-center text-stone-400 hover:text-emerald-800 transition-all p-2 text-center"
+                  >
+                    <Camera size={24} />
+                    <span className="text-[10px] font-semibold mt-1">{language === 'bn' ? 'ছবি যোগ করুন' : 'Add Photo'}</span>
+                  </div>
+                )}
+
+                <div className="flex-1 space-y-1.5">
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-lg bg-white border border-stone-300 hover:bg-stone-100 text-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    <Upload size={13} className="text-emerald-800" />
+                    <span>{photo
+                      ? (language === 'bn' ? 'নতুন ছবি পরিবর্তন করুন' : 'Change to New Photo')
+                      : (language === 'bn' ? 'ছবি আপলোড করুন' : 'Upload Photo')}</span>
+                  </button>
+                  <p className="text-[11px] text-stone-500 leading-tight">
+                    {language === 'bn' ? 'ছবির আকার ৩০ KB থেকে ৩০০ KB এর মধ্যে হতে হবে।' : 'Photo size must be between 30 KB and 300 KB.'}
+                  </p>
+                </div>
+              </div>
+
+              {photoError && (
+                <div className="flex items-center gap-1.5 p-2 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+                  <AlertCircle size={14} className="shrink-0 text-rose-600" />
+                  <span>{photoError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Contact Info */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label={language === 'bn' ? 'মোবাইল নম্বর (WhatsApp)' : 'Mobile Number (WhatsApp)'}>
+                <input value={mobile} onChange={(e) => setMobile(e.target.value)} className={inputCls} />
+              </Field>
+              <Field label={language === 'bn' ? 'রক্তের গ্রুপ' : 'Blood Group'}>
+                <select value={blood} onChange={(e) => setBlood(e.target.value)} className={inputCls}>
+                  <option value="">{language === 'bn' ? 'নির্বাচন করুন' : 'Select'}</option>
+                  {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <Field label={language === 'bn' ? 'ইমেইল ঠিকানা' : 'Email Address'}>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputCls} />
+            </Field>
+
+            <Field label={language === 'bn' ? 'ঠিকানা / গ্রাম / এলাকা' : 'Address / Village / Area'}>
+              <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputCls} />
+            </Field>
+
+            <Field
+              label={language === 'bn' ? 'আমার বার্তা' : 'My Message'}
+              hint={
+                language === 'bn'
+                  ? 'এই বার্তাটি সদস্য তালিকায় আপনার প্রোফাইলে অন্যরা দেখতে পাবে।'
+                  : 'This message will be visible to others on your profile in the Members tab.'
+              }
+            >
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                maxLength={300}
+                placeholder={language === 'bn' ? 'নিজের সম্পর্কে একটি সংক্ষিপ্ত বার্তা লিখুন...' : 'Write a short message about yourself...'}
+                className={inputCls}
+              />
+            </Field>
+          </>
+        )}
+
+        {/* Change Password Entry Point */}
+        <button
+          type="button"
+          onClick={onOpenChangePassword}
+          className="w-full flex items-center justify-between gap-2 p-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+            <ShieldCheck size={16} className="text-emerald-700" />
+            {language === 'bn' ? 'পাসওয়ার্ড পরিবর্তন করুন' : 'Change Password'}
+          </span>
+          <ChevronRight size={16} className="text-emerald-700" />
+        </button>
+
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-200">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors cursor-pointer"
+          >
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
+          </button>
+          {member && (
+            <button
+              id="save-my-profile-btn"
+              type="submit"
+              disabled={isProcessingPhoto}
+              className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+            >
+              <Check size={16} /> {language === 'bn' ? 'সংরক্ষণ করুন' : 'Save'}
+            </button>
+          )}
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* =========================================================================
    SIGNATURE DRAW CANVAS & SIGNATURE PAD COMPONENT
    ========================================================================= */
 export function SignatureDrawCanvas({
@@ -2572,7 +2886,7 @@ export function ReceiptModal({
                   </h2>
                 </div>
                 <p className="text-xs text-stone-600 font-medium">
-                  {settings.societySubtitle} · {language === 'bn' ? 'স্থাপিত' : 'Established'} ২৫-০৯-২০২৫
+                  {settings.societyAddress || settings.societySubtitle} · {language === 'bn' ? 'স্থাপিত' : 'Established'} ২৫-০৯-২০২৫
                 </p>
                 <div className="inline-block mt-2 px-3.5 py-1 text-xs font-bold bg-emerald-900 text-amber-300 rounded-full shadow-xs">
                   {language === 'bn' ? 'টাকা প্রাপ্তি রসিদ (MONEY RECEIPT)' : 'Money Receipt (MONEY RECEIPT)'}
@@ -2771,7 +3085,7 @@ export function FineSettingsModal({
   const [defaultFine, setDefaultFine] = useState(settings.defaultFine ?? 50);
   const [deadlineDay, setDeadlineDay] = useState(settings.deadlineDay ?? 10);
   const [societyName, setSocietyName] = useState(settings.societyName || "Trust Growth Society");
-  const [societySubtitle, setSocietySubtitle] = useState(settings.societySubtitle || "উলানিয়া বাজার, উলানিয়া, গলাচিপা");
+  const [societySubtitle, setSocietySubtitle] = useState(settings.societySubtitle || "আস্থার সাথে অগ্রগতির যাত্রা");
   const [contactPhone, setContactPhone] = useState(settings.contactPhone || "01911797438");
 
   // Signatures configuration

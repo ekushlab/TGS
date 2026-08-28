@@ -22,6 +22,7 @@ import {
   ExternalLink,
   X,
   Trash2,
+  MessageCircle,
 } from 'lucide-react';
 import { Member, Deposit } from '../types';
 import { useLanguage } from '../utils/LanguageContext';
@@ -236,6 +237,16 @@ export function MemberDetail({
           <div className="mt-3.5 p-3 bg-stone-50 rounded-xl border border-stone-200/70 text-xs text-stone-600 flex items-center gap-2">
             <MapPin size={14} className="text-emerald-700 shrink-0" />
             <span>{t.member_address}: <strong className="text-stone-800">{member.address}</strong></span>
+          </div>
+        )}
+
+        {member.bio && (
+          <div className="mt-3.5 p-3.5 bg-amber-50/60 rounded-xl border border-amber-200/80">
+            <p className="text-xs font-bold text-amber-900 flex items-center gap-1.5 mb-1">
+              <MessageCircle size={13} className="text-amber-700" />
+              {language === 'bn' ? 'আমার বার্তা' : 'My Message'}
+            </p>
+            <p className="text-sm text-stone-700 italic leading-relaxed whitespace-pre-line">{member.bio}</p>
           </div>
         )}
 

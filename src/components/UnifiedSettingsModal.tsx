@@ -189,8 +189,8 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   // 1. Profile & Address (Bilingual)
   const [societyName, setSocietyName] = useState(settings.societyName || 'Trust Growth Society');
   const [societyNameEn, setSocietyNameEn] = useState(settings.societyNameEn || 'Trust Growth Society');
-  const [societySubtitle, setSocietySubtitle] = useState(settings.societySubtitle || 'উলানিয়া বাজার, উলানিয়া, গলাচিপা');
-  const [societySubtitleEn, setSocietySubtitleEn] = useState(settings.societySubtitleEn || 'Ulania Bazar, Galachipa, Patuakhali');
+  const [societySubtitle, setSocietySubtitle] = useState(settings.societySubtitle || 'আস্থার সাথে অগ্রগতির যাত্রা');
+  const [societySubtitleEn, setSocietySubtitleEn] = useState(settings.societySubtitleEn || 'From Trust to Prosperity');
   const [societyAddress, setSocietyAddress] = useState(settings.societyAddress || 'উলানিয়া বাজার, উলানিয়া, গলাচিপা, পটুয়াখালী');
   const [societyAddressEn, setSocietyAddressEn] = useState(settings.societyAddressEn || 'Ulania Bazar, Ulania, Galachipa, Patuakhali');
   const [contactPhone, setContactPhone] = useState(settings.contactPhone || '01911797438');
@@ -439,7 +439,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   <input
                     value={societySubtitle}
                     onChange={(e) => setSocietySubtitle(e.target.value)}
-                    placeholder={language === 'bn' ? "যেমন: উলানিয়া বাজার, উলানিয়া, গলাচিপা" : "e.g. Ulania Bazar, Ulania, Galachipa"}
+                    placeholder={language === 'bn' ? "যেমন: আস্থার সাথে অগ্রগতির যাত্রা" : "e.g. From Trust to Prosperity"}
                     className={inputCls}
                   />
                 </div>
@@ -498,7 +498,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   <input
                     value={societySubtitleEn}
                     onChange={(e) => setSocietySubtitleEn(e.target.value)}
-                    placeholder="e.g. Ulania Bazar, Galachipa, Patuakhali"
+                    placeholder="e.g. From Trust to Prosperity"
                     className={inputCls}
                   />
                 </div>
