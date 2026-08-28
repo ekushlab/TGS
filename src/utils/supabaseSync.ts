@@ -314,6 +314,40 @@ export async function syncPollVoteToSupabase(vote: PollVote): Promise<{ error: s
   return { error: null };
 }
 
+/**
+ * Self-service "My Profile" update — writes ONLY the caller's own linked
+ * member row, and only a whitelisted set of safe fields (photo, contact
+ * info, blood group, bio). Backed by the `update_own_member_profile`
+ * Postgres RPC (SECURITY DEFINER), which enforces both restrictions on the
+ * server side — the generic `members` table RLS policy stays admin-only, so
+ * a member can never write name/NID/nominee data or another member's row,
+ * even via a raw API call that bypasses this app's own UI.
+ */
+export async function syncOwnMemberProfileToSupabase(patch: {
+  photo?: string;
+  photoFormat?: 'passport' | '300x300';
+  photoSize?: number;
+  mobile?: string;
+  email?: string;
+  address?: string;
+  blood?: string;
+  bio?: string;
+}): Promise<{ error: string | null }> {
+  if (!supabase) return { error: "Supabase is not configured." };
+  const { error } = await supabase.rpc("update_own_member_profile", {
+    p_photo: patch.photo ?? null,
+    p_photo_format: patch.photoFormat ?? null,
+    p_photo_size: patch.photoSize ?? null,
+    p_mobile: patch.mobile ?? null,
+    p_email: patch.email ?? null,
+    p_address: patch.address ?? null,
+    p_blood: patch.blood ?? null,
+    p_bio: patch.bio ?? null,
+  });
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
 const REALTIME_TABLES = [
   "members",
   "deposits",
