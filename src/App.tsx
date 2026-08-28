@@ -88,7 +88,7 @@ function readCachedSettingsForLogin(): AppSettings {
 }
 
 function AuthGate() {
-  const { authEnabled, loading, session } = useAuth();
+  const { authEnabled, loading, isAuthenticated } = useAuth();
   const { language } = useLanguage();
 
   if (authEnabled && loading) {
@@ -102,7 +102,10 @@ function AuthGate() {
     );
   }
 
-  if (authEnabled && !session) {
+  // isAuthenticated covers both a real session AND a cached offline login
+  // (see AuthContext's isOfflineSession) — so someone who logged in before
+  // can keep using the app, and see their cached content, with no internet.
+  if (authEnabled && !isAuthenticated) {
     return <LoginScreen settings={readCachedSettingsForLogin()} />;
   }
 
@@ -190,6 +193,14 @@ function AppContent() {
   const lastBackPressRef = useRef<number>(0);
 
   const [toast, setToast] = useState("");
+
+  // Tracks live connectivity so the UI can show a small "offline" indicator
+  // and let people know when auto-sync kicks back in — separate from
+  // AuthContext's isOfflineSession (which is specifically about whether the
+  // *login* is cached vs. live-verified).
+  const [isOnline, setIsOnline] = useState<boolean>(
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
 
   const scrollToTop = () => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -473,14 +484,18 @@ function AppContent() {
   };
 
   useEffect(() => {
-    if (auth.authEnabled && (auth.loading || !auth.session)) return;
+    // isAuthenticated also covers a cached offline login (no internet, but
+    // previously logged in on this device) — loadAppData() itself already
+    // falls back to the local cache whenever the live Supabase fetch can't
+    // complete, so this just needs to not block on a live session.
+    if (auth.authEnabled && (auth.loading || !auth.isAuthenticated)) return;
     (async () => {
       const data = await loadAppData();
       applyLoadedData(data);
       setLoaded(true);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.authEnabled, auth.loading, auth.session?.user?.id]);
+  }, [auth.authEnabled, auth.loading, auth.isAuthenticated, auth.session?.user?.id]);
 
   // Realtime auto-sync: refresh from Supabase whenever another device
   // changes data, and again the moment this device regains internet.
@@ -490,14 +505,67 @@ function AppContent() {
     const refresh = () => {
       loadAppData().then(applyLoadedData);
     };
+    // On reconnect specifically (not on a realtime push from another
+    // device), first RETRY pushing whatever this device holds locally —
+    // e.g. deposits a treasurer entered while offline in the field — before
+    // pulling. Pulling first would risk overwriting those still-unsynced
+    // local changes with stale remote data. saveAppData() only advances
+    // Supabase's "last synced" bookkeeping for whatever actually goes
+    // through, so this is safe to call even when nothing changed offline.
+    const handleReconnect = async () => {
+      await saveAppData(currentAppDataRef.current);
+      refresh();
+    };
     const unsubscribe = subscribeToRealtimeChanges(refresh);
-    window.addEventListener("online", refresh);
+    window.addEventListener("online", handleReconnect);
+    // Also run once as soon as a live session becomes available — covers
+    // the case where the actual browser "online" event fired earlier while
+    // this device was still working off a cached offline identity (see
+    // AuthContext's offline-mode fallback), i.e. before this listener had
+    // even been registered. Gated on `loaded` (and re-run when it flips to
+    // true, since it's in the dependency list below) so this never fires
+    // before the very first loadAppData() pull has populated real local
+    // state — pushing the pristine default/empty state that early could
+    // otherwise race ahead of that first pull and clobber real remote data.
+    if (loaded) {
+      handleReconnect();
+    }
     return () => {
       unsubscribe();
-      window.removeEventListener("online", refresh);
+      window.removeEventListener("online", handleReconnect);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.authEnabled, auth.session?.user?.id]);
+  }, [auth.authEnabled, auth.session?.user?.id, loaded]);
+
+  // Small "offline" indicator + a friendly heads-up when connectivity drops
+  // or comes back — independent of auth state, since this app is usable
+  // fully offline once cached (see AuthContext's isOfflineSession and
+  // loadAppData()'s local-cache fallback).
+  useEffect(() => {
+    const goOffline = () => {
+      setIsOnline(false);
+      flashToast(
+        language === "bn"
+          ? "ইন্টারনেট সংযোগ নেই — অফলাইন মোডে চলছে। ডেটা এই ডিভাইসে সংরক্ষিত থাকবে।"
+          : "No internet connection — working offline. Your data is saved on this device."
+      );
+    };
+    const goOnline = () => {
+      setIsOnline(true);
+      flashToast(
+        language === "bn"
+          ? "ইন্টারনেট সংযোগ ফিরে এসেছে — সিঙ্ক হচ্ছে…"
+          : "Back online — syncing…"
+      );
+    };
+    window.addEventListener("offline", goOffline);
+    window.addEventListener("online", goOnline);
+    return () => {
+      window.removeEventListener("offline", goOffline);
+      window.removeEventListener("online", goOnline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
 
   const persist = (
     patch: {
@@ -942,6 +1010,12 @@ function AppContent() {
     profitDistributions,
     settings,
   };
+  // Always-fresh handle on the latest app data for the reconnect handler
+  // below, which is registered once (inside a useEffect that doesn't
+  // re-run on every data change) and would otherwise close over a stale
+  // snapshot from whenever it was last registered.
+  const currentAppDataRef = useRef<AppData>(currentAppData);
+  currentAppDataRef.current = currentAppData;
 
   const isAnyModalOpen =
     showExitModal ||
@@ -1061,6 +1135,19 @@ function AppContent() {
                   <span className="text-[11px] font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
                     TGS
                   </span>
+                  {!isOnline && (
+                    <span
+                      className="text-[11px] font-bold bg-stone-600/30 text-stone-200 px-2 py-0.5 rounded border border-stone-400/40 flex items-center gap-1"
+                      title={
+                        language === 'bn'
+                          ? 'ইন্টারনেট সংযোগ নেই — ডেটা এই ডিভাইসে সংরক্ষিত আছে, সংযোগ ফিরলে অটো সিঙ্ক হবে'
+                          : 'No internet — data is saved on this device and will auto-sync once reconnected'
+                      }
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-stone-300 inline-block" />
+                      {language === 'bn' ? 'অফলাইন' : 'Offline'}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -1138,7 +1225,7 @@ function AppContent() {
               )}
 
               {/* Logged-in User Profile Picture — click for Change Password / Logout */}
-              {auth.authEnabled && auth.user && (
+              {auth.authEnabled && auth.isAuthenticated && (
                 <div className="relative shrink-0">
                   <button
                     id="header-profile-menu-btn"
@@ -1680,8 +1767,8 @@ function AppContent() {
         }
         isAdmin={auth.isAdmin}
         canManageEntries={auth.canManageEntries}
-        onOpenChangePassword={auth.authEnabled && auth.user ? () => setShowChangePassword(true) : undefined}
-        onOpenMyProfile={auth.authEnabled && auth.user ? () => setShowMyProfile(true) : undefined}
+        onOpenChangePassword={auth.authEnabled && auth.isAuthenticated ? () => setShowChangePassword(true) : undefined}
+        onOpenMyProfile={auth.authEnabled && auth.isAuthenticated ? () => setShowMyProfile(true) : undefined}
         currentUserPhoto={currentUserPhoto}
       />
 
