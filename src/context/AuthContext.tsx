@@ -244,13 +244,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         SESSION_TIMEOUT_MS,
         "Session check timed out."
       )
-        .then(async ({ data }) => {
+        .then(async ({ data, error }) => {
           if (!isMounted) return;
           setSession(data.session);
           registerDeviceTokenForUser(data.session?.user?.id ?? null);
           if (data.session?.user) {
             await loadProfile(data.session.user.id);
-          } else if (!tryOfflineFallback()) {
+            return;
+          }
+          // No live session came back. `error` here is only ever populated
+          // when a session WAS found in local storage and a refresh was
+          // actually attempted — it's a much stronger signal than
+          // `navigator.onLine` (which reads `true` on a Wi-Fi connection
+          // with no real internet, e.g. after being away for days). The SDK
+          // normalizes any refresh attempt that never got a response from
+          // the server (no connectivity, DNS failure, timeout, ...) to
+          // `AuthRetryableFetchError` — exactly the "away with no signal
+          // for a while" case this app needs to survive without logging
+          // someone out. A different (non-retryable) error means the
+          // server itself rejected the refresh token — a real,
+          // confirmed-online sign-out — and should not be papered over.
+          const isConnectivityError =
+            (error as { name?: string } | null)?.name ===
+            "AuthRetryableFetchError";
+          if (!tryOfflineFallback(looksOffline() || isConnectivityError)) {
             setProfile(null);
             setIsOfflineSession(false);
           }
@@ -276,20 +293,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkSession();
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      async (event, newSession) => {
         if (!isMounted) return;
         setSession(newSession);
         registerDeviceTokenForUser(newSession?.user?.id ?? null);
         if (newSession?.user) {
           await loadProfile(newSession.user.id);
-        } else {
-          // A real SIGNED_OUT (or similar) event from the SDK — respect it
-          // as-is; the offline fallback only ever applies to the initial
-          // bootstrap check above, never here, so an explicit logout always
-          // sticks regardless of connectivity.
+          return;
+        }
+        if (event === "SIGNED_OUT") {
+          // A genuine, explicit sign-out — always respect it regardless of
+          // connectivity or any cached profile; never paper over it.
           setProfile(null);
           setIsOfflineSession(false);
+          return;
         }
+        // Any other event carrying a null session is, in practice, just
+        // `INITIAL_SESSION` — the SDK fires that once for every subscriber
+        // (including this listener) as soon as it mounts, independently of
+        // — and racing against — our own `checkSession()` call above. This
+        // callback isn't handed the underlying error the way
+        // `checkSession()` is, so it can't reliably tell "offline" apart
+        // from "actually signed out" here. Deciding anyway risks silently
+        // undoing whatever `checkSession()` (which CAN tell the difference)
+        // already established, in either direction, purely based on which
+        // one happens to resolve last. So this is intentionally a no-op:
+        // `checkSession()` — called at mount and again on "online" — stays
+        // the sole authority for "there is currently no live session".
       }
     );
 
