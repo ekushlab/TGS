@@ -42,6 +42,25 @@ export function MembersList({
             className="w-full pl-9 pr-3 py-2 rounded-lg border border-stone-300 bg-stone-50/50 text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-700 transition-all"
           />
         </div>
+        {setBloodFilter && (
+          <div className="relative shrink-0">
+            <Droplet size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-red-600 pointer-events-none" />
+            <select
+              id="blood-filter-select"
+              value={bloodFilter}
+              onChange={(e) => setBloodFilter(e.target.value)}
+              aria-label={language === 'bn' ? 'রক্তের গ্রুপ ফিল্টার' : 'Blood group filter'}
+              className="pl-7 pr-2 py-2 rounded-lg border border-stone-300 bg-stone-50/50 text-xs font-bold text-stone-700 focus:outline-none focus:bg-white focus:ring-2 focus:ring-emerald-700 transition-all cursor-pointer"
+            >
+              <option value="">{language === 'bn' ? 'সব গ্রুপ' : 'All Groups'}</option>
+              {BLOOD_GROUPS.map((bg) => (
+                <option key={bg} value={bg}>
+                  {bg}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           <span className="text-xs text-stone-500 font-medium px-2 py-1 bg-stone-100 rounded-md">
             {language === 'bn' ? `মোট: ${formatNumber(members.length)} জন` : `Total: ${formatNumber(members.length)}`}
@@ -57,43 +76,6 @@ export function MembersList({
           )}
         </div>
       </div>
-
-      {/* Blood Group Filter */}
-      {setBloodFilter && (
-        <div className="flex items-center gap-2 flex-wrap bg-white p-3 rounded-xl border border-stone-200 shadow-xs">
-          <span className="flex items-center gap-1.5 text-xs font-bold text-stone-600 shrink-0">
-            <Droplet size={14} className="text-red-600" />
-            {language === 'bn' ? 'রক্তের গ্রুপ:' : 'Blood Group:'}
-          </span>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setBloodFilter("")}
-              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
-                bloodFilter === ""
-                  ? "bg-emerald-800 text-white border-emerald-800"
-                  : "bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100"
-              }`}
-            >
-              {language === 'bn' ? 'সব' : 'All'}
-            </button>
-            {BLOOD_GROUPS.map((bg) => (
-              <button
-                key={bg}
-                type="button"
-                onClick={() => setBloodFilter(bloodFilter === bg ? "" : bg)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors cursor-pointer ${
-                  bloodFilter === bg
-                    ? "bg-red-700 text-white border-red-700"
-                    : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
-                }`}
-              >
-                {bg}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Grid of members */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
