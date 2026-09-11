@@ -36,6 +36,28 @@ export interface Member {
   bio?: string;
 }
 
+// A member's self-reported "I paid this month" claim, submitted from the
+// app after they've actually sent money (bKash / Bangla QR / by hand).
+// Sits in a queue for the Treasurer (or Admin) to review the payment proof
+// photo and Approve (which creates the real Deposit entry + notifies the
+// member) or Reject (with an optional reason, so the member can resubmit).
+export interface DepositRequest {
+  id: string;
+  memberUid: string;
+  month: string; // Same month-key format as Deposit.month (current running month by default)
+  amount: number;
+  paymentMode: 'bkash' | 'bangla_qr' | 'by_hand';
+  photo?: string; // Base64 payment-proof screenshot/receipt
+  photoName?: string;
+  note?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  submittedAt: number;
+  resolvedAt?: number;
+  resolvedByName?: string; // Name of the Treasurer/Admin who approved/rejected
+  rejectionReason?: string;
+  depositId?: string; // Links to the Deposit row created once approved
+}
+
 export interface Deposit {
   id: string;
   memberUid: string;
@@ -255,5 +277,6 @@ export interface AppData {
   notifications?: AppNotification[];
   polls?: Poll[];
   profitDistributions?: ProfitDistribution[];
+  depositRequests?: DepositRequest[];
 }
 

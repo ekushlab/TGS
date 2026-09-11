@@ -20,7 +20,7 @@ import {
   CircleUserRound,
   UserRound,
 } from "lucide-react";
-import { Member, Deposit, AccountEntry, FundIncome, Expense, AppSettings, AppData, Poll, PollVote, AppNotification, ProfitDistribution } from "./types";
+import { Member, Deposit, AccountEntry, FundIncome, Expense, AppSettings, AppData, Poll, PollVote, AppNotification, ProfitDistribution, DepositRequest } from "./types";
 import {
   getRecentMonths,
   withRunningBalance,
@@ -37,7 +37,9 @@ import {
   subscribeToRealtimeChanges,
   syncPollVoteToSupabase,
   syncOwnMemberProfileToSupabase,
+  syncDepositRequestToSupabase,
 } from "./utils/supabaseSync";
+import { supabase } from "./utils/supabaseClient";
 import { Dashboard } from "./components/Dashboard";
 import { MembersList } from "./components/MembersList";
 import { MemberDetail } from "./components/MemberDetail";
@@ -61,6 +63,7 @@ import {
   CloudBackupModal,
   MyProfileModal,
 } from "./components/Modals";
+import { DepositRequestModal, DepositRequestsPanel } from "./components/DepositRequests";
 import { TgsLogoSvg } from "./components/TgsLogoWatermark";
 import { SidebarDrawer } from "./components/SidebarDrawer";
 import { AboutUsModal } from "./components/AboutUsModal";
@@ -140,6 +143,7 @@ function AppContent() {
   });
   const [polls, setPolls] = useState<Poll[]>([]);
   const [profitDistributions, setProfitDistributions] = useState<ProfitDistribution[]>([]);
+  const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
@@ -179,6 +183,8 @@ function AppContent() {
   const [showCloudBackup, setShowCloudBackup] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showMyProfile, setShowMyProfile] = useState(false);
+  const [showDepositRequestModal, setShowDepositRequestModal] = useState(false);
+  const [showDepositRequestsPanel, setShowDepositRequestsPanel] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   // The profile menu is positioned via fixed coordinates computed from the
   // button's actual on-screen location (rather than CSS `absolute right-0`)
@@ -478,6 +484,7 @@ function AppContent() {
     setNotifications(data.notifications || []);
     setPolls(data.polls || []);
     setProfitDistributions(data.profitDistributions || []);
+    setDepositRequests(data.depositRequests || []);
     if (data.settings) {
       setSettings(data.settings);
     }
@@ -578,15 +585,17 @@ function AppContent() {
       notifications?: AppNotification[];
       polls?: Poll[];
       profitDistributions?: ProfitDistribution[];
+      depositRequests?: DepositRequest[];
       settings?: AppSettings;
     },
     opts?: { allowMemberWrite?: boolean }
   ) => {
     // Treasurer / General Secretary logins may only ADD new entries in
     // these specific areas (deposits, bank, investment, fund/expenses,
-    // polls, and profit distribution statements) — never touch members,
-    // notifications, or settings (which covers the Constitution & Bylaws
-    // text too, so this also enforces "no Constitution edit access").
+    // polls, profit distribution statements, and reviewing deposit
+    // requests) — never touch members, notifications, or settings (which
+    // covers the Constitution & Bylaws text too, so this also enforces "no
+    // Constitution edit access").
     const TREASURER_ALLOWED_KEYS = [
       "deposits",
       "bankEntries",
@@ -595,6 +604,7 @@ function AppContent() {
       "expenses",
       "polls",
       "profitDistributions",
+      "depositRequests",
     ] as const;
     const isWithinTreasurerScope =
       auth.isTreasurer &&
@@ -618,6 +628,7 @@ function AppContent() {
       notifications: patch.notifications ?? notifications,
       polls: patch.polls ?? polls,
       profitDistributions: patch.profitDistributions ?? profitDistributions,
+      depositRequests: patch.depositRequests ?? depositRequests,
       settings: patch.settings ?? settings,
     };
     saveAppData(payload);
@@ -675,8 +686,10 @@ function AppContent() {
 
   // Self-service "My Profile" save — every logged-in member may update only
   // their OWN linked member record, and only this safe field whitelist
-  // (photo, mobile, email, address, blood group & bio). Name, NID and
-  // nominee data stay admin-only (via Edit Member). Mirrors castVote's use
+  // (photo, mobile, email, address, blood group, bio, their nominee's
+  // photo, and their own Voter ID / NID document scan). Name, NID number,
+  // and the rest of the nominee's text details stay admin-only (via Edit
+  // Member). Mirrors castVote's use
   // of allowMemberWrite for the local/offline path, and additionally writes
   // through a dedicated RPC (see syncOwnMemberProfileToSupabase) when
   // Supabase is on, since the generic members-table sync is admin-only.
@@ -689,6 +702,13 @@ function AppContent() {
     address?: string;
     blood?: string;
     bio?: string;
+    nomineePhoto?: string;
+    nomineePhotoFormat?: "passport" | "300x300";
+    nomineePhotoSize?: number;
+    nidDoc?: string;
+    nidDocName?: string;
+    nidDocType?: "pdf" | "image";
+    nidDocSize?: number;
   }) => {
     if (!currentMember) return;
     const nextMembers = members.map((m) =>
@@ -709,6 +729,145 @@ function AppContent() {
     }
     flashToast(language === "bn" ? "আপনার প্রোফাইল সংরক্ষিত হয়েছে!" : "Your profile has been saved!");
     setShowMyProfile(false);
+  };
+
+  // Deposit Request Handlers — a member submits "I paid this month" (with a
+  // payment-proof photo); a Treasurer/Admin reviews and Approves (which
+  // creates the real Deposit entry + fires a push notification and optional
+  // WhatsApp group post to the member) or Rejects (with an optional reason).
+  const PAYMENT_MODE_TO_METHOD: Record<DepositRequest["paymentMode"], string> = {
+    bkash: "বিকাশ",
+    bangla_qr: "বাংলা কিউআর",
+    by_hand: "হাতে নগদ",
+  };
+
+  const submitDepositRequest = async (req: {
+    month: string;
+    amount: number;
+    paymentMode: DepositRequest["paymentMode"];
+    photo?: string;
+    photoName?: string;
+    note?: string;
+  }) => {
+    if (!currentMember) return;
+    const newRequest: DepositRequest = {
+      id: "DREQ-" + Date.now().toString().slice(-8),
+      memberUid: currentMember.uid,
+      ...req,
+      status: "pending",
+      submittedAt: Date.now(),
+    };
+    const next = [newRequest, ...depositRequests];
+    setDepositRequests(next);
+    // Members may only ever add their OWN new pending request — bypass the
+    // admin/treasurer-only gate exactly like castVote/saveMyProfile do, and
+    // (when Supabase is on) write it through the dedicated RLS-protected
+    // insert rather than the generic admin-only table sync.
+    persist({ depositRequests: next }, { allowMemberWrite: true });
+    if (auth.authEnabled) {
+      const { error } = await syncDepositRequestToSupabase(newRequest);
+      if (error) {
+        flashToast(
+          language === "bn"
+            ? `রিকোয়েস্ট ক্লাউডে সংরক্ষণ করা যায়নি: ${error}`
+            : `Could not save the request to the cloud: ${error}`
+        );
+        return;
+      }
+    }
+    flashToast(
+      language === "bn"
+        ? "আপনার জমা রিকোয়েস্ট পাঠানো হয়েছে। কোষাধ্যক্ষ পর্যালোচনা করে অনুমোদন করবেন।"
+        : "Your deposit request has been submitted. The Treasurer will review and approve it."
+    );
+    setShowDepositRequestModal(false);
+  };
+
+  const approveDepositRequest = async (request: DepositRequest) => {
+    const newDeposit: Deposit = {
+      id: "REC-" + Date.now().toString().slice(-6),
+      memberUid: request.memberUid,
+      month: request.month,
+      date: new Date().toLocaleDateString("en-GB"),
+      amount: request.amount,
+      method: PAYMENT_MODE_TO_METHOD[request.paymentMode],
+      note: request.note,
+      attachment: request.photo,
+      attachmentName: request.photoName,
+      createdAt: Date.now(),
+    };
+    const nextDeposits = [newDeposit, ...deposits];
+    setDeposits(nextDeposits);
+
+    const resolvedByName = auth.profile?.name || (auth.isAdmin ? "Admin" : "Treasurer");
+    const nextRequests = depositRequests.map((r) =>
+      r.id === request.id
+        ? { ...r, status: "approved" as const, resolvedAt: Date.now(), resolvedByName, depositId: newDeposit.id }
+        : r
+    );
+    setDepositRequests(nextRequests);
+    persist({ deposits: nextDeposits, depositRequests: nextRequests });
+
+    if (auth.authEnabled) {
+      const updated = nextRequests.find((r) => r.id === request.id)!;
+      const { error } = await syncDepositRequestToSupabase(updated);
+      if (error) {
+        flashToast(
+          language === "bn"
+            ? `অনুমোদন ক্লাউডে সংরক্ষণ করা যায়নি: ${error}`
+            : `Could not save the approval to the cloud: ${error}`
+        );
+      }
+    }
+
+    flashToast(
+      language === "bn"
+        ? "রিকোয়েস্ট অনুমোদিত হয়েছে এবং কিস্তি হিসেবে যুক্ত হয়েছে।"
+        : "Request approved and recorded as a deposit."
+    );
+    setViewingReceiptDeposit(newDeposit);
+
+    // Fire-and-forget: push notification to the member + optional WhatsApp
+    // group post, via the notify-deposit-approved Edge Function. Never
+    // blocks or fails the approval itself if this doesn't succeed.
+    if (auth.authEnabled && supabase) {
+      const member = members.find((m) => m.uid === request.memberUid);
+      const memberName = member ? (language === "en" && member.nameEn ? member.nameEn : member.name) : request.memberUid;
+      const title = language === "bn" ? "কিস্তি অনুমোদিত হয়েছে" : "Deposit Approved";
+      const message =
+        language === "bn"
+          ? `${memberName} এর ${request.month} মাসের কিস্তি ৳${request.amount} অনুমোদিত হয়েছে।`
+          : `${memberName}'s ${request.month} deposit of ৳${request.amount} has been approved.`;
+      supabase.functions
+        .invoke("notify-deposit-approved", {
+          body: { memberUid: request.memberUid, title, message },
+        })
+        .catch((e) => console.error("notify-deposit-approved failed", e));
+    }
+  };
+
+  const rejectDepositRequest = async (request: DepositRequest, reason: string) => {
+    const resolvedByName = auth.profile?.name || (auth.isAdmin ? "Admin" : "Treasurer");
+    const nextRequests = depositRequests.map((r) =>
+      r.id === request.id
+        ? { ...r, status: "rejected" as const, resolvedAt: Date.now(), resolvedByName, rejectionReason: reason || undefined }
+        : r
+    );
+    setDepositRequests(nextRequests);
+    persist({ depositRequests: nextRequests });
+
+    if (auth.authEnabled) {
+      const updated = nextRequests.find((r) => r.id === request.id)!;
+      const { error } = await syncDepositRequestToSupabase(updated);
+      if (error) {
+        flashToast(
+          language === "bn"
+            ? `বাতিল ক্লাউডে সংরক্ষণ করা যায়নি: ${error}`
+            : `Could not save the rejection to the cloud: ${error}`
+        );
+      }
+    }
+    flashToast(language === "bn" ? "রিকোয়েস্ট বাতিল করা হয়েছে।" : "Request rejected.");
   };
 
   // Notification Handlers
@@ -920,6 +1079,7 @@ function AppContent() {
     setNotifications(restored.notifications || []);
     setPolls(restored.polls || []);
     setProfitDistributions(restored.profitDistributions || []);
+    setDepositRequests(restored.depositRequests || []);
     if (restored.settings) {
       setSettings(restored.settings);
     }
@@ -1008,6 +1168,7 @@ function AppContent() {
     notifications,
     polls,
     profitDistributions,
+    depositRequests,
     settings,
   };
   // Always-fresh handle on the latest app data for the reconnect handler
@@ -1673,6 +1834,28 @@ function AppContent() {
         />
       )}
 
+      {showDepositRequestModal && currentMember && (
+        <DepositRequestModal
+          member={currentMember}
+          deposits={deposits}
+          myRequests={depositRequests.filter((r) => r.memberUid === currentMember.uid)}
+          settings={settings}
+          onClose={() => setShowDepositRequestModal(false)}
+          onSubmit={submitDepositRequest}
+        />
+      )}
+
+      {showDepositRequestsPanel && (auth.isAdmin || auth.isTreasurer) && (
+        <DepositRequestsPanel
+          members={members}
+          depositRequests={depositRequests}
+          currentUserName={auth.profile?.name || (auth.isAdmin ? "Admin" : "Treasurer")}
+          onClose={() => setShowDepositRequestsPanel(false)}
+          onApprove={approveDepositRequest}
+          onReject={rejectDepositRequest}
+        />
+      )}
+
       {showAddBank && (
         <AddBankModal
           onClose={() => setShowAddBank(false)}
@@ -1770,6 +1953,17 @@ function AppContent() {
         onOpenChangePassword={auth.authEnabled && auth.isAuthenticated ? () => setShowChangePassword(true) : undefined}
         onOpenMyProfile={auth.authEnabled && auth.isAuthenticated ? () => setShowMyProfile(true) : undefined}
         currentUserPhoto={currentUserPhoto}
+        onOpenDepositRequest={
+          auth.authEnabled && auth.isAuthenticated && currentMember && !auth.isAdmin && !auth.isTreasurer
+            ? () => setShowDepositRequestModal(true)
+            : undefined
+        }
+        onOpenDepositRequestsPanel={
+          auth.authEnabled && auth.isAuthenticated && (auth.isAdmin || auth.isTreasurer)
+            ? () => setShowDepositRequestsPanel(true)
+            : undefined
+        }
+        pendingDepositRequestsCount={depositRequests.filter((r) => r.status === "pending").length}
       />
 
       {/* Exit Application Confirmation Modal */}
@@ -1788,6 +1982,7 @@ function AppContent() {
         <UnifiedSettingsModal
           settings={settings}
           initialTab={settingsInitialTab}
+          isAdmin={auth.isAdmin}
           onClose={() => setShowSettingsModal(false)}
           onSaveSettings={(updatedSettings) => {
             updateSettings(updatedSettings);
