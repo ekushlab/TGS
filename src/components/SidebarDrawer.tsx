@@ -30,6 +30,8 @@ import {
   Smartphone,
   KeyRound,
   CircleUserRound,
+  Wallet,
+  ClipboardCheck,
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useLanguage } from '../utils/LanguageContext';
@@ -68,6 +70,12 @@ interface SidebarDrawerProps {
   onOpenMyProfile?: () => void;
   /** The logged-in user's own profile photo, if any — shown on the "My Profile" button. */
   currentUserPhoto?: string | null;
+  /** Shows "Submit Monthly Deposit Request" — a plain Member with a linked member record. */
+  onOpenDepositRequest?: () => void;
+  /** Shows "Deposit Request Approvals" — Super Admin or Treasurer/Secretary. */
+  onOpenDepositRequestsPanel?: () => void;
+  /** Badge count of pending deposit requests, shown on the approvals entry above. */
+  pendingDepositRequestsCount?: number;
 }
 
 export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
@@ -95,6 +103,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   onOpenChangePassword,
   onOpenMyProfile,
   currentUserPhoto,
+  onOpenDepositRequest,
+  onOpenDepositRequestsPanel,
+  pendingDepositRequestsCount = 0,
 }) => {
   const { language, t, formatNumber } = useLanguage();
 
@@ -342,6 +353,53 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <span className="text-xs font-bold text-amber-200 flex-1 text-left">
                 {language === 'bn' ? 'আমার প্রোফাইল' : 'My Profile'}
               </span>
+              <ChevronRight size={13} className="text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+
+          {/* Submit Monthly Deposit Request — plain Members only */}
+          {onOpenDepositRequest && (
+            <button
+              id="sidebar-deposit-request-btn"
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenDepositRequest();
+              }}
+              className="w-full mt-2 p-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-900 text-amber-100 border border-emerald-800/70 flex items-center gap-2.5 transition-all group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-700/80 flex items-center justify-center shrink-0">
+                <Wallet size={16} className="text-amber-300" />
+              </div>
+              <span className="text-xs font-bold text-amber-200 flex-1 text-left">
+                {language === 'bn' ? 'মাসিক কিস্তি জমার রিকোয়েস্ট' : 'Submit Monthly Deposit'}
+              </span>
+              <ChevronRight size={13} className="text-amber-400 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          )}
+
+          {/* Deposit Request Approvals — Super Admin / Treasurer only */}
+          {onOpenDepositRequestsPanel && (
+            <button
+              id="sidebar-deposit-approvals-btn"
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenDepositRequestsPanel();
+              }}
+              className="w-full mt-2 p-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-900 text-amber-100 border border-emerald-800/70 flex items-center gap-2.5 transition-all group cursor-pointer"
+            >
+              <div className="w-8 h-8 rounded-full bg-emerald-950 border border-emerald-700/80 flex items-center justify-center shrink-0">
+                <ClipboardCheck size={16} className="text-amber-300" />
+              </div>
+              <span className="text-xs font-bold text-amber-200 flex-1 text-left">
+                {language === 'bn' ? 'জমা রিকোয়েস্ট অনুমোদন' : 'Deposit Request Approvals'}
+              </span>
+              {pendingDepositRequestsCount > 0 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-bold bg-amber-400 text-emerald-950 shrink-0">
+                  {pendingDepositRequestsCount}
+                </span>
+              )}
               <ChevronRight size={13} className="text-amber-400 group-hover:translate-x-0.5 transition-transform" />
             </button>
           )}

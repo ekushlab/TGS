@@ -1888,6 +1888,13 @@ export function MyProfileModal({
     address?: string;
     blood?: string;
     bio?: string;
+    nomineePhoto?: string;
+    nomineePhotoFormat?: 'passport' | '300x300';
+    nomineePhotoSize?: number;
+    nidDoc?: string;
+    nidDocName?: string;
+    nidDocType?: 'pdf' | 'image';
+    nidDocSize?: number;
   }) => void;
   onOpenChangePassword: () => void;
 }) {
@@ -1905,6 +1912,20 @@ export function MyProfileModal({
   const [photoError, setPhotoError] = useState<string>('');
   const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+
+  // Nominee's photo — self-service upload, mirrors the admin "Edit Member"
+  // nominee tab. Name/relation/mobile/NID number/address stay admin-only.
+  const [nomineePhoto, setNomineePhoto] = useState<string | undefined>(member?.nomineePhoto);
+  const [nomineePhotoFormat, setNomineePhotoFormat] = useState<'passport' | '300x300'>(
+    member?.nomineePhotoFormat || 'passport'
+  );
+  const [nomineePhotoSize, setNomineePhotoSize] = useState<number | undefined>(member?.nomineePhotoSize);
+
+  // The member's own Voter ID / NID card document — self-service upload.
+  const [nidDoc, setNidDoc] = useState<string | undefined>(member?.nidDoc);
+  const [nidDocName, setNidDocName] = useState<string | undefined>(member?.nidDocName);
+  const [nidDocType, setNidDocType] = useState<'pdf' | 'image' | undefined>(member?.nidDocType);
+  const [nidDocSize, setNidDocSize] = useState<number | undefined>(member?.nidDocSize);
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1966,6 +1987,13 @@ export function MyProfileModal({
       address: address.trim(),
       blood: blood.trim(),
       bio: bio.trim(),
+      nomineePhoto,
+      nomineePhotoFormat,
+      nomineePhotoSize,
+      nidDoc,
+      nidDocName,
+      nidDocType,
+      nidDocSize,
     });
   };
 
@@ -2137,6 +2165,36 @@ export function MyProfileModal({
                 className={inputCls}
               />
             </Field>
+
+            {/* Nominee Photo Upload — self-service */}
+            <NomineePhotoUpload
+              photo={nomineePhoto}
+              photoFormat={nomineePhotoFormat}
+              photoSize={nomineePhotoSize}
+              onChange={(photoVal, formatVal, sizeVal) => {
+                setNomineePhoto(photoVal);
+                if (formatVal) setNomineePhotoFormat(formatVal);
+                setNomineePhotoSize(sizeVal);
+              }}
+            />
+
+            {/* Voter ID / NID Card Document Upload — self-service */}
+            <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-xl">
+              <NidDocumentUpload
+                label={language === 'bn' ? 'আমার ভোটার আইডি / জাতীয় পরিচয়পত্র (NID)' : 'My Voter ID / National ID (NID) Card'}
+                hint={language === 'bn' ? 'PDF অথবা JPG/PNG ফরম্যাটে আপলোড করুন (১০০ KB থেকে ১ MB)' : 'Upload as PDF or JPG/PNG (100 KB to 1 MB)'}
+                value={nidDoc}
+                fileName={nidDocName}
+                fileType={nidDocType}
+                fileSize={nidDocSize}
+                onChange={(val, name, type, size) => {
+                  setNidDoc(val);
+                  setNidDocName(name);
+                  setNidDocType(type);
+                  setNidDocSize(size);
+                }}
+              />
+            </div>
           </>
         )}
 

@@ -19,17 +19,212 @@ import {
   CheckCircle2,
   Globe,
   Info,
+  MessageCircle,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { useLanguage } from '../utils/LanguageContext';
 import { PageWatermark, TgsLogoSvg } from './TgsLogoWatermark';
 import { STORAGE_MIME_TYPES, openFilePickerWithStorage } from '../utils/fileStorage';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 
 interface UnifiedSettingsModalProps {
   settings: AppSettings;
   onClose: () => void;
   onSaveSettings: (updated: Partial<AppSettings>) => void;
-  initialTab?: 'profile' | 'logo' | 'watermark' | 'language' | 'signatures' | 'fines';
+  initialTab?: 'profile' | 'logo' | 'watermark' | 'language' | 'signatures' | 'fines' | 'whatsapp';
+  /** Only an Admin ever reaches this modal in the app's own UI, but the
+   * WhatsApp tab (a third-party API key) additionally double-checks this
+   * before showing anything — the real enforcement is server-side RLS
+   * (whatsapp_settings is Admin-only), this is just defense in depth. */
+  isAdmin?: boolean;
+}
+
+/* =========================================================================
+   WHATSAPP INTEGRATION TAB
+   ----------------------------------------------------------------------
+   Deliberately NOT part of AppSettings/onSaveSettings — that data syncs to
+   every authenticated member's device (see supabaseSync.ts), which would
+   leak this third-party API key to everyone. Instead this reads/writes the
+   separate `whatsapp_settings` table directly, which RLS restricts to
+   Admin only (see supabase/schema.sql). Read by the notify-deposit-approved
+   Edge Function with the service-role key when a Treasurer/Admin approves a
+   member's deposit request.
+   ========================================================================= */
+function WhatsAppSettingsTab({ isAdmin }: { isAdmin?: boolean }) {
+  const { language } = useLanguage();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [saveMsg, setSaveMsg] = useState('');
+
+  const [enabled, setEnabled] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [groupId, setGroupId] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!isSupabaseConfigured || !supabase) {
+      setLoadError(
+        language === 'bn'
+          ? 'ক্লাউড সংযোগ ছাড়া WhatsApp সংযুক্তি কনফিগার করা যাবে না।'
+          : 'WhatsApp integration requires cloud sync to be configured.'
+      );
+      setLoading(false);
+      return;
+    }
+    (async () => {
+      const { data, error } = await supabase!
+        .from('whatsapp_settings')
+        .select('enabled, webhook_url, api_key, group_id')
+        .eq('id', 'singleton')
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setLoadError(error.message);
+      } else if (data) {
+        setEnabled(!!data.enabled);
+        setWebhookUrl(data.webhook_url || '');
+        setApiKey(data.api_key || '');
+        setGroupId(data.group_id || '');
+      }
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleSave = async () => {
+    if (!supabase) return;
+    setSaving(true);
+    setSaveMsg('');
+    const { error } = await supabase.from('whatsapp_settings').upsert({
+      id: 'singleton',
+      enabled,
+      webhook_url: webhookUrl.trim() || null,
+      api_key: apiKey.trim() || null,
+      group_id: groupId.trim() || null,
+      updated_at: new Date().toISOString(),
+    });
+    setSaving(false);
+    setSaveMsg(
+      error
+        ? (language === 'bn' ? `সংরক্ষণ ব্যর্থ: ${error.message}` : `Save failed: ${error.message}`)
+        : (language === 'bn' ? '✓ WhatsApp সেটিংস সংরক্ষিত হয়েছে' : '✓ WhatsApp settings saved')
+    );
+  };
+
+  const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent text-sm bg-white text-stone-900 transition-all shadow-2xs";
+
+  if (!isAdmin) {
+    return (
+      <div className="p-4 text-sm text-stone-500">
+        {language === 'bn' ? 'শুধুমাত্র Admin এই সেটিংস দেখতে পারেন।' : 'Only an Admin can view this setting.'}
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center text-stone-500 gap-2">
+        <Loader2 size={18} className="animate-spin" />
+        <span className="text-sm">{language === 'bn' ? 'লোড হচ্ছে…' : 'Loading…'}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2 p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+        <Info size={16} className="shrink-0 text-emerald-700 mt-0.5" />
+        <span>
+          {language === 'bn'
+            ? 'কোনো একটি জমা রিকোয়েস্ট অনুমোদন করার সাথে সাথে এখানে দেওয়া গেটওয়ে দিয়ে TGS WhatsApp গ্রুপে একটি স্বয়ংক্রিয় বার্তা পাঠানো হবে। Wassenger / Whapi.io / UltraMsg / Gupshup ইত্যাদি থার্ড-পার্টি গেটওয়ে ব্যবহার করা যায় — প্রতিটির নিজস্ব API ডকুমেন্টেশন অনুযায়ী সঠিক ফিল্ড বসাতে হবে।'
+            : "As soon as a deposit request is approved, an automatic message is posted to the TGS WhatsApp group through the gateway configured here. Works with third-party gateways such as Wassenger / Whapi.io / UltraMsg / Gupshup — check your provider's own API docs for the exact fields it expects."}
+        </span>
+      </div>
+
+      {loadError && (
+        <div className="flex items-center gap-1.5 p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+          <AlertCircle size={14} className="shrink-0" />
+          <span>{loadError}</span>
+        </div>
+      )}
+
+      <label className="flex items-center justify-between p-3 bg-stone-50 border border-stone-200 rounded-xl cursor-pointer">
+        <span className="text-sm font-bold text-stone-800">
+          {language === 'bn' ? 'WhatsApp অটো-পোস্ট চালু করুন' : 'Enable WhatsApp auto-post'}
+        </span>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => setEnabled(e.target.checked)}
+          className="w-5 h-5 accent-emerald-700 cursor-pointer"
+        />
+      </label>
+
+      <div>
+        <label className="block text-xs font-semibold text-stone-600 mb-1.5">
+          {language === 'bn' ? 'Webhook / API URL' : 'Webhook / API URL'}
+        </label>
+        <input
+          value={webhookUrl}
+          onChange={(e) => setWebhookUrl(e.target.value)}
+          placeholder="https://your-gateway.example.com/send"
+          className={inputCls}
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-stone-600 mb-1.5">
+          {language === 'bn' ? 'API Key' : 'API Key'}
+        </label>
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+          placeholder={language === 'bn' ? 'আপনার গেটওয়ের API কী' : "Your gateway's API key"}
+          className={inputCls}
+        />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-stone-600 mb-1.5">
+          {language === 'bn' ? 'WhatsApp Group ID' : 'WhatsApp Group ID'}
+        </label>
+        <input
+          value={groupId}
+          onChange={(e) => setGroupId(e.target.value)}
+          placeholder={language === 'bn' ? 'গ্রুপের আইডি (গেটওয়ে থেকে সংগ্রহ করুন)' : 'Group ID (from your gateway)'}
+          className={inputCls}
+        />
+      </div>
+
+      {saveMsg && (
+        <div
+          className={`p-2.5 rounded-lg text-xs font-semibold ${
+            saveMsg.startsWith('✓') ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+          }`}
+        >
+          {saveMsg}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={saving || !isSupabaseConfigured}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 disabled:opacity-50 text-white text-sm font-bold transition-colors cursor-pointer"
+      >
+        {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+        {language === 'bn' ? 'WhatsApp সেটিংস সংরক্ষণ করুন' : 'Save WhatsApp Settings'}
+      </button>
+    </div>
+  );
 }
 
 function SignatureDrawCanvas({
@@ -182,9 +377,10 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
   onClose,
   onSaveSettings,
   initialTab = 'profile',
+  isAdmin,
 }) => {
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'profile' | 'logo' | 'watermark' | 'language' | 'signatures' | 'fines'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'profile' | 'logo' | 'watermark' | 'language' | 'signatures' | 'fines' | 'whatsapp'>(initialTab);
 
   // 1. Profile & Address (Bilingual)
   const [societyName, setSocietyName] = useState(settings.societyName || 'Trust Growth Society');
@@ -329,6 +525,7 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
     { id: 'language' as const, label: language === 'bn' ? 'ভাষা নির্বাচন' : 'Language', icon: Globe },
     { id: 'signatures' as const, label: language === 'bn' ? 'স্বাক্ষর ও কর্তৃপক্ষ' : 'Signatures', icon: PenTool },
     { id: 'fines' as const, label: language === 'bn' ? 'জরিমানা ও তারিখ' : 'Fines & Rules', icon: Sliders },
+    { id: 'whatsapp' as const, label: language === 'bn' ? 'WhatsApp সংযুক্তি' : 'WhatsApp Integration', icon: MessageCircle },
   ];
 
   return (
@@ -1011,6 +1208,12 @@ export const UnifiedSettingsModal: React.FC<UnifiedSettingsModalProps> = ({
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'whatsapp' && (
+            <div className="animate-in fade-in duration-200">
+              <WhatsAppSettingsTab isAdmin={isAdmin} />
             </div>
           )}
 
