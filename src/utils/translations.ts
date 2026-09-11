@@ -599,8 +599,8 @@ export const BN_MONTHS = [
   "জুলাই", "আগস্ট", "সেপ্টেম্বর", "অক্টোবর", "নভেম্বর", "ডিসেম্বর"
 ];
 
-export const EN_METHODS = ["Cash in Hand", "bKash", "Nagad", "Rocket", "Bank Deposit"];
-export const BN_METHODS = ["হাতে নগদ", "বিকাশ", "নগদ (মোবাইল)", "রকেট", "ব্যাংক ডিপোজিট"];
+export const EN_METHODS = ["Cash in Hand", "bKash", "Nagad", "Rocket", "Bank Deposit", "Bangla QR"];
+export const BN_METHODS = ["হাতে নগদ", "বিকাশ", "নগদ (মোবাইল)", "রকেট", "ব্যাংক ডিপোজিট", "বাংলা কিউআর"];
 
 /**
  * Translate Month Name between Bengali and English

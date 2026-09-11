@@ -10,6 +10,7 @@ import {
   Poll,
   PollVote,
   ProfitDistribution,
+  DepositRequest,
 } from "../types";
 
 // Maps each AppData array key to its Supabase table + row id field.
@@ -162,6 +163,7 @@ export async function fetchAllFromSupabase(): Promise<AppData | null> {
       notifications,
       polls,
       profitDistributions,
+      depositRequests,
       settings,
     ] = await Promise.all([
       fetchGenericTable<Member>("members"),
@@ -173,6 +175,7 @@ export async function fetchAllFromSupabase(): Promise<AppData | null> {
       fetchGenericTable<AppNotification>("notifications"),
       fetchPolls(),
       fetchGenericTable<ProfitDistribution>("profit_distributions"),
+      fetchGenericTable<DepositRequest>("deposit_requests"),
       fetchSettings(),
     ]);
 
@@ -202,6 +205,10 @@ export async function fetchAllFromSupabase(): Promise<AppData | null> {
       notifications: notifications || [],
       polls: polls || [],
       profitDistributions: profitDistributions || [],
+      // Not included in `anyFailed` above: on a device that hasn't yet run
+      // the migration adding this table, a failed fetch here should degrade
+      // to an empty request queue rather than blanking out the whole sync.
+      depositRequests: depositRequests || [],
       settings: settings || undefined,
     };
     setLastSyncedSnapshot(result);
@@ -415,6 +422,28 @@ export async function syncPollVoteToSupabase(vote: PollVote): Promise<{ error: s
 }
 
 /**
+ * Directly records one deposit request (insert-or-update), bypassing the
+ * generic admin-only table diff above — mirrors syncPollVoteToSupabase.
+ * RLS lets a member insert only their OWN new (pending) request, and lets a
+ * Treasurer/Admin update any request's status (approve/reject). Using the
+ * generic per-key array diff here would be unsafe: a member's local
+ * `depositRequests` array also contains everyone else's (fully-visible)
+ * requests, and any attempt to re-upsert an unrelated row a member isn't
+ * allowed to write would fail the whole batch under RLS.
+ */
+export async function syncDepositRequestToSupabase(
+  request: DepositRequest
+): Promise<{ error: string | null }> {
+  if (!supabase) return { error: "Supabase is not configured." };
+  const { error } = await supabase.from("deposit_requests").upsert(
+    { id: request.id, data: request, updated_at: new Date().toISOString() },
+    { onConflict: "id" }
+  );
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+/**
  * Self-service "My Profile" update — writes ONLY the caller's own linked
  * member row, and only a whitelisted set of safe fields (photo, contact
  * info, blood group, bio). Backed by the `update_own_member_profile`
@@ -432,6 +461,13 @@ export async function syncOwnMemberProfileToSupabase(patch: {
   address?: string;
   blood?: string;
   bio?: string;
+  nomineePhoto?: string;
+  nomineePhotoFormat?: 'passport' | '300x300';
+  nomineePhotoSize?: number;
+  nidDoc?: string;
+  nidDocName?: string;
+  nidDocType?: 'pdf' | 'image';
+  nidDocSize?: number;
 }): Promise<{ error: string | null }> {
   if (!supabase) return { error: "Supabase is not configured." };
   const { error } = await supabase.rpc("update_own_member_profile", {
@@ -443,6 +479,13 @@ export async function syncOwnMemberProfileToSupabase(patch: {
     p_address: patch.address ?? null,
     p_blood: patch.blood ?? null,
     p_bio: patch.bio ?? null,
+    p_nominee_photo: patch.nomineePhoto ?? null,
+    p_nominee_photo_format: patch.nomineePhotoFormat ?? null,
+    p_nominee_photo_size: patch.nomineePhotoSize ?? null,
+    p_nid_doc: patch.nidDoc ?? null,
+    p_nid_doc_name: patch.nidDocName ?? null,
+    p_nid_doc_type: patch.nidDocType ?? null,
+    p_nid_doc_size: patch.nidDocSize ?? null,
   });
   if (error) return { error: error.message };
   return { error: null };
@@ -460,6 +503,7 @@ const REALTIME_TABLES = [
   "profit_distributions",
   "app_settings",
   "poll_votes",
+  "deposit_requests",
 ];
 
 /**

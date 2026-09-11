@@ -55,6 +55,7 @@ export async function loadAppData(): Promise<AppData> {
           notifications: rawNotifications,
           polls: rawPolls,
           profitDistributions: parsed.profitDistributions ?? [],
+          depositRequests: parsed.depositRequests ?? [],
         };
       }
     }
@@ -80,6 +81,7 @@ export async function loadAppData(): Promise<AppData> {
         notifications: rawNotifications,
         polls: rawPolls,
         profitDistributions: parsed.profitDistributions ?? [],
+        depositRequests: parsed.depositRequests ?? [],
       };
     }
   } catch (e) {
@@ -97,6 +99,7 @@ export async function loadAppData(): Promise<AppData> {
     notifications: SEED_NOTIFICATIONS,
     polls: SEED_POLLS,
     profitDistributions: SEED_PROFIT_DISTRIBUTIONS,
+    depositRequests: [],
   };
 }
 
