@@ -325,7 +325,7 @@ begin
   foreach t in array array[
     'members', 'deposits', 'bank_entries', 'invest_entries',
     'fund_income', 'expenses', 'notifications', 'polls',
-    'profit_distributions', 'app_settings', 'poll_votes'
+    'profit_distributions', 'app_settings', 'poll_votes', 'deposit_requests'
   ]
   loop
     begin
@@ -335,6 +335,140 @@ begin
     end;
   end loop;
 end $$;
+
+-- ---------------------------------------------------------------------------
+-- 7. deposit_requests — a member's "I paid this month" claim (bKash /
+--    Bangla QR / by hand + a payment-proof photo), queued for the
+--    Treasurer/Admin to review. Approve creates the real Deposit row and
+--    notifies the member; Reject records an optional reason so they can
+--    resubmit. Same generic JSONB "row per item" shape as the other tables.
+-- ---------------------------------------------------------------------------
+create table if not exists public.deposit_requests (
+  id text primary key,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.deposit_requests enable row level security;
+
+drop policy if exists "deposit_requests_select" on public.deposit_requests;
+create policy "deposit_requests_select" on public.deposit_requests
+  for select using (auth.role() = 'authenticated');
+
+-- A member may only submit a NEW request for their OWN member_uid; Admin and
+-- Treasurer may also insert on anyone's behalf (e.g. entering an offline
+-- member's paper submission).
+drop policy if exists "deposit_requests_insert" on public.deposit_requests;
+create policy "deposit_requests_insert" on public.deposit_requests
+  for insert with check (
+    public.is_admin()
+    or public.is_treasurer()
+    or (data->>'memberUid') = public.current_member_uid()
+  );
+
+-- Only Admin/Treasurer may change a request's status (approve/reject) —
+-- matches the same review authority as the "deposits" table itself.
+drop policy if exists "deposit_requests_update" on public.deposit_requests;
+create policy "deposit_requests_update" on public.deposit_requests
+  for update using (public.is_admin() or public.is_treasurer())
+  with check (public.is_admin() or public.is_treasurer());
+
+drop policy if exists "deposit_requests_delete" on public.deposit_requests;
+create policy "deposit_requests_delete" on public.deposit_requests
+  for delete using (public.is_admin());
+
+-- ---------------------------------------------------------------------------
+-- 8. whatsapp_settings — single-row config for the optional WhatsApp
+--    auto-post-on-approval integration. Deliberately KEPT SEPARATE from
+--    app_settings (which every authenticated member's client freely reads)
+--    because this row holds a third-party API key. Only Admin can read/write
+--    it from the client; the notify-deposit-approved Edge Function reads it
+--    with the service-role key, which bypasses RLS entirely.
+-- ---------------------------------------------------------------------------
+create table if not exists public.whatsapp_settings (
+  id text primary key default 'singleton',
+  enabled boolean not null default false,
+  webhook_url text,
+  api_key text,
+  group_id text,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.whatsapp_settings enable row level security;
+
+drop policy if exists "whatsapp_settings_all" on public.whatsapp_settings;
+create policy "whatsapp_settings_all" on public.whatsapp_settings
+  for all using (public.is_admin()) with check (public.is_admin());
+
+-- ---------------------------------------------------------------------------
+-- 9. update_own_member_profile — self-service "My Profile" RPC (SECURITY
+--    DEFINER). Lets a member write ONLY their own linked member row, and
+--    only this safe field whitelist: photo, contact info, blood group, bio,
+--    their nominee's photo, and their own Voter ID / NID document scan.
+--    Name, NID *number*, and the rest of the nominee's text details stay
+--    admin-only (via Edit Member). The generic `members` table RLS policy
+--    stays admin-only, so a member can never write name/NID/nominee text
+--    data or another member's row, even via a raw API call that bypasses
+--    this app's own UI.
+-- ---------------------------------------------------------------------------
+drop function if exists public.update_own_member_profile(text, text, integer, text, text, text, text, text);
+
+create or replace function public.update_own_member_profile(
+  p_photo text default null,
+  p_photo_format text default null,
+  p_photo_size integer default null,
+  p_mobile text default null,
+  p_email text default null,
+  p_address text default null,
+  p_blood text default null,
+  p_bio text default null,
+  p_nominee_photo text default null,
+  p_nominee_photo_format text default null,
+  p_nominee_photo_size integer default null,
+  p_nid_doc text default null,
+  p_nid_doc_name text default null,
+  p_nid_doc_type text default null,
+  p_nid_doc_size integer default null
+)
+returns void
+language plpgsql
+security definer
+set search_path to 'public'
+as $$
+declare
+  v_member_uid text;
+begin
+  select member_uid into v_member_uid from public.profiles where id = auth.uid();
+
+  if v_member_uid is null then
+    raise exception 'No member profile is linked to this account';
+  end if;
+
+  update public.members
+  set data = data
+    || jsonb_build_object('photo', to_jsonb(p_photo))
+    || jsonb_build_object('photoFormat', to_jsonb(p_photo_format))
+    || jsonb_build_object('photoSize', to_jsonb(p_photo_size))
+    || jsonb_build_object('mobile', to_jsonb(p_mobile))
+    || jsonb_build_object('email', to_jsonb(p_email))
+    || jsonb_build_object('address', to_jsonb(p_address))
+    || jsonb_build_object('blood', to_jsonb(p_blood))
+    || jsonb_build_object('bio', to_jsonb(p_bio))
+    || jsonb_build_object('nomineePhoto', to_jsonb(p_nominee_photo))
+    || jsonb_build_object('nomineePhotoFormat', to_jsonb(p_nominee_photo_format))
+    || jsonb_build_object('nomineePhotoSize', to_jsonb(p_nominee_photo_size))
+    || jsonb_build_object('nidDoc', to_jsonb(p_nid_doc))
+    || jsonb_build_object('nidDocName', to_jsonb(p_nid_doc_name))
+    || jsonb_build_object('nidDocType', to_jsonb(p_nid_doc_type))
+    || jsonb_build_object('nidDocSize', to_jsonb(p_nid_doc_size)),
+    updated_at = now()
+  where uid = v_member_uid;
+
+  if not found then
+    raise exception 'Linked member record not found';
+  end if;
+end;
+$$;
 
 -- ============================================================================
 -- Done. Next step: create your first ADMIN account.
