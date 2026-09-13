@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { PlusCircle, Search, Receipt, Filter, Download, Trash2 } from "lucide-react";
 import { Deposit, Member } from "../types";
 import { useLanguage } from "../utils/LanguageContext";
@@ -33,24 +33,38 @@ export function DepositsLedger({
     return (language === 'en' && m.nameEn) ? m.nameEn : m.name;
   };
 
-  const rawUniqueMonths = Array.from(new Set(deposits.map((d) => d.month)));
+  const rawUniqueMonths = useMemo(
+    () => Array.from(new Set(deposits.map((d) => d.month))),
+    [deposits]
+  );
 
-  const filtered = deposits.filter((d) => {
-    const matchesMonth = monthFilter === "all" || d.month === monthFilter;
-    const memberName = nameFor(d.memberUid).toLowerCase();
-    const q = searchQuery.trim().toLowerCase();
-    const matchesQuery =
-      !q ||
-      memberName.includes(q) ||
-      d.memberUid.toLowerCase().includes(q) ||
-      (d.note || "").toLowerCase().includes(q) ||
-      d.method.toLowerCase().includes(q);
+  const filtered = useMemo(
+    () =>
+      deposits.filter((d) => {
+        const matchesMonth = monthFilter === "all" || d.month === monthFilter;
+        const memberName = nameFor(d.memberUid).toLowerCase();
+        const q = searchQuery.trim().toLowerCase();
+        const matchesQuery =
+          !q ||
+          memberName.includes(q) ||
+          d.memberUid.toLowerCase().includes(q) ||
+          (d.note || "").toLowerCase().includes(q) ||
+          d.method.toLowerCase().includes(q);
 
-    return matchesMonth && matchesQuery;
-  });
+        return matchesMonth && matchesQuery;
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [deposits, monthFilter, searchQuery, members, language]
+  );
 
-  const filteredTotal = filtered.reduce((s, d) => s + Number(d.amount || 0), 0);
-  const filteredFines = filtered.reduce((s, d) => s + Number(d.fine || 0), 0);
+  const filteredTotal = useMemo(
+    () => filtered.reduce((s, d) => s + Number(d.amount || 0), 0),
+    [filtered]
+  );
+  const filteredFines = useMemo(
+    () => filtered.reduce((s, d) => s + Number(d.fine || 0), 0),
+    [filtered]
+  );
 
   return (
     <div id="deposits-ledger-tab" className="space-y-4">
