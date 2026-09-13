@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Landmark,
   Download,
@@ -225,7 +225,9 @@ function AppContent() {
       setSelectedUid(null);
     }
     setTab(newTab);
-    scrollToTop();
+    // Scrolling is handled once, after paint, by the `[tab, selectedUid]`
+    // effect below — calling scrollToTop() here too used to force a second,
+    // redundant round of layout writes right on top of the new tab's mount.
   };
 
   // Members can never land on the admin tab (e.g. stale state after a
@@ -236,13 +238,23 @@ function AppContent() {
     }
   }, [tab, auth.isAdmin]);
 
-  // Scroll to top and scroll tab header item into view whenever tab or selected member changes
+  // Scroll to top and scroll the tab header item into view whenever the tab
+  // or selected member changes. Deferred to the next animation frame so the
+  // browser paints the newly-switched tab's content first — running this
+  // synchronously during the commit (as before) forced extra layout work
+  // right on top of the tab's own mount cost, which is what made switching
+  // tabs feel laggy. This is now the single place scrolling happens for a
+  // tab change (see navigateToTab and handleStepBack, which used to also
+  // call scrollToTop() redundantly).
   useEffect(() => {
-    scrollToTop();
-    const activeTabEl = document.getElementById(`tab-${tab}`);
-    if (activeTabEl) {
-      activeTabEl.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
-    }
+    const raf = requestAnimationFrame(() => {
+      scrollToTop();
+      const activeTabEl = document.getElementById(`tab-${tab}`);
+      if (activeTabEl) {
+        activeTabEl.scrollIntoView({ behavior: "smooth", inline: "nearest", block: "nearest" });
+      }
+    });
+    return () => cancelAnimationFrame(raf);
   }, [tab, selectedUid]);
 
   // Master Background Scroll Lock: Prevents background scrolling when any modal, drawer, or popup is open
@@ -429,16 +441,15 @@ function AppContent() {
     }
 
     // 4. Tab Sub-Views (e.g. Member Detailed Profile / Passbook view -> return to Members list)
+    // (scrolling is handled once, after paint, by the `[tab, selectedUid]` effect above)
     if (s.selectedUid) {
       setSelectedUid(null);
-      scrollToTop();
       return;
     }
 
     // 5. On any Tab (other than Dashboard) -> Immediately return straight to Dashboard (Home tab)
     if (s.tab !== "dashboard") {
       setTab("dashboard");
-      scrollToTop();
       return;
     }
 
@@ -1100,60 +1111,80 @@ function AppContent() {
   };
 
   // Financial Calculations & Complete Integrated Reconciliation Architecture
-  const twoFunds = calculateTwoFundsSummary(deposits, investEntries, fundIncome, expenses, bankEntries);
+  // Memoized: these re-run their .reduce()/.filter() passes over the full
+  // deposits/bank/invest arrays, so without useMemo they were recomputing on
+  // *every* render of AppContent (typing in the search box, opening any
+  // modal, toggling any of the 20+ pieces of UI state here) — not just on an
+  // actual tab switch or data change. That extra work landing right on top
+  // of a tab remount is what made switching tabs feel laggy.
+  const twoFunds = useMemo(
+    () => calculateTwoFundsSummary(deposits, investEntries, fundIncome, expenses, bankEntries),
+    [deposits, investEntries, fundIncome, expenses, bankEntries]
+  );
   const totalDeposit = twoFunds.depositFundTotal;
   const totalFine = twoFunds.totalFineCollected;
 
-  const bankWithBalance = withRunningBalance(bankEntries);
-  const investWithBalance = withRunningBalance(investEntries);
+  const bankWithBalance = useMemo(() => withRunningBalance(bankEntries), [bankEntries]);
+  const investWithBalance = useMemo(() => withRunningBalance(investEntries), [investEntries]);
   const bankBalance = twoFunds.bankBalance;
   const investBalance = twoFunds.investBalance;
   const totalProfit = twoFunds.totalProfit;
-  
+
   const fundTotal = twoFunds.tgsFundTotalInflow;
   const expensesTotal = twoFunds.tgsExpensesTotal;
   const fundNow = twoFunds.tgsFundBalance;
   const totalMoney = twoFunds.totalNetCapital;
   const cashInHand = twoFunds.cashInHand;
 
-  const memberTotal = (uid: string) =>
-    deposits.filter((d) => d.memberUid === uid).reduce((s, d) => s + Number(d.amount || 0), 0);
+  const memberTotal = useCallback(
+    (uid: string) =>
+      deposits.filter((d) => d.memberUid === uid).reduce((s, d) => s + Number(d.amount || 0), 0),
+    [deposits]
+  );
 
   const activePollsCount = polls.filter((p) => p.status === "active").length;
   const unreadNotifsCount = notifications.filter((n) => !readNotificationIds.includes(n.id)).length;
 
-  const monthlyTotals = getRecentMonths(6)
-    .slice()
-    .reverse()
-    .map((full) => ({
-      label: full.split(" ")[0],
-      total: deposits.filter((d) => d.month === full).reduce((s, d) => s + Number(d.amount || 0), 0),
-    }));
+  const monthlyTotals = useMemo(
+    () =>
+      getRecentMonths(6)
+        .slice()
+        .reverse()
+        .map((full) => ({
+          label: full.split(" ")[0],
+          total: deposits.filter((d) => d.month === full).reduce((s, d) => s + Number(d.amount || 0), 0),
+        })),
+    [deposits]
+  );
   const maxMonthly = Math.max(1, ...monthlyTotals.map((m) => m.total));
 
-  const filteredMembers = members.filter((m) => {
-    if (bloodFilter && (m.blood || "").trim().toUpperCase() !== bloodFilter) return false;
+  const filteredMembers = useMemo(
+    () =>
+      members.filter((m) => {
+        if (bloodFilter && (m.blood || "").trim().toUpperCase() !== bloodFilter) return false;
 
-    const raw = query.trim().toLowerCase();
-    if (!raw) return true;
-    // Normalize Bengali digits (০-৯) to English (0-9) so a member typing a
-    // phone number or 3-digit member ID using a Bengali (Avro/Bijoy-style)
-    // numeric keyboard still matches — the stored data is always in
-    // English digits (see formatUid / Member.mobile).
-    const qEn = toEnDigits(raw).toLowerCase();
-    return (
-      m.name.toLowerCase().includes(raw) ||
-      (m.nameEn || "").toLowerCase().includes(raw) ||
-      m.uid.toLowerCase().includes(raw) ||
-      m.uid.toLowerCase().includes(qEn) ||
-      // Matches the last 3 digits of the member ID too, e.g. "013" for
-      // "TGS-2025-013", without requiring the full "TGS-2025-" prefix.
-      m.uid.toLowerCase().endsWith(qEn) ||
-      (m.mobile || "").includes(raw) ||
-      (m.mobile || "").includes(qEn) ||
-      (m.address || "").toLowerCase().includes(raw)
-    );
-  });
+        const raw = query.trim().toLowerCase();
+        if (!raw) return true;
+        // Normalize Bengali digits (০-৯) to English (0-9) so a member typing a
+        // phone number or 3-digit member ID using a Bengali (Avro/Bijoy-style)
+        // numeric keyboard still matches — the stored data is always in
+        // English digits (see formatUid / Member.mobile).
+        const qEn = toEnDigits(raw).toLowerCase();
+        return (
+          m.name.toLowerCase().includes(raw) ||
+          (m.nameEn || "").toLowerCase().includes(raw) ||
+          m.uid.toLowerCase().includes(raw) ||
+          m.uid.toLowerCase().includes(qEn) ||
+          // Matches the last 3 digits of the member ID too, e.g. "013" for
+          // "TGS-2025-013", without requiring the full "TGS-2025-" prefix.
+          m.uid.toLowerCase().endsWith(qEn) ||
+          (m.mobile || "").includes(raw) ||
+          (m.mobile || "").includes(qEn) ||
+          (m.address || "").toLowerCase().includes(raw)
+        );
+      }),
+    [members, bloodFilter, query]
+  );
 
   const selectedMember = members.find((m) => m.uid === selectedUid);
 
@@ -1554,6 +1585,11 @@ function AppContent() {
 
       {/* Main Tab Content */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 mt-6">
+        {/* `key` forces a fresh element on every tab (or member-detail) change,
+            which retriggers the CSS fade/slide-in below — this is what makes
+            switching feel like an intentional, smooth transition instead of
+            an abrupt snap once the new tab's content is ready. */}
+        <div key={tab + (selectedUid || "")} className="tab-fade-in">
         {tab === "dashboard" && (
           <Dashboard
             totalDeposit={totalDeposit}
@@ -1737,6 +1773,7 @@ function AppContent() {
             onOpenWatermarkSettings={auth.canManageEntries ? () => setShowWatermarkModal(true) : undefined}
           />
         )}
+        </div>
       </main>
 
       {/* Floating Quick Action Button - Only on Dashboard tab */}
