@@ -11,6 +11,7 @@ import {
   PollVote,
   ProfitDistribution,
   DepositRequest,
+  Project,
 } from "../types";
 
 // Maps each AppData array key to its Supabase table + row id field.
@@ -25,6 +26,7 @@ const TABLE_MAP: Record<string, { table: string; idKey: string }> = {
   notifications: { table: "notifications", idKey: "id" },
   profitDistributions: { table: "profit_distributions", idKey: "id" },
   polls: { table: "polls", idKey: "id" },
+  projects: { table: "projects", idKey: "id" },
 };
 
 type SyncableKey = keyof typeof TABLE_MAP;
@@ -164,6 +166,7 @@ export async function fetchAllFromSupabase(): Promise<AppData | null> {
       polls,
       profitDistributions,
       depositRequests,
+      projects,
       settings,
     ] = await Promise.all([
       fetchGenericTable<Member>("members"),
@@ -176,6 +179,7 @@ export async function fetchAllFromSupabase(): Promise<AppData | null> {
       fetchPolls(),
       fetchGenericTable<ProfitDistribution>("profit_distributions"),
       fetchGenericTable<DepositRequest>("deposit_requests"),
+      fetchGenericTable<Project>("projects"),
       fetchSettings(),
     ]);
 
@@ -209,6 +213,9 @@ export async function fetchAllFromSupabase(): Promise<AppData | null> {
       // the migration adding this table, a failed fetch here should degrade
       // to an empty request queue rather than blanking out the whole sync.
       depositRequests: depositRequests || [],
+      // Same reasoning as depositRequests — degrade to an empty list on a
+      // device/session that hasn't picked up the projects table yet.
+      projects: projects || [],
       settings: settings || undefined,
     };
     setLastSyncedSnapshot(result);
@@ -345,6 +352,7 @@ export async function syncAppDataToSupabase(data: AppData): Promise<void> {
     notifications: [],
     polls: [],
     profitDistributions: [],
+    projects: [],
     settings: undefined,
   };
 
@@ -358,6 +366,7 @@ export async function syncAppDataToSupabase(data: AppData): Promise<void> {
     notifications,
     polls,
     profitDistributions,
+    projects,
     settings,
   ] = await Promise.all([
     syncGenericTable("members", data.members, prev.members),
@@ -377,6 +386,7 @@ export async function syncAppDataToSupabase(data: AppData): Promise<void> {
       data.profitDistributions || [],
       prev.profitDistributions || []
     ),
+    syncGenericTable("projects", data.projects || [], prev.projects || []),
     syncSettings(data.settings, prev.settings),
   ]);
 
@@ -390,6 +400,7 @@ export async function syncAppDataToSupabase(data: AppData): Promise<void> {
     notifications,
     polls,
     profitDistributions,
+    projects,
     settings,
   };
 }
@@ -504,6 +515,7 @@ const REALTIME_TABLES = [
   "app_settings",
   "poll_votes",
   "deposit_requests",
+  "projects",
 ];
 
 /**
