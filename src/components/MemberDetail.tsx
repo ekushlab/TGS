@@ -23,11 +23,14 @@ import {
   X,
   Trash2,
   MessageCircle,
+  PauseCircle,
+  RotateCcw,
 } from 'lucide-react';
 import { Member, Deposit } from '../types';
 import { useLanguage } from '../utils/LanguageContext';
 import { AttachmentBadge } from './AttachmentUpload';
 import { ConfirmDeleteModal } from './ConfirmDeleteModal';
+import { ConfirmActionModal } from './ConfirmActionModal';
 
 interface MemberDetailProps {
   member: Member;
@@ -40,6 +43,10 @@ interface MemberDetailProps {
   onEditMember?: (member: Member) => void;
   onDeleteMember?: (memberUid: string) => void;
   onDeleteDeposit?: (depositId: string) => void;
+  /** Omit to hide the "Suspend Membership" button — Admin only. */
+  onSuspendMember?: (memberUid: string) => void;
+  /** Omit to hide the "Reactivate Membership" button — Admin only. */
+  onReactivateMember?: (memberUid: string) => void;
 }
 
 export function MemberDetail({
@@ -52,6 +59,8 @@ export function MemberDetail({
   onEditMember,
   onDeleteMember,
   onDeleteDeposit,
+  onSuspendMember,
+  onReactivateMember,
 }: MemberDetailProps) {
   const { language, t, tMonth, tMethod, formatNumber, formatUid, formatMoney } = useLanguage();
   const [previewDoc, setPreviewDoc] = useState<{
@@ -63,6 +72,9 @@ export function MemberDetail({
 
   const [showDeleteMemberConfirm, setShowDeleteMemberConfirm] = useState(false);
   const [deletingDeposit, setDeletingDeposit] = useState<Deposit | null>(null);
+  const [showSuspendConfirm, setShowSuspendConfirm] = useState(false);
+  const [showReactivateConfirm, setShowReactivateConfirm] = useState(false);
+  const isSuspended = member.status === 'suspended';
 
   useEffect(() => {
     if (!previewDoc) return;
@@ -117,6 +129,31 @@ export function MemberDetail({
               {language === 'bn' ? 'তথ্য, এনআইডি ও নমিনী সংশোধন' : 'Edit Info, NID & Nominee'}
             </button>
           )}
+          {isSuspended
+            ? onReactivateMember && (
+                <button
+                  id="reactivate-member-btn"
+                  type="button"
+                  onClick={() => setShowReactivateConfirm(true)}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs cursor-pointer"
+                  title={language === 'bn' ? 'সদস্যপদ পুনরায় সক্রিয় করুন' : 'Reactivate Membership'}
+                >
+                  <RotateCcw size={15} />{' '}
+                  {language === 'bn' ? 'সক্রিয় করুন' : 'Reactivate'}
+                </button>
+              )
+            : onSuspendMember && (
+                <button
+                  id="suspend-member-btn"
+                  type="button"
+                  onClick={() => setShowSuspendConfirm(true)}
+                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-lg transition-colors shadow-2xs cursor-pointer"
+                  title={language === 'bn' ? 'সদস্যপদ স্থগিত করুন' : 'Suspend Membership'}
+                >
+                  <PauseCircle size={15} />{' '}
+                  {language === 'bn' ? 'স্থগিত করুন' : 'Suspend'}
+                </button>
+              )}
           {onDeleteMember && (
             <button
               id="delete-member-btn"
@@ -131,6 +168,21 @@ export function MemberDetail({
           )}
         </div>
       </div>
+
+      {/* Suspended Membership Notice */}
+      {isSuspended && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-amber-900">
+          <PauseCircle size={18} className="shrink-0 mt-0.5 text-amber-700" />
+          <div className="text-xs">
+            <p className="font-bold">{language === 'bn' ? 'সদস্যপদ স্থগিত আছে' : 'Membership Suspended'}</p>
+            <p className="mt-0.5 leading-relaxed">
+              {language === 'bn'
+                ? `এই সদস্যকে${member.suspendedAt ? ` ${formatNumber(member.suspendedAt)} তারিখে` : ''} স্থগিত করা হয়েছে। তিনি এখন মূল সদস্য তালিকায় দেখা যাবেন না, শুধু Archive অংশে থাকবেন। তার সকল তথ্য ও জমার হিসাব অক্ষত আছে এবং যেকোনো সময় পুনরায় সক্রিয় করা যাবে।`
+                : `This member was suspended${member.suspendedAt ? ` on ${member.suspendedAt}` : ''}. They no longer appear in the main Members Directory — only in the Archive. All their profile data and deposit records remain intact and can be reactivated at any time.`}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Profile Overview Card */}
       <div className="bg-white rounded-2xl border border-stone-200/90 p-5 sm:p-6 shadow-xs">
@@ -619,6 +671,44 @@ export function MemberDetail({
             setShowDeleteMemberConfirm(false);
           }}
           onClose={() => setShowDeleteMemberConfirm(false)}
+        />
+      )}
+
+      {/* Confirmation: Suspend Membership */}
+      {showSuspendConfirm && (
+        <ConfirmActionModal
+          isOpen={showSuspendConfirm}
+          title={language === 'bn' ? 'সদস্যপদ স্থগিত করুন' : 'Suspend Membership'}
+          tone="warning"
+          icon={<PauseCircle size={22} className="text-white" />}
+          itemDescription={`${displayName} (${formatUid(member.uid)}) · ${language === 'bn' ? 'মোবাইল' : 'Mobile'}: ${member.mobile || '—'}`}
+          message={
+            language === 'bn'
+              ? 'এই সদস্যকে স্থগিত করা হলে তিনি মূল সদস্য তালিকা থেকে বাদ যাবেন এবং Archive অংশে দেখা যাবে। তার প্রোফাইল ও জমার সকল রেকর্ড অক্ষত থাকবে এবং প্রয়োজনে পরে আবার সক্রিয় করা যাবে।'
+              : "Suspending this member removes them from the main Members Directory and moves them into the Archive. Their profile and deposit records stay fully intact and can be reactivated later."
+          }
+          confirmLabel={language === 'bn' ? 'হ্যাঁ, স্থগিত করুন' : 'Yes, Suspend'}
+          onConfirm={() => onSuspendMember && onSuspendMember(member.uid)}
+          onClose={() => setShowSuspendConfirm(false)}
+        />
+      )}
+
+      {/* Confirmation: Reactivate Membership */}
+      {showReactivateConfirm && (
+        <ConfirmActionModal
+          isOpen={showReactivateConfirm}
+          title={language === 'bn' ? 'সদস্যপদ সক্রিয় করুন' : 'Reactivate Membership'}
+          tone="success"
+          icon={<RotateCcw size={20} className="text-white" />}
+          itemDescription={`${displayName} (${formatUid(member.uid)})`}
+          message={
+            language === 'bn'
+              ? 'সদস্যকে পুনরায় সক্রিয় করা হলে তিনি আবার মূল সদস্য তালিকায় দেখা যাবেন।'
+              : 'Reactivating this member returns them to the main Members Directory.'
+          }
+          confirmLabel={language === 'bn' ? 'হ্যাঁ, সক্রিয় করুন' : 'Yes, Reactivate'}
+          onConfirm={() => onReactivateMember && onReactivateMember(member.uid)}
+          onClose={() => setShowReactivateConfirm(false)}
         />
       )}
 

@@ -40,7 +40,7 @@ import {
   Info,
   ShieldCheck,
 } from 'lucide-react';
-import { Member, AccountEntry, FundIncome, Expense, Deposit, AppSettings, AppData } from '../types';
+import { Member, AccountEntry, FundIncome, Expense, Deposit, AppSettings, AppData, ProjectEntry } from '../types';
 import { TgsLogoSvg, PageWatermark } from './TgsLogoWatermark';
 import { AttachmentUpload } from './AttachmentUpload';
 import { NidDocumentUpload, NomineePhotoUpload } from './DocumentUploads';
@@ -4329,6 +4329,254 @@ export function AddExpenseModal({
             className="px-5 py-2.5 rounded-lg bg-rose-800 hover:bg-rose-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
           >
             <Check size={16} /> {language === 'bn' ? 'খরচ সংরক্ষণ করুন' : 'Save Expense'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* =========================================================================
+   PROJECTS — separate from the Society's main accounting. See
+   Project/ProjectEntry in types.ts and the "project" AppTab in App.tsx.
+   ========================================================================= */
+export function AddProjectModal({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (entry: { title: string; description?: string; startDate?: string }) => void;
+}) {
+  const { language } = useLanguage();
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState(() => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  });
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    onSubmit({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      startDate: startDate || undefined,
+    });
+  };
+
+  return (
+    <Modal id="add-project-modal" title={language === 'bn' ? 'নতুন প্রজেক্ট তৈরি করুন' : 'Create New Project'} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-3.5">
+        <div className="p-2.5 rounded-xl text-xs font-medium border bg-emerald-50 text-emerald-900 border-emerald-200 flex items-center gap-2">
+          <span className="text-base">📁</span>
+          <span>
+            {language === 'bn'
+              ? 'এই প্রজেক্টের জমা-খরচ সমিতির মূল হিসাবের সাথে যুক্ত হবে না — সম্পূর্ণ আলাদাভাবে হিসাব রাখা হবে।'
+              : "This project's income/expenses will NOT be linked to the Society's main accounting — they are tracked completely separately."}
+          </span>
+        </div>
+
+        <Field label={language === 'bn' ? 'প্রজেক্টের নাম' : 'Project Title'} required>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className={inputCls}
+            placeholder={language === 'bn' ? 'যেমন: ইফতার মাহফিল ২০২৬' : 'e.g. Iftar Mahfil 2026'}
+            required
+            autoFocus
+          />
+        </Field>
+
+        <Field label={language === 'bn' ? 'বিবরণ (ঐচ্ছিক)' : 'Description (optional)'}>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className={inputCls}
+            rows={2}
+            placeholder={language === 'bn' ? 'প্রজেক্ট সম্পর্কে সংক্ষিপ্ত বিবরণ...' : 'Brief description of this project...'}
+          />
+        </Field>
+
+        <Field label={language === 'bn' ? 'শুরুর তারিখ' : 'Start Date'}>
+          <input
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className={inputCls}
+            placeholder="dd/mm/yyyy"
+          />
+        </Field>
+
+        <div className="mt-6 flex items-center justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
+          >
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
+          </button>
+          <button
+            id="submit-project-btn"
+            type="submit"
+            className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            <Check size={16} /> {language === 'bn' ? 'প্রজেক্ট তৈরি করুন' : 'Create Project'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+export function AddProjectEntryModal({
+  projectTitle,
+  existingCategories = [],
+  onClose,
+  onSubmit,
+}: {
+  projectTitle: string;
+  /** Categories already used within this project, offered as quick-pick suggestions. */
+  existingCategories?: string[];
+  onClose: () => void;
+  onSubmit: (entry: Omit<ProjectEntry, 'id' | 'createdAt' | 'createdByName'>) => void;
+}) {
+  const { language } = useLanguage();
+  const [type, setType] = useState<'income' | 'expense'>('income');
+  const [category, setCategory] = useState('');
+  const [amount, setAmount] = useState<number | string>('');
+  const [date, setDate] = useState(() => {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2, '0');
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const yyyy = today.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  });
+  const [note, setNote] = useState('');
+  const [attachment, setAttachment] = useState<string | undefined>(undefined);
+  const [attachmentName, setAttachmentName] = useState<string | undefined>(undefined);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!category.trim() || !amount) return;
+    onSubmit({
+      category: category.trim(),
+      type,
+      date: date || new Date().toLocaleDateString('en-GB'),
+      amount: Number(amount),
+      note: note.trim() || undefined,
+      attachment,
+      attachmentName,
+    });
+  };
+
+  return (
+    <Modal
+      id="add-project-entry-modal"
+      title={language === 'bn' ? `নতুন এন্ট্রি — ${projectTitle}` : `New Entry — ${projectTitle}`}
+      onClose={onClose}
+    >
+      <form onSubmit={submit} className="space-y-3.5">
+        <div className="grid grid-cols-2 gap-3 mb-1">
+          <button
+            type="button"
+            onClick={() => setType('income')}
+            className={`py-2 text-sm font-semibold rounded-lg border transition-all cursor-pointer ${
+              type === 'income'
+                ? 'bg-emerald-800 text-white border-emerald-800 shadow-sm'
+                : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+            }`}
+          >
+            {language === 'bn' ? '+ জমা (Income)' : '+ Income'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setType('expense')}
+            className={`py-2 text-sm font-semibold rounded-lg border transition-all cursor-pointer ${
+              type === 'expense'
+                ? 'bg-rose-700 text-white border-rose-700 shadow-sm'
+                : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+            }`}
+          >
+            {language === 'bn' ? '- খরচ (Expense)' : '- Expense'}
+          </button>
+        </div>
+
+        <Field label={language === 'bn' ? 'খাত / বিবরণ' : 'Category / Head'} required hint={language === 'bn' ? 'যেমন: চাঁদা, যাতায়াত, খাদ্য' : 'e.g. Donations, Transport, Food'}>
+          <input
+            list="project-entry-categories"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className={inputCls}
+            placeholder={language === 'bn' ? 'খাতের নাম লিখুন...' : 'Type a category name...'}
+            required
+          />
+          {existingCategories.length > 0 && (
+            <datalist id="project-entry-categories">
+              {existingCategories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          )}
+        </Field>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label={language === 'bn' ? 'তারিখ' : 'Date'} required>
+            <input
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className={inputCls}
+              placeholder="dd/mm/yyyy"
+            />
+          </Field>
+          <Field label={language === 'bn' ? 'পরিমাণ (৳)' : 'Amount (৳)'} required>
+            <input
+              type="number"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className={inputCls}
+              required
+            />
+          </Field>
+        </div>
+
+        <Field label={language === 'bn' ? 'মন্তব্য (ঐচ্ছিক)' : 'Note (optional)'}>
+          <input
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className={inputCls}
+            placeholder={language === 'bn' ? 'অতিরিক্ত বিবরণ...' : 'Additional details...'}
+          />
+        </Field>
+
+        <AttachmentUpload
+          label={language === 'bn' ? 'রসিদ / ভাউচারের ছবি (ঐচ্ছিক)' : 'Receipt / Voucher Image (optional)'}
+          hint={language === 'bn' ? 'রসিদ, ক্যাশ মেমো বা লেনদেনের স্ক্রিনশট যুক্ত করুন' : 'Attach a receipt, cash memo, or transaction screenshot'}
+          value={attachment}
+          fileName={attachmentName}
+          onChange={(val, name) => {
+            setAttachment(val);
+            setAttachmentName(name);
+          }}
+        />
+
+        <div className="mt-6 flex items-center justify-end gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2.5 rounded-lg border border-stone-300 text-stone-700 text-sm font-medium hover:bg-stone-100 transition-colors"
+          >
+            {language === 'bn' ? 'বাতিল' : 'Cancel'}
+          </button>
+          <button
+            id="submit-project-entry-btn"
+            type="submit"
+            className="px-5 py-2.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold shadow-sm transition-colors flex items-center gap-1.5"
+          >
+            <Check size={16} /> {language === 'bn' ? 'এন্ট্রি সংরক্ষণ করুন' : 'Save Entry'}
           </button>
         </div>
       </form>

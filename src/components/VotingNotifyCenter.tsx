@@ -72,6 +72,14 @@ interface VotingNotifyCenterProps {
   onMarkNotificationAsRead?: (notifId: string) => void;
   onMarkAllNotificationsAsRead?: () => void;
   initialSubTab?: "voting" | "notices" | "admin" | "reports";
+  /**
+   * Forces a sub-tab switch whenever `token` changes — used by the header
+   * Bell's Activity Drawer "View All" button so it lands on the Notice
+   * Board even when this component is already mounted (e.g. the user was
+   * already on the Voting tab), where `initialSubTab`'s one-time useState
+   * seed would otherwise have no effect.
+   */
+  jumpToSubTab?: { subTab: "voting" | "notices" | "admin" | "reports"; token: number } | null;
   onBackToDashboard?: () => void;
   /** The Member.uid linked to the logged-in account, if any (enables real voting). */
   currentMemberUid?: string | null;
@@ -99,6 +107,7 @@ export function VotingNotifyCenter({
   onMarkNotificationAsRead,
   onMarkAllNotificationsAsRead,
   initialSubTab = "voting",
+  jumpToSubTab,
   onBackToDashboard,
   currentMemberUid,
   isAdmin,
@@ -121,6 +130,14 @@ export function VotingNotifyCenter({
   useEffect(() => {
     setVoterMemberUid(currentMemberUid || "");
   }, [currentMemberUid]);
+
+  // Jump to a specific sub-tab on demand (see jumpToSubTab prop doc above).
+  useEffect(() => {
+    if (jumpToSubTab) {
+      setSubTab(jumpToSubTab.subTab);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jumpToSubTab?.token]);
   const [selectedOptionId, setSelectedOptionId] = useState<string>("");
   const [voterComment, setVoterComment] = useState<string>("");
   const [voteSuccessMsg, setVoteSuccessMsg] = useState<string>("");

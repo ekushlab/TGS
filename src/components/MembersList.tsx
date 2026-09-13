@@ -1,4 +1,5 @@
-import { Search, PlusCircle, Phone, Droplet, ChevronRight, Mail, Calendar, UserCheck } from "lucide-react";
+import { useState } from "react";
+import { Search, PlusCircle, Phone, Droplet, ChevronRight, Mail, Calendar, UserCheck, Archive, RotateCcw, PauseCircle } from "lucide-react";
 import { Member } from "../types";
 import { useLanguage } from "../utils/LanguageContext";
 
@@ -14,6 +15,14 @@ interface MembersListProps {
   onAddMember?: () => void;
   bloodFilter?: string;
   setBloodFilter?: (b: string) => void;
+  /**
+   * Suspended members, shown in a separate "Archive" toggle view. Omit
+   * entirely (rather than passing an empty array) to hide the Archive
+   * toggle for non-admins.
+   */
+  archivedMembers?: Member[];
+  /** Omit to hide the "Reactivate" quick action on Archive cards. */
+  onReactivateMember?: (uid: string) => void;
 }
 
 export function MembersList({
@@ -25,8 +34,14 @@ export function MembersList({
   onAddMember,
   bloodFilter = "",
   setBloodFilter,
+  archivedMembers,
+  onReactivateMember,
 }: MembersListProps) {
   const { language, t, formatNumber, formatMoney, formatUid } = useLanguage();
+  const [showArchive, setShowArchive] = useState(false);
+
+  const canShowArchiveToggle = Array.isArray(archivedMembers);
+  const displayList = showArchive ? archivedMembers || [] : members;
 
   return (
     <div id="members-tab" className="space-y-4">
@@ -61,11 +76,39 @@ export function MembersList({
             </select>
           </div>
         )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-stone-500 font-medium px-2 py-1 bg-stone-100 rounded-md">
-            {language === 'bn' ? `মোট: ${formatNumber(members.length)} জন` : `Total: ${formatNumber(members.length)}`}
+            {showArchive
+              ? language === 'bn'
+                ? `আর্কাইভে: ${formatNumber(displayList.length)} জন`
+                : `In Archive: ${formatNumber(displayList.length)}`
+              : language === 'bn'
+                ? `মোট: ${formatNumber(displayList.length)} জন`
+                : `Total: ${formatNumber(displayList.length)}`}
           </span>
-          {onAddMember && (
+          {canShowArchiveToggle && (
+            <button
+              id="toggle-archive-btn"
+              type="button"
+              onClick={() => setShowArchive((v) => !v)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                showArchive
+                  ? "bg-emerald-800 text-white border-emerald-800 hover:bg-emerald-900"
+                  : "bg-white text-stone-700 border-stone-300 hover:bg-stone-100"
+              }`}
+              title={language === 'bn' ? 'স্থগিত সদস্যদের আর্কাইভ' : 'Archived (suspended) members'}
+            >
+              {showArchive ? <UserCheck size={14} /> : <Archive size={14} />}
+              {showArchive
+                ? language === 'bn'
+                  ? 'সক্রিয় তালিকা'
+                  : 'Active List'
+                : language === 'bn'
+                  ? `আর্কাইভ (${formatNumber((archivedMembers || []).length)})`
+                  : `Archive (${(archivedMembers || []).length})`}
+            </button>
+          )}
+          {!showArchive && onAddMember && (
             <button
               id="add-member-btn"
               onClick={onAddMember}
@@ -77,12 +120,76 @@ export function MembersList({
         </div>
       </div>
 
+      {showArchive && (
+        <div className="flex items-start gap-2.5 p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+          <PauseCircle size={16} className="shrink-0 mt-0.5 text-amber-700" />
+          <span>
+            {language === 'bn'
+              ? 'এখানে স্থগিত সদস্যপদের তালিকা — এরা মূল সদস্য তালিকায় দেখা যাবেন না। প্রয়োজনে "সক্রিয় করুন" চেপে আবার মূল তালিকায় ফিরিয়ে আনুন।'
+              : 'Suspended memberships — these members are hidden from the main directory. Click "Reactivate" to bring one back.'}
+          </span>
+        </div>
+      )}
+
       {/* Grid of members */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-        {members.map((m) => {
+        {displayList.map((m) => {
           const total = memberTotal(m.uid);
           const displayName = language === 'en' && m.nameEn ? m.nameEn : m.name;
           const secondaryName = language === 'en' ? (m.name !== m.nameEn ? m.name : undefined) : m.nameEn;
+
+          if (showArchive) {
+            return (
+              <div
+                key={m.uid}
+                id={`member-card-${m.uid}`}
+                className="bg-amber-50/40 rounded-xl border border-amber-200 p-4 flex items-center justify-between gap-3"
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelect(m.uid)}
+                  className="text-left flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+                >
+                  <div className="shrink-0">
+                    {m.photo ? (
+                      <div className="overflow-hidden rounded-xl border border-stone-200 shadow-2xs bg-stone-100 w-11 h-11 grayscale">
+                        <img src={m.photo} alt={displayName} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-11 h-11 rounded-xl bg-stone-400 text-white flex items-center justify-center font-bold text-lg shadow-2xs">
+                        {displayName.charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-stone-700 text-sm truncate">{displayName}</p>
+                    <div className="flex items-center gap-2 mt-1 text-[11px] text-stone-500 flex-wrap">
+                      <span className="font-mono bg-white text-stone-600 font-semibold px-1.5 py-0.2 rounded border border-stone-200">
+                        {formatUid(m.uid)}
+                      </span>
+                      <span className="text-amber-700 font-medium">
+                        {language === 'bn' ? 'স্থগিত' : 'Suspended'}
+                        {m.suspendedAt ? `: ${formatNumber(m.suspendedAt)}` : ''}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+                {onReactivateMember && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReactivateMember(m.uid);
+                    }}
+                    className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                    title={language === 'bn' ? 'সদস্যপদ পুনরায় সক্রিয় করুন' : 'Reactivate Membership'}
+                  >
+                    <RotateCcw size={13} /> {language === 'bn' ? 'সক্রিয় করুন' : 'Reactivate'}
+                  </button>
+                )}
+              </div>
+            );
+          }
 
           return (
             <button
@@ -159,12 +266,22 @@ export function MembersList({
           );
         })}
 
-        {members.length === 0 && (
+        {displayList.length === 0 && (
           <div className="col-span-full py-12 text-center bg-white rounded-xl border border-dashed border-stone-300">
-            <UserCheck size={36} className="mx-auto text-stone-300 mb-2" />
+            {showArchive ? (
+              <Archive size={36} className="mx-auto text-stone-300 mb-2" />
+            ) : (
+              <UserCheck size={36} className="mx-auto text-stone-300 mb-2" />
+            )}
             <p className="text-stone-600 font-medium">{t.no_data_found}</p>
             <p className="text-xs text-stone-400 mt-1">
-              {language === 'bn' ? 'অনুসন্ধান ফিল্টার পরিবর্তন করুন অথবা নতুন সদস্য যুক্ত করুন' : 'Change search filter or add a new member'}
+              {showArchive
+                ? language === 'bn'
+                  ? 'বর্তমানে কোনো সদস্যের সদস্যপদ স্থগিত নেই'
+                  : 'No memberships are currently suspended'
+                : language === 'bn'
+                  ? 'অনুসন্ধান ফিল্টার পরিবর্তন করুন অথবা নতুন সদস্য যুক্ত করুন'
+                  : 'Change search filter or add a new member'}
             </p>
           </div>
         )}
