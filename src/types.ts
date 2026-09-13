@@ -34,6 +34,14 @@ export interface Member {
   nomineeNidDocSize?: number;
   // Self-service "My Profile" personal message/bio, editable by the member themself
   bio?: string;
+  // Membership status — Admin-only "soft delete". A suspended member is
+  // hidden from the main Members Directory but kept fully intact (profile,
+  // photo, NID, deposit history) and is browsable from the Archive view.
+  // Undefined is treated the same as 'active' for backward compatibility
+  // with members created before this field existed.
+  status?: 'active' | 'suspended';
+  suspendedAt?: string; // Date the membership was suspended (display string, e.g. "20/08/2026")
+  suspendedByName?: string; // Name of the Admin who suspended this member
 }
 
 // A member's self-reported "I paid this month" claim, submitted from the
@@ -266,6 +274,40 @@ export interface ProfitDistribution {
   status: 'draft' | 'finalized' | 'distributed';
 }
 
+// A single income or expense line inside a Project, filed under a
+// free-text "খাত" (category/head) chosen by whoever records it — e.g.
+// "চাঁদা সংগ্রহ", "যাতায়াত খরচ", "খাদ্য ও আপ্যায়ন".
+export interface ProjectEntry {
+  id: string;
+  category: string; // খাত — free text, e.g. "চাঁদা", "যাতায়াত", "খাদ্য"
+  type: 'income' | 'expense'; // জমা (income) বা খরচ (expense)
+  date: string;
+  amount: number;
+  note?: string;
+  attachment?: string; // Base64 receipt/slip image or PDF
+  attachmentName?: string;
+  createdAt: number;
+  createdByName?: string;
+}
+
+// A one-off Project (e.g. an Iftar Mahfil, a relief drive, a picnic) whose
+// income/expenses are tracked separately from the Society's main accounting
+// (deposits/bank/invest/fund) — see the `project` AppTab. Admin and
+// Treasurer/GS can create projects and add entries; every member can browse
+// every project (ongoing and, once marked `completed`, from the "পূর্ববর্তী
+// প্রজেক্ট" / Previous Projects view).
+export interface Project {
+  id: string;
+  title: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string; // Set automatically when marked completed
+  status: 'ongoing' | 'completed';
+  createdAt: number;
+  createdByName?: string;
+  entries: ProjectEntry[];
+}
+
 export interface AppData {
   members: Member[];
   deposits: Deposit[];
@@ -278,5 +320,6 @@ export interface AppData {
   polls?: Poll[];
   profitDistributions?: ProfitDistribution[];
   depositRequests?: DepositRequest[];
+  projects?: Project[];
 }
 

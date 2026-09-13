@@ -20,7 +20,7 @@ import {
   CircleUserRound,
   UserRound,
 } from "lucide-react";
-import { Member, Deposit, AccountEntry, FundIncome, Expense, AppSettings, AppData, Poll, PollVote, AppNotification, ProfitDistribution, DepositRequest } from "./types";
+import { Member, Deposit, AccountEntry, FundIncome, Expense, AppSettings, AppData, Poll, PollVote, AppNotification, ProfitDistribution, DepositRequest, Project, ProjectEntry } from "./types";
 import {
   getRecentMonths,
   withRunningBalance,
@@ -48,8 +48,11 @@ import { AccountLedgerPage } from "./components/AccountLedgerPage";
 import { FundExpensesPage } from "./components/FundExpensesPage";
 import { DownloadsReportsPage } from "./components/DownloadsReportsPage";
 import { VotingNotifyCenter } from "./components/VotingNotifyCenter";
+import { NotificationDrawer } from "./components/NotificationDrawer";
 import { ProfitCenter } from "./components/ProfitCenter";
 import { AdminPanel } from "./components/AdminPanel";
+import { ProjectsPage } from "./components/ProjectsPage";
+import { ProjectDetail } from "./components/ProjectDetail";
 import {
   AddDepositModal,
   AddMemberModal,
@@ -58,6 +61,8 @@ import {
   AddInvestModal,
   AddFundIncomeModal,
   AddExpenseModal,
+  AddProjectModal,
+  AddProjectEntryModal,
   ReceiptModal,
   FineSettingsModal,
   CloudBackupModal,
@@ -76,7 +81,7 @@ import { MemberLoginManager } from "./components/MemberLoginManager";
 import { ExitModal, ExitedScreen, performAppExit } from "./components/ExitModal";
 import { useLanguage } from "./utils/LanguageContext";
 import { toEnDigits } from "./utils/translations";
-import { Vote, Bell, Percent } from "lucide-react";
+import { Vote, Bell, Percent, Briefcase } from "lucide-react";
 
 function readCachedSettingsForLogin(): AppSettings {
   try {
@@ -145,6 +150,7 @@ function AppContent() {
   const [polls, setPolls] = useState<Poll[]>([]);
   const [profitDistributions, setProfitDistributions] = useState<ProfitDistribution[]>([]);
   const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
@@ -155,6 +161,7 @@ function AppContent() {
     | "bank"
     | "invest"
     | "fund"
+    | "project"
     | "voting"
     | "profit_center"
     | "admin"
@@ -165,6 +172,7 @@ function AppContent() {
   const [query, setQuery] = useState("");
   const [bloodFilter, setBloodFilter] = useState("");
   const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   // Modals & Drawers
   const [showSidebar, setShowSidebar] = useState(false);
@@ -183,6 +191,9 @@ function AppContent() {
   const [showAddInvest, setShowAddInvest] = useState(false);
   const [showAddFundIncome, setShowAddFundIncome] = useState(false);
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [showAddProject, setShowAddProject] = useState(false);
+  // Which project's "Add Entry" modal is open, if any.
+  const [addingEntryToProjectId, setAddingEntryToProjectId] = useState<string | null>(null);
   const [showFineSettings, setShowFineSettings] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<"profile" | "logo" | "watermark" | "language" | "signatures" | "fines">("profile");
@@ -199,6 +210,17 @@ function AppContent() {
   // to it would then render off to the left, overlapping the nav tabs.
   const profileMenuBtnRef = useRef<HTMLButtonElement>(null);
   const [profileMenuPos, setProfileMenuPos] = useState<{ top: number; right: number } | null>(null);
+
+  // Bell icon activity drawer — same fixed-position-computed-from-the-button
+  // approach as the profile menu above (see comment there for why not plain
+  // CSS `absolute`). "View All" inside the drawer jumps straight to the
+  // Notice Board sub-tab of the Voting & Notify Center via jumpToSubTab
+  // (a token that increments on every click so the effect fires even if
+  // that tab is already mounted).
+  const [showNotificationDrawer, setShowNotificationDrawer] = useState(false);
+  const notifBtnRef = useRef<HTMLButtonElement>(null);
+  const [notifDrawerPos, setNotifDrawerPos] = useState<{ top: number; right: number } | null>(null);
+  const [votingJump, setVotingJump] = useState<{ subTab: "notices"; token: number } | null>(null);
   const [viewingReceiptDeposit, setViewingReceiptDeposit] = useState<Deposit | null>(null);
   const [showExitModal, setShowExitModal] = useState(false);
   const [isExited, setIsExited] = useState(false);
@@ -223,6 +245,9 @@ function AppContent() {
   const navigateToTab = (newTab: AppTab) => {
     if (selectedUid) {
       setSelectedUid(null);
+    }
+    if (selectedProjectId) {
+      setSelectedProjectId(null);
     }
     setTab(newTab);
     // Scrolling is handled once, after paint, by the `[tab, selectedUid]`
@@ -255,7 +280,7 @@ function AppContent() {
       }
     });
     return () => cancelAnimationFrame(raf);
-  }, [tab, selectedUid]);
+  }, [tab, selectedUid, selectedProjectId]);
 
   // Master Background Scroll Lock: Prevents background scrolling when any modal, drawer, or popup is open
   const isAnyOverlayOpen = Boolean(
@@ -270,6 +295,8 @@ function AppContent() {
     showAddInvest ||
     showAddFundIncome ||
     showAddExpense ||
+    showAddProject ||
+    addingEntryToProjectId ||
     showFineSettings ||
     showSettingsModal ||
     showCloudBackup ||
@@ -314,13 +341,17 @@ function AppContent() {
     showAddInvest,
     showAddFundIncome,
     showAddExpense,
+    showAddProject,
+    addingEntryToProjectId,
     showFineSettings,
     showCloudBackup,
     showChangePassword,
     showMyProfile,
     showProfileMenu,
+    showNotificationDrawer,
     showSidebar,
     selectedUid,
+    selectedProjectId,
     tab,
   });
 
@@ -340,12 +371,16 @@ function AppContent() {
       showAddInvest,
       showAddFundIncome,
       showAddExpense,
+      showAddProject,
+      addingEntryToProjectId,
       showFineSettings,
       showCloudBackup,
       showChangePassword,
       showProfileMenu,
+      showNotificationDrawer,
       showSidebar,
       selectedUid,
+      selectedProjectId,
       tab,
     };
   });
@@ -413,6 +448,10 @@ function AppContent() {
       setShowProfileMenu(false);
       return;
     }
+    if (s.showNotificationDrawer) {
+      setShowNotificationDrawer(false);
+      return;
+    }
     if (s.showFineSettings) {
       setShowFineSettings(false);
       return;
@@ -433,6 +472,14 @@ function AppContent() {
       setShowAddExpense(false);
       return;
     }
+    if (s.addingEntryToProjectId) {
+      setAddingEntryToProjectId(null);
+      return;
+    }
+    if (s.showAddProject) {
+      setShowAddProject(false);
+      return;
+    }
 
     // 3. Sidebar Drawer -> close sidebar drawer
     if (s.showSidebar) {
@@ -444,6 +491,10 @@ function AppContent() {
     // (scrolling is handled once, after paint, by the `[tab, selectedUid]` effect above)
     if (s.selectedUid) {
       setSelectedUid(null);
+      return;
+    }
+    if (s.selectedProjectId) {
+      setSelectedProjectId(null);
       return;
     }
 
@@ -509,6 +560,7 @@ function AppContent() {
     setPolls(data.polls || []);
     setProfitDistributions(data.profitDistributions || []);
     setDepositRequests(data.depositRequests || []);
+    setProjects(data.projects || []);
     if (data.settings) {
       setSettings(data.settings);
     }
@@ -610,16 +662,17 @@ function AppContent() {
       polls?: Poll[];
       profitDistributions?: ProfitDistribution[];
       depositRequests?: DepositRequest[];
+      projects?: Project[];
       settings?: AppSettings;
     },
     opts?: { allowMemberWrite?: boolean }
   ) => {
     // Treasurer / General Secretary logins may only ADD new entries in
     // these specific areas (deposits, bank, investment, fund/expenses,
-    // polls, profit distribution statements, and reviewing deposit
-    // requests) — never touch members, notifications, or settings (which
-    // covers the Constitution & Bylaws text too, so this also enforces "no
-    // Constitution edit access").
+    // polls, profit distribution statements, reviewing deposit requests,
+    // and Projects) — never touch members, notifications, or settings
+    // (which covers the Constitution & Bylaws text too, so this also
+    // enforces "no Constitution edit access").
     const TREASURER_ALLOWED_KEYS = [
       "deposits",
       "bankEntries",
@@ -629,6 +682,7 @@ function AppContent() {
       "polls",
       "profitDistributions",
       "depositRequests",
+      "projects",
     ] as const;
     const isWithinTreasurerScope =
       auth.isTreasurer &&
@@ -653,6 +707,7 @@ function AppContent() {
       polls: patch.polls ?? polls,
       profitDistributions: patch.profitDistributions ?? profitDistributions,
       depositRequests: patch.depositRequests ?? depositRequests,
+      projects: patch.projects ?? projects,
       settings: patch.settings ?? settings,
     };
     saveAppData(payload);
@@ -1037,6 +1092,102 @@ function AppContent() {
     flashToast(language === "bn" ? "খরচ সংরক্ষিত হয়েছে" : "Expense saved");
   };
 
+  // ------------------------------------------------------------------
+  // Projects — a fully separate ledger (see Project/ProjectEntry types)
+  // for one-off projects (Iftar Mahfil, relief drives, picnics, ...) whose
+  // income/expenses must NOT mix into the Society's main accounting
+  // (deposits/bank/invest/fund totals on the Dashboard are computed only
+  // from those tables and never read `projects`). Admin and Treasurer/GS
+  // can create projects and add entries (see persist()'s
+  // TREASURER_ALLOWED_KEYS above); every member can browse every project.
+  // ------------------------------------------------------------------
+  const addProject = (entry: { title: string; description?: string; startDate?: string }) => {
+    const newProject: Project = {
+      id: "proj-" + Date.now(),
+      title: entry.title,
+      description: entry.description,
+      startDate: entry.startDate,
+      status: "ongoing",
+      createdAt: Date.now(),
+      createdByName: auth.profile?.name || (auth.isAdmin ? "Admin" : "Treasurer"),
+      entries: [],
+    };
+    const next = [newProject, ...projects];
+    setProjects(next);
+    persist({ projects: next });
+    flashToast(language === "bn" ? `নতুন প্রজেক্ট "${entry.title}" তৈরি হয়েছে` : `New project "${entry.title}" created`);
+    return newProject.id;
+  };
+
+  const addProjectEntry = (projectId: string, entry: Omit<ProjectEntry, "id" | "createdAt" | "createdByName">) => {
+    const newEntry: ProjectEntry = {
+      ...entry,
+      id: "pe-" + Date.now(),
+      createdAt: Date.now(),
+      createdByName: auth.profile?.name || (auth.isAdmin ? "Admin" : "Treasurer"),
+    };
+    const next = projects.map((p) =>
+      p.id === projectId ? { ...p, entries: [newEntry, ...p.entries] } : p
+    );
+    setProjects(next);
+    persist({ projects: next });
+    flashToast(
+      language === "bn"
+        ? entry.type === "income"
+          ? "প্রজেক্টে জমা এন্ট্রি যোগ হয়েছে"
+          : "প্রজেক্টে খরচ এন্ট্রি যোগ হয়েছে"
+        : entry.type === "income"
+          ? "Income entry added to the project"
+          : "Expense entry added to the project"
+    );
+  };
+
+  const deleteProjectEntry = (projectId: string, entryId: string) => {
+    const next = projects.map((p) =>
+      p.id === projectId ? { ...p, entries: p.entries.filter((e) => e.id !== entryId) } : p
+    );
+    setProjects(next);
+    persist({ projects: next });
+    flashToast(language === "bn" ? "প্রজেক্ট এন্ট্রি মুছে ফেলা হয়েছে" : "Project entry deleted");
+  };
+
+  // Marks a project completed (moves it into "পূর্ববর্তী প্রজেক্ট" / Previous
+  // Projects) or reopens a previously-completed one back to ongoing.
+  const setProjectStatus = (projectId: string, status: "ongoing" | "completed") => {
+    const next = projects.map((p) =>
+      p.id === projectId
+        ? {
+            ...p,
+            status,
+            endDate: status === "completed" ? new Date().toLocaleDateString("en-GB") : undefined,
+          }
+        : p
+    );
+    setProjects(next);
+    persist({ projects: next });
+    flashToast(
+      status === "completed"
+        ? language === "bn"
+          ? "প্রজেক্টটি সম্পন্ন হিসেবে চিহ্নিত হয়েছে এবং পূর্ববর্তী প্রজেক্ট তালিকায় দেখা যাবে"
+          : "Project marked completed — it now appears under Previous Projects"
+        : language === "bn"
+          ? "প্রজেক্টটি পুনরায় চালু (ongoing) করা হয়েছে"
+          : "Project reopened as ongoing"
+    );
+  };
+
+  // Permanently deletes an entire project — Admin only (see the "project"
+  // tab render below), mirroring deleteMember/deleteDeposit.
+  const deleteProject = (projectId: string) => {
+    const next = projects.filter((p) => p.id !== projectId);
+    setProjects(next);
+    persist({ projects: next });
+    if (selectedProjectId === projectId) {
+      setSelectedProjectId(null);
+    }
+    flashToast(language === "bn" ? "প্রজেক্ট স্থায়ীভাবে মুছে ফেলা হয়েছে" : "Project permanently deleted");
+  };
+
   // Safe Record Deletion Handlers with Data Recalculation
   const deleteDeposit = (depositId: string) => {
     const next = deposits.filter((d) => d.id !== depositId);
@@ -1055,6 +1206,49 @@ function AppContent() {
       setSelectedUid(null);
     }
     flashToast(language === "bn" ? "সদস্য প্রোফাইল ও সংশ্লিষ্ট সকল রেকর্ড মুছে ফেলা হয়েছে" : "Member profile and all associated records deleted");
+  };
+
+  // Suspend Membership — an Admin-only "soft delete". Unlike deleteMember,
+  // the member's profile, photo, NID/nominee documents and full deposit
+  // history are left completely untouched; only their `status` flips to
+  // 'suspended', which removes them from the main Members Directory
+  // (see filteredMembers below) while keeping them browsable from the
+  // Archive view, ready to be reactivated at any time.
+  const suspendMember = (memberUid: string) => {
+    const nextMembers = members.map((m) =>
+      m.uid === memberUid
+        ? {
+            ...m,
+            status: "suspended" as const,
+            suspendedAt: new Date().toLocaleDateString("en-GB"),
+            suspendedByName: auth.profile?.name || (auth.isAdmin ? "Admin" : undefined),
+          }
+        : m
+    );
+    setMembers(nextMembers);
+    persist({ members: nextMembers });
+    flashToast(
+      language === "bn"
+        ? "সদস্যপদ স্থগিত করা হয়েছে। এখন থেকে ইনি মূল তালিকায় দেখা যাবেন না, শুধু Archive অংশে থাকবেন।"
+        : "Membership suspended. This member no longer appears in the main list — only in the Archive."
+    );
+  };
+
+  // Reactivate a previously-suspended member, restoring them to the main
+  // Members Directory. Their profile and deposit history were never touched.
+  const reactivateMember = (memberUid: string) => {
+    const nextMembers = members.map((m) =>
+      m.uid === memberUid
+        ? { ...m, status: "active" as const, suspendedAt: undefined, suspendedByName: undefined }
+        : m
+    );
+    setMembers(nextMembers);
+    persist({ members: nextMembers });
+    flashToast(
+      language === "bn"
+        ? "সদস্যপদ পুনরায় সক্রিয় করা হয়েছে। ইনি আবার মূল সদস্য তালিকায় দেখা যাবেন।"
+        : "Membership reactivated. This member is back in the main directory."
+    );
   };
 
   const deleteBankEntry = (id: string) => {
@@ -1158,35 +1352,63 @@ function AppContent() {
   );
   const maxMonthly = Math.max(1, ...monthlyTotals.map((m) => m.total));
 
-  const filteredMembers = useMemo(
-    () =>
-      members.filter((m) => {
-        if (bloodFilter && (m.blood || "").trim().toUpperCase() !== bloodFilter) return false;
+  // Shared search/blood-group predicate for the Members Directory — used by
+  // both the active list (filteredMembers) and the suspended-members
+  // Archive (archivedMembers) below, so search/filter behaves identically
+  // in both views.
+  const matchesMemberSearch = (m: Member) => {
+    if (bloodFilter && (m.blood || "").trim().toUpperCase() !== bloodFilter) return false;
 
-        const raw = query.trim().toLowerCase();
-        if (!raw) return true;
-        // Normalize Bengali digits (০-৯) to English (0-9) so a member typing a
-        // phone number or 3-digit member ID using a Bengali (Avro/Bijoy-style)
-        // numeric keyboard still matches — the stored data is always in
-        // English digits (see formatUid / Member.mobile).
-        const qEn = toEnDigits(raw).toLowerCase();
-        return (
-          m.name.toLowerCase().includes(raw) ||
-          (m.nameEn || "").toLowerCase().includes(raw) ||
-          m.uid.toLowerCase().includes(raw) ||
-          m.uid.toLowerCase().includes(qEn) ||
-          // Matches the last 3 digits of the member ID too, e.g. "013" for
-          // "TGS-2025-013", without requiring the full "TGS-2025-" prefix.
-          m.uid.toLowerCase().endsWith(qEn) ||
-          (m.mobile || "").includes(raw) ||
-          (m.mobile || "").includes(qEn) ||
-          (m.address || "").toLowerCase().includes(raw)
-        );
-      }),
+    const raw = query.trim().toLowerCase();
+    if (!raw) return true;
+    // Normalize Bengali digits (০-৯) to English (0-9) so a member typing a
+    // phone number or 3-digit member ID using a Bengali (Avro/Bijoy-style)
+    // numeric keyboard still matches — the stored data is always in
+    // English digits (see formatUid / Member.mobile).
+    const qEn = toEnDigits(raw).toLowerCase();
+    return (
+      m.name.toLowerCase().includes(raw) ||
+      (m.nameEn || "").toLowerCase().includes(raw) ||
+      m.uid.toLowerCase().includes(raw) ||
+      m.uid.toLowerCase().includes(qEn) ||
+      // Matches the last 3 digits of the member ID too, e.g. "013" for
+      // "TGS-2025-013", without requiring the full "TGS-2025-" prefix.
+      m.uid.toLowerCase().endsWith(qEn) ||
+      (m.mobile || "").includes(raw) ||
+      (m.mobile || "").includes(qEn) ||
+      (m.address || "").toLowerCase().includes(raw)
+    );
+  };
+
+  // Main Members Directory — suspended members are excluded here so a
+  // suspended membership disappears from the primary list immediately.
+  const filteredMembers = useMemo(
+    () => members.filter((m) => m.status !== "suspended" && matchesMemberSearch(m)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [members, bloodFilter, query]
   );
 
+  // Archive — suspended members only, browsable by Admin from the Members
+  // tab. Search/blood filter still apply so Admin can find a specific
+  // suspended member quickly.
+  const archivedMembers = useMemo(
+    () => members.filter((m) => m.status === "suspended" && matchesMemberSearch(m)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [members, bloodFilter, query]
+  );
+
+  // Unfiltered active-member count, for stats like the Dashboard's "Total
+  // Members" tile — a suspended membership shouldn't inflate that number.
+  const activeMemberCount = useMemo(
+    () => members.filter((m) => m.status !== "suspended").length,
+    [members]
+  );
+
   const selectedMember = members.find((m) => m.uid === selectedUid);
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const addingEntryToProject = addingEntryToProjectId
+    ? projects.find((p) => p.id === addingEntryToProjectId)
+    : undefined;
 
   // The logged-in person's profile picture, if their login is linked to a
   // Member record with a photo — otherwise the header falls back to a
@@ -1358,14 +1580,25 @@ function AppContent() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap justify-end ml-auto">
-              {/* Notification Header Icon - Badge disappears once seen */}
+              {/* Notification Header Icon — opens the Activity Drawer popup
+                  instead of navigating away; badge disappears once seen */}
               <button
                 id="header-notification-btn"
+                ref={notifBtnRef}
                 type="button"
-                onClick={() => navigateToTab("voting")}
-                title={language === 'bn' ? "নোটিশ ও ভোটিং সেন্টার খুলুন" : "Open Notices & Voting Center"}
+                onClick={() => {
+                  if (!showNotificationDrawer && notifBtnRef.current) {
+                    const rect = notifBtnRef.current.getBoundingClientRect();
+                    setNotifDrawerPos({
+                      top: rect.bottom + 8,
+                      right: Math.max(8, window.innerWidth - rect.right),
+                    });
+                  }
+                  setShowNotificationDrawer((prev) => !prev);
+                }}
+                title={language === 'bn' ? "সাম্প্রতিক কার্যক্রম দেখুন" : "View recent activity"}
                 className={`relative p-2 sm:px-3 sm:py-2 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 border ${
-                  tab === "voting"
+                  showNotificationDrawer
                     ? "bg-amber-400 text-emerald-950 border-amber-300 shadow-md font-bold"
                     : "bg-emerald-900/80 hover:bg-emerald-800 text-amber-200 border-emerald-800"
                 }`}
@@ -1384,6 +1617,30 @@ function AppContent() {
                   </span>
                 ) : null}
               </button>
+
+              {showNotificationDrawer && notifDrawerPos && (
+                <>
+                  {/* Invisible backdrop — click outside the drawer to close it */}
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowNotificationDrawer(false)}
+                  />
+                  <NotificationDrawer
+                    notifications={notifications}
+                    deposits={deposits}
+                    members={members}
+                    readNotificationIds={readNotificationIds}
+                    position={notifDrawerPos}
+                    onMarkAsRead={markNotificationAsRead}
+                    onMarkAllAsRead={unreadNotifsCount > 0 ? markAllNotificationsAsRead : undefined}
+                    onViewAll={() => {
+                      setVotingJump({ subTab: "notices", token: Date.now() });
+                      navigateToTab("voting");
+                      setShowNotificationDrawer(false);
+                    }}
+                  />
+                </>
+              )}
 
               <button
                 type="button"
@@ -1531,6 +1788,15 @@ function AppContent() {
             { id: "invest" as const, label: t.nav_invest },
             { id: "fund" as const, label: t.nav_fund },
             {
+              id: "project" as const,
+              label: (
+                <span className="flex items-center gap-1.5">
+                  <Briefcase size={13} />
+                  {language === "bn" ? `প্রজেক্ট (${formatNumber(projects.length)})` : `Projects (${projects.length})`}
+                </span>
+              ),
+            },
+            {
               id: "voting" as const,
               label: (
                 <span className="flex items-center gap-1.5">
@@ -1589,12 +1855,12 @@ function AppContent() {
             which retriggers the CSS fade/slide-in below — this is what makes
             switching feel like an intentional, smooth transition instead of
             an abrupt snap once the new tab's content is ready. */}
-        <div key={tab + (selectedUid || "")} className="tab-fade-in">
+        <div key={tab + (selectedUid || "") + (selectedProjectId || "")} className="tab-fade-in">
         {tab === "dashboard" && (
           <Dashboard
             totalDeposit={totalDeposit}
             totalFine={totalFine}
-            memberCount={members.length}
+            memberCount={activeMemberCount}
             monthlyTotals={monthlyTotals}
             maxMonthly={maxMonthly}
             recentDeposits={deposits.slice(0, 8)}
@@ -1627,6 +1893,8 @@ function AppContent() {
             onAddMember={auth.isAdmin ? () => setShowAddMember(true) : undefined}
             bloodFilter={bloodFilter}
             setBloodFilter={setBloodFilter}
+            archivedMembers={auth.isAdmin ? archivedMembers : undefined}
+            onReactivateMember={auth.isAdmin ? reactivateMember : undefined}
           />
         )}
 
@@ -1641,6 +1909,8 @@ function AppContent() {
             onEditMember={auth.isAdmin ? (m) => setEditingMember(m) : undefined}
             onDeleteMember={auth.isAdmin ? deleteMember : undefined}
             onDeleteDeposit={auth.isAdmin ? deleteDeposit : undefined}
+            onSuspendMember={auth.isAdmin ? suspendMember : undefined}
+            onReactivateMember={auth.isAdmin ? reactivateMember : undefined}
           />
         )}
 
@@ -1691,6 +1961,25 @@ function AppContent() {
           />
         )}
 
+        {tab === "project" && !selectedProject && (
+          <ProjectsPage
+            projects={projects}
+            onSelect={setSelectedProjectId}
+            onAddProject={auth.canManageEntries ? () => setShowAddProject(true) : undefined}
+          />
+        )}
+
+        {tab === "project" && selectedProject && (
+          <ProjectDetail
+            project={selectedProject}
+            onBack={() => setSelectedProjectId(null)}
+            onAddEntry={auth.canManageEntries ? () => setAddingEntryToProjectId(selectedProject.id) : undefined}
+            onDeleteEntry={auth.isAdmin ? (entryId) => deleteProjectEntry(selectedProject.id, entryId) : undefined}
+            onToggleStatus={auth.canManageEntries ? (status) => setProjectStatus(selectedProject.id, status) : undefined}
+            onDeleteProject={auth.isAdmin ? () => deleteProject(selectedProject.id) : undefined}
+          />
+        )}
+
         {tab === "constitution" && (
           <ConstitutionPage
             settings={settings}
@@ -1714,6 +2003,7 @@ function AppContent() {
             onDeleteNotification={deleteNotification}
             onMarkNotificationAsRead={markNotificationAsRead}
             onMarkAllNotificationsAsRead={markAllNotificationsAsRead}
+            jumpToSubTab={votingJump}
             onBackToDashboard={() => navigateToTab("dashboard")}
             currentMemberUid={auth.currentMemberUid}
             isAdmin={auth.isAdmin}
@@ -1958,6 +2248,29 @@ function AppContent() {
           onSubmit={(entry) => {
             addExpense(entry);
             setShowAddExpense(false);
+          }}
+        />
+      )}
+
+      {showAddProject && (
+        <AddProjectModal
+          onClose={() => setShowAddProject(false)}
+          onSubmit={(entry) => {
+            const newId = addProject(entry);
+            setShowAddProject(false);
+            setSelectedProjectId(newId);
+          }}
+        />
+      )}
+
+      {addingEntryToProject && (
+        <AddProjectEntryModal
+          projectTitle={addingEntryToProject.title}
+          existingCategories={Array.from(new Set(addingEntryToProject.entries.map((e) => e.category)))}
+          onClose={() => setAddingEntryToProjectId(null)}
+          onSubmit={(entry) => {
+            addProjectEntry(addingEntryToProject.id, entry);
+            setAddingEntryToProjectId(null);
           }}
         />
       )}
