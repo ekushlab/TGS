@@ -22,6 +22,11 @@ interface MemberLoginManagerProps {
   members: Member[];
   settings: AppSettings;
   onClose: () => void;
+  /** Pre-selects & pre-fills this member (by uid) when the manager opens. */
+  initialMemberUid?: string;
+  /** Shows a short banner explaining why this opened automatically, right
+   * after a new member was registered. */
+  newMemberPrompt?: boolean;
 }
 
 interface ProfileRow {
@@ -45,10 +50,14 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
   members,
   settings,
   onClose,
+  initialMemberUid,
+  newMemberPrompt,
 }) => {
   const { language } = useLanguage();
-  const [selectedMemberUid, setSelectedMemberUid] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [selectedMemberUid, setSelectedMemberUid] = useState(initialMemberUid || "");
+  const [mobile, setMobile] = useState(
+    () => members.find((m) => m.uid === initialMemberUid)?.mobile || ""
+  );
   const [password, setPassword] = useState(randomPassword());
   const [asRole, setAsRole] = useState<"member" | "treasurer" | "admin">("member");
   const [busy, setBusy] = useState(false);
@@ -328,6 +337,17 @@ export const MemberLoginManager: React.FC<MemberLoginManagerProps> = ({
             <X size={18} />
           </button>
         </div>
+
+        {newMemberPrompt && (
+          <div className="flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900">
+            <ShieldCheck size={16} className="shrink-0 mt-0.5 text-emerald-700" />
+            <span>
+              {language === "bn"
+                ? "নতুন সদস্য সফলভাবে যোগ হয়েছে। চাইলে এখনই তার লগইন তৈরি করুন, অথবা ✕ চেপে পরে করুন (সেটিংস থেকে যেকোনো সময় করা যাবে)।"
+                : "The new member was added successfully. You can create their login now, or close this and do it later from Settings."}
+            </span>
+          </div>
+        )}
 
         <div className="space-y-3.5">
           <div>

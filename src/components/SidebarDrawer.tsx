@@ -486,7 +486,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             </button>
             )}
 
-            {canManageEntries && (
+            {isAdmin && (
             <button
               onClick={() => {
                 onClose();
