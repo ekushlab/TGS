@@ -72,6 +72,7 @@ import { WatermarkModal } from "./components/WatermarkModal";
 import { ConstitutionPage } from "./components/ConstitutionPage";
 import { UnifiedSettingsModal } from "./components/UnifiedSettingsModal";
 import { ChangePasswordModal } from "./components/ChangePasswordModal";
+import { MemberLoginManager } from "./components/MemberLoginManager";
 import { ExitModal, ExitedScreen, performAppExit } from "./components/ExitModal";
 import { useLanguage } from "./utils/LanguageContext";
 import { toEnDigits } from "./utils/translations";
@@ -173,6 +174,11 @@ function AppContent() {
   const [showAddDeposit, setShowAddDeposit] = useState(false);
   const [showAddMember, setShowAddMember] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
+  // Auto-opened right after a new member is registered so the admin can
+  // immediately create/link that member's login — keeps every new member
+  // from silently ending up without a linked login the way earlier members
+  // sometimes did.
+  const [newMemberUidForLogin, setNewMemberUidForLogin] = useState<string | null>(null);
   const [showAddBank, setShowAddBank] = useState(false);
   const [showAddInvest, setShowAddInvest] = useState(false);
   const [showAddFundIncome, setShowAddFundIncome] = useState(false);
@@ -258,7 +264,8 @@ function AppContent() {
     showChangePassword ||
     showMyProfile ||
     viewingReceiptDeposit ||
-    showExitModal
+    showExitModal ||
+    newMemberUidForLogin
   );
 
   useEffect(() => {
@@ -286,6 +293,7 @@ function AppContent() {
     showAddDeposit,
     showAddMember,
     editingMember,
+    newMemberUidForLogin,
     showSettingsModal,
     showAboutUs,
     showLogoUpload,
@@ -311,6 +319,7 @@ function AppContent() {
       showAddDeposit,
       showAddMember,
       editingMember,
+      newMemberUidForLogin,
       showSettingsModal,
       showAboutUs,
       showLogoUpload,
@@ -354,6 +363,10 @@ function AppContent() {
     }
     if (s.showAddMember) {
       setShowAddMember(false);
+      return;
+    }
+    if (s.newMemberUidForLogin) {
+      setNewMemberUidForLogin(null);
       return;
     }
     if (s.showSettingsModal) {
@@ -1784,7 +1797,23 @@ function AppContent() {
           onSubmit={(entry) => {
             addMember(entry);
             setShowAddMember(false);
+            // Immediately offer to create/link this member's login so no
+            // newly-added member is left without one (the admin can still
+            // close it and do this later from Settings if they prefer).
+            if (auth.authEnabled) {
+              setNewMemberUidForLogin(entry.uid);
+            }
           }}
+        />
+      )}
+
+      {newMemberUidForLogin && (
+        <MemberLoginManager
+          members={members}
+          settings={settings}
+          initialMemberUid={newMemberUidForLogin}
+          newMemberPrompt
+          onClose={() => setNewMemberUidForLogin(null)}
         />
       )}
 
